@@ -13,6 +13,8 @@ Run these commands from this repository with Node.js 22.5 or later and pnpm 10.1
 | `pnpm dev:desktop` | Run the Host, browser app, and Electron operator window |
 | `pnpm test` | Run unit tests once |
 | `pnpm build` | Type-check and build Host and browser bundles |
+| `pnpm package:mac` | Build a local Apple-silicon `.app` under `release/mac-arm64/` |
+| `pnpm package:mac:dmg` | Build an Apple-silicon installation disk image under `release/` |
 | `pnpm check` | Run formatting/lint checks, tests, and production builds |
 | `pnpm format` | Format supported project files |
 
@@ -33,6 +35,7 @@ iPad display ────┘                     │
 - `src/camera/` — replaceable camera adapters. Only the simulator exists in Phase 0.
 - `src/shared/` — product catalog, permissions, session state machine, and wire messages.
 - `electron/` — desktop window wrapper for the operator surface.
+- `assets/brand/` — owner-supplied Wander Press source artwork and documented color tokens.
 - `docs/` — product, hardware, operating-mode, and architecture decisions.
 - `data/` — private runtime database and generated media; ignored by Git.
 
@@ -46,6 +49,7 @@ The Host is authoritative. Every screen sends a command, the Host applies role a
 - Delivery: branded local files work; cloud upload, QR generation, and 30-day expiry are not implemented yet.
 - Printing: 2×6 artwork is rendered at 600×1800 pixels and 300 DPI, but Epson L8050 queue control is not implemented yet.
 - Authentication: local prototype roles are screen-based, not authenticated accounts.
+- Distribution: the current Mac build is unsigned and intended only for this development machine. Public downloads will require Apple Developer signing and notarization.
 
 ## Safety rules
 

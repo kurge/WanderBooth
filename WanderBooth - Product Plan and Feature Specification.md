@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 0.6.0
+document_version: 0.6.1
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -105,7 +105,7 @@ The business should be able to keep serving customers during internet interrupti
 - A remote web dashboard is useful but is not required for the first release.
 - Product development must be carefully documented and version-controlled.
 - Documentation must remain understandable to a non-developer.
-- Initial visual direction uses original placeholder WanderBooth artwork informed by [Wander Press PH](https://www.facebook.com/wanderpressph/): lemon yellow, royal blue, and playful pastel shapes. Final brand assets can replace it without changing the workflow.
+- The owner supplied the working Wander Press PH logo set. Phase 0 uses its measured palette: Wander blue, splash lime, pop yellow, signature cream, press orange, and shadow purple. The original 6000×6000 source PNGs remain unchanged and separately documented.
 - The public source repository is **[kurge/WanderBooth](https://github.com/kurge/WanderBooth)**.
 - The public repository remains under default copyright for now; an open-source license may be selected later.
 
@@ -133,6 +133,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - A development-only camera simulator exercises capture and two-retake behavior safely.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
+- A packaged Apple-silicon `WanderBooth.app` and verified DMG can be launched without developer commands on the starting Mac.
 
 This checkpoint is not yet a pilot release. Real camera capture, Epson printing, cloud upload, QR generation, the 30-day download page, and automatic retention cleanup are still required.
 
@@ -893,7 +894,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 2. What print quantity will be included with the first 2×6 product? PHP prices may remain blank until the business decides them.
 3. What arrangement should the first 4×6 product use?
-4. Who will supply the final 5–10 layout/design assets? The prototype uses original placeholder branding based on the Wander Press PH visual direction.
+4. Who will design the final 5–10 production layouts using the supplied Wander Press PH identity?
 
 ### Pilot timing
 
@@ -931,6 +932,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 0.6.1 | 2026-10-02 | Imported the owner-supplied Wander Press PH source artwork, documented exact brand tokens, replaced placeholder colors, and added a verified double-clickable Mac application and DMG build. |
 | 0.6.0 | 2026-10-02 | Confirmed the starting MacBook Host, X-M5 and built-in-camera order, first three-photo 2×6 product, iPad screen, no on-screen price, placeholder brand direction, and the first working local prototype checkpoint. |
 | 0.5.1 | 2026-10-02 | Confirmed iPad-first and future-touchscreen display support, second-monitor attended presentation, read-only customer photo review, operator-controlled replacement, and product/layout-derived capture counts. |
 | 0.5.0 | 2026-10-02 | Added Attendant-Operated and Self-Service modes with distinct control ownership, screen behavior, permissions, photo replacement/style rules, and operator/customer workflows. |

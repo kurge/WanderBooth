@@ -27,7 +27,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **0.6.0 — Phase 0 Foundation**
+- Product-plan version: **0.6.1 — Packaged Mac Build and Supplied Branding**
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
 - First prototype: **three-photo vertical 2×6 strip**, iPad customer screen, no on-screen price
@@ -49,8 +49,18 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Local SQLite state and event history so the Host remains authoritative.
 - Three branded individual PNGs, a 600×1800-pixel 2×6 strip at 300 DPI, and an MP4 slideshow.
 - Synthetic camera output for safe development without customer images.
+- A double-clickable Apple-silicon Mac application and local DMG build.
+- Supplied Wander Press PH artwork and exact blue, lime, yellow, cream, orange, and purple brand tokens.
 
 The prototype does **not** yet control the MacBook camera or X-M5, print to the Epson L8050, upload to cloud storage, or generate the private 30-day QR page. These are explicit upcoming milestones rather than hidden assumptions.
+
+## Open the app on this Mac
+
+The current local installation image is generated at `release/WanderBooth-0.1.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
+
+This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
+
+The generated application and DMG stay in the ignored `release/` directory and are not pushed to the public repository. Their source and repeatable build commands are version-controlled.
 
 ## Developer quick start
 
@@ -70,6 +80,7 @@ pnpm test        # workflow rules
 pnpm build       # production type-check and build
 pnpm check       # lint, test, and build together
 pnpm smoke       # full synthetic session; requires the Host to be running
+pnpm package:mac # create the local double-clickable Mac application
 ```
 
-Generated photos and the local database stay under the ignored `data/` directory. See [AGENTS.md](AGENTS.md) for the code map and development rules.
+Generated photos and the local database stay under the ignored `data/` directory. The supplied artwork and color map are documented in [assets/brand/README.md](assets/brand/README.md). See [AGENTS.md](AGENTS.md) for the code map and development rules.

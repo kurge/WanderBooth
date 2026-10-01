@@ -2,6 +2,7 @@
   "name": "wanderbooth",
   "version": "0.1.0",
   "private": true,
+  "author": "Wander Press PH",
   "description": "Offline-first photo booth host and customer experience for Wander Press PH.",
   "type": "module",
   "main": "electron/main.cjs",
@@ -24,6 +25,8 @@
     "build": "pnpm build:host && pnpm build:web",
     "build:host": "tsc -p tsconfig.host.json",
     "build:web": "tsc -b tsconfig.web.json && vite build",
+    "package:mac": "pnpm build && electron-builder --mac dir --arm64",
+    "package:mac:dmg": "pnpm build && electron-builder --mac dmg --arm64",
     "start:host": "node dist-host/host/server.js",
     "start:desktop": "electron electron/main.cjs",
     "smoke": "node scripts/smoke-session.mjs",
@@ -50,11 +53,39 @@
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
     "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
     "jsdom": "^30.1.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
     "vitest": "^5.0.3",
     "wait-on": "^9.5.1"
+  },
+  "build": {
+    "appId": "ph.wanderpress.wanderbooth",
+    "productName": "WanderBooth",
+    "copyright": "Copyright © 2026 Wander Press PH. All rights reserved.",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/@img/**/*",
+      "node_modules/sharp/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-host/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.photography",
+      "icon": "assets/brand/source/wander-press-splash-shadow.png",
+      "identity": null,
+      "extendInfo": {
+        "NSCameraUsageDescription": "WanderBooth uses the selected camera to take guest photos."
+      }
+    }
   }
 }

@@ -26,6 +26,30 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 0.6.1 — 2026-10-02
+
+### Fixed
+
+- Closed the gap between a developer-only Electron command and an application the owner can actually open. WanderBooth now builds as a double-clickable Apple-silicon `.app` and normal Mac DMG.
+- Made slideshow generation find the existing Homebrew FFmpeg binary even when WanderBooth launches from Finder without a Terminal PATH.
+
+### Added
+
+- Imported all seven owner-supplied Wander Press PH source PNGs with descriptive filenames while preserving their pixels and original 6000×6000 resolution.
+- Documented the measured brand palette and asset usage rules.
+- Applied the supplied splash mark and brand colors to the operator and customer interfaces, prototype designs, and simulated photos.
+- Added repeatable `package:mac` and `package:mac:dmg` commands, application metadata, a camera privacy explanation, and a local app icon.
+
+### Verified
+
+- Launched the packaged application by opening `WanderBooth.app`; the local Host connected successfully.
+- Completed the packaged-app smoke session, including three branded photos, the 2×6 strip, and slideshow.
+- Verified the generated DMG checksum.
+
+### Known distribution boundary
+
+- The current Mac build is unsigned and intended for the starting development Mac. Public distribution requires Apple Developer signing and notarization.
+
 ## 0.6.0 — 2026-10-02
 
 ### Confirmed

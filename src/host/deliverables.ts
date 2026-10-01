@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 
@@ -108,7 +109,11 @@ async function createStrip(input: {
 
 const runFfmpeg = (arguments_: string[]) =>
   new Promise<void>((resolvePromise, reject) => {
-    const child = spawn("ffmpeg", arguments_, { stdio: ["ignore", "ignore", "pipe"] });
+    const executable =
+      process.env.WANDERBOOTH_FFMPEG_PATH ??
+      ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"].find((path) => existsSync(path)) ??
+      "ffmpeg";
+    const child = spawn(executable, arguments_, { stdio: ["ignore", "ignore", "pipe"] });
     let errors = "";
     child.stderr.on("data", (chunk) => {
       errors += chunk.toString();

@@ -1,8 +1,8 @@
 # WanderBooth Hardware Baseline
 
-**Status:** Discovery
+**Status:** Phase 0 testing
 
-**Version:** 0.3.2
+**Version:** 0.4.0
 
 **Updated:** 2026-10-02
 
@@ -12,17 +12,19 @@ This document records the hardware already available for WanderBooth, the suppor
 
 | Role | Device | Current decision |
 |---|---|---|
-| Host computer | Exact computer, CPU, memory, and storage not yet supplied | Must choose Windows 11 or macOS Sequoia 15.7.5+ for the first pilot |
+| Starting Host computer | MacBook Pro (model identifier Mac15,6), Apple M3 Pro with 11-core CPU, 18 GB memory, macOS Sequoia 15.7.5 | Confirmed Phase 0 development and first-pilot candidate; not yet field-certified |
 | First Self-Service touchscreen/camera | iPad Pro 12.9-inch (6th generation), iPadOS 18.2 | Confirmed interactive client, optional display-only client, and optional camera source |
 | Attendant-Operated customer display | Second monitor connected to the Host or iPad in display-only mode | Support both options in the first pilot |
 | Future Self-Service touchscreen | Dedicated touchscreen model not yet selected | Must run the same responsive customer client; evaluate when purchased |
 | Dedicated camera | Canon EOS 60D | Owned secondary integration target |
 | Recommended first dedicated camera | Fujifilm X-M5 | Run the first brand/model-specific Phase 0 control test |
-| Host built-in camera | Depends on the selected Windows/Mac computer | Treat through the standard webcam adapter |
+| Host built-in camera | Built-in camera on the starting MacBook Pro | Next camera adapter; treat through the standard browser/webcam interface |
 | External webcam | Any standard USB/UVC device supplied later | Detect generically, then certify individual models as needed |
 | Printer | Epson EcoTank L8050 | First-pilot printer |
 | Host/iPad network | Venue Wi-Fi, mobile hotspot, or phone hotspot | Exact first-pilot setup not selected; dedicated travel router is optional |
 | Guest delivery | Customer's mobile data or any internet connection | Cloud QR link; guest does not join WanderBooth Wi-Fi |
+
+At the start of Phase 0 the Mac had approximately 25 GiB of free storage. That is adequate for development but too little to assume safe event operation without storage monitoring and 30-day cleanup. Before the first live pilot, measure real session size and reserve enough space for the expected event plus a recovery margin. Machine serial numbers, UUIDs, and personal device identifiers are intentionally excluded from this public repository.
 
 ## Camera findings
 

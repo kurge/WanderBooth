@@ -12,7 +12,7 @@ updated: 2026-10-02
 
 # WanderBooth — Changelog
 
-This note records material changes to WanderBooth's product definition and documentation. Application release changes will use this same repository and changelog once coding begins.
+This note records material changes to WanderBooth's product definition, application, and documentation.
 
 The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic versions.
 
@@ -20,14 +20,34 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 ### Pending decisions
 
-- First pilot Host OS: Windows 11 or macOS Sequoia 15.7.5+
-- Exact first pilot computer model, CPU, memory, and storage
-- Confirmation that the Fujifilm X-M5 is the first dedicated camera to certify, followed by the Canon EOS 60D
 - Normal Host/iPad connection: venue Wi-Fi, mobile hotspot, or phone hotspot
-- Initial products, quantities, and PHP prices
-- Exact 4×6 layout and confirmation that the three-photo vertical 2×6 strip is the default strip product
-- Source of the first 5–10 design assets and branding
+- First 2×6 print quantity and PHP price
+- Exact first 4×6 layout
+- Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
+
+## 0.6.0 — 2026-10-02
+
+### Confirmed
+
+- Phase 0 starts on the local MacBook Pro (Mac15,6), Apple M3 Pro with 11-core CPU, 18 GB memory, and macOS 15.7.5.
+- The MacBook camera is the first real camera adapter; the Fujifilm X-M5 is the first dedicated-camera integration target.
+- The first implemented product is a three-photo vertical 2×6 strip shown on the iPad customer screen.
+- Price remains off-screen and can be presented on a physical menu.
+- Placeholder visuals use an original lemon-yellow, royal-blue, and pastel WanderBooth treatment informed by Wander Press PH.
+
+### Added
+
+- React operator and customer surfaces for Attendant-Operated and Self-Service modes.
+- A local WebSocket Host, SQLite state/event persistence, and server-enforced permissions.
+- A safe synthetic camera adapter for developing the full session before real-camera integration.
+- Cash-before-capture, product/layout-derived capture count, two retakes, review, design change, approval, and synchronized displays.
+- Rendering for three branded individual PNGs, a 600×1800-pixel 2×6 strip at 300 DPI, and an MP4 slideshow.
+- Unit tests, a repeatable end-to-end smoke session, linting, formatting, production builds, and developer documentation.
+
+### Deferred from this checkpoint
+
+- Real MacBook and Fujifilm capture, Epson L8050 print submission, private cloud upload, QR generation, 30-day delivery/cleanup, and a production owner area.
 
 ## 0.5.1 — 2026-10-02
 

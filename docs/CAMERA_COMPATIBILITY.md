@@ -1,8 +1,8 @@
 # WanderBooth Camera Compatibility Matrix
 
-**Status:** Discovery
+**Status:** Phase 0 testing
 
-**Version:** 0.1.1
+**Version:** 0.2.0
 
 **Updated:** 2026-10-02
 
@@ -23,10 +23,11 @@ This matrix is the source of truth for which camera sources WanderBooth can safe
 |---|---|---|---|---|---|---|---|---|
 | Fujifilm X-M5 | Dedicated camera | Planned | Planned | Not tested | Not tested | None yet | Planned | Recommended first dedicated-camera test; direct control still needs proof |
 | Canon EOS 60D | Dedicated camera | Planned | Planned | Not tested | Not tested | None yet | Planned | Owned secondary target; watched-folder bridge may be required |
-| Host built-in camera | Standard video device | Planned | Planned | Not tested | Not tested | None yet | Planned | Exact computer and camera are not selected |
+| Starting MacBook Pro built-in camera | Standard video device | Not applicable | In progress | Not tested | Not tested | None yet | Experimental | Exact Host is selected; browser camera adapter is the next implementation task |
 | USB/UVC webcam | Standard video device | Planned | Planned | Not tested | Not tested | None yet | Planned | Exact webcam model is not selected |
 | iPad Pro front camera | iPad camera | Not applicable | Not applicable | Not tested | Not tested | None yet | Planned | Captures in WanderBooth Touch and transfers to Host |
 | iPad Pro rear camera | iPad camera | Not applicable | Not applicable | Not tested | Not tested | None yet | Planned | Evaluate as the preferred iPad source for quality |
+| Prototype simulator | Development-only adapter | Same code path | Passed | Not applicable | Passed | Synthetic sessions only | Experimental | Proves three captures, persistence, 2×6 rendering, and slideshow generation without customer media |
 
 ## Certification record template
 

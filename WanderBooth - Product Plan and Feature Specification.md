@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 0.5.1
+document_version: 0.6.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -33,7 +33,7 @@ It is written so that a non-developer can understand:
 - which features are intentionally postponed;
 - how the application will work at a high level;
 - how development changes will be documented and versioned; and
-- what decisions must be made before coding begins.
+- what decisions remain as implementation continues.
 
 When a product decision changes, update this document and record the change in [[WanderBooth - Changelog]].
 
@@ -71,6 +71,7 @@ The business should be able to keep serving customers during internet interrupti
 - WanderBooth is initially for our own business.
 - The application must be offline-first.
 - The desktop Host will target **Windows 11** and **macOS Sequoia 15.7.5 or later**.
+- Phase 0 starts on a **MacBook Pro (Mac15,6) with an Apple M3 Pro, 18 GB memory, and macOS Sequoia 15.7.5**.
 - An **iPad Pro 12.9-inch (6th generation) running iPadOS 18.2** will be the first Self-Service touchscreen and can also be an attended display-only screen or optional camera source.
 - A future dedicated touchscreen must be able to replace the iPad without changing the Self-Service workflow.
 - Attendant-Operated mode supports either the iPad/future touchscreen in display-only mode or a normal second monitor connected to the Host.
@@ -94,6 +95,7 @@ The business should be able to keep serving customers during internet interrupti
 - A three-photo strip session will provide three separately downloadable branded photos, the final branded strip, and a looping slideshow video with each photo shown for approximately 1.5 seconds.
 - Customers receive up to **two retakes**.
 - Initial print formats are **4×6** and **2×6 photo strips**.
+- The first implemented product is a **three-photo vertical 2×6 strip**. The 4×6 product follows after the first workflow is proven.
 - The first pilot will include approximately **5–10 layouts/designs**.
 - Available camera hardware: **Canon EOS 60D** and **Fujifilm X-M5**.
 - WanderBooth must offer a camera-source selector that is available only to the owner or attendant. Customers cannot change the active camera source.
@@ -103,6 +105,7 @@ The business should be able to keep serving customers during internet interrupti
 - A remote web dashboard is useful but is not required for the first release.
 - Product development must be carefully documented and version-controlled.
 - Documentation must remain understandable to a non-developer.
+- Initial visual direction uses original placeholder WanderBooth artwork informed by [Wander Press PH](https://www.facebook.com/wanderpressph/): lemon yellow, royal blue, and playful pastel shapes. Final brand assets can replace it without changing the workflow.
 - The public source repository is **[kurge/WanderBooth](https://github.com/kurge/WanderBooth)**.
 - The public repository remains under default copyright for now; an open-source license may be selected later.
 
@@ -112,12 +115,26 @@ See [Operation Modes](docs/OPERATION_MODES.md) for the detailed permissions and 
 
 ### Proposed decisions awaiting confirmation
 
-- The exact first-pilot Host computer and its operating system, processor, memory, and storage still need to be selected.
 - The Host will be an installable desktop application and will serve the responsive booth interface to the iPad or future touchscreen over a shared local connection; it can also open a read-only presentation on a directly connected second monitor.
-- The **Fujifilm X-M5 is the recommended first dedicated camera to certify** because it is the newer tether-capable option; the Canon EOS 60D remains an owned secondary target.
-- A generic webcam or built-in computer camera and the iPad camera will be used to prove that the shared camera-source interface is not tied to one camera brand.
+- The **Fujifilm X-M5 is the first dedicated camera to certify** because it is the newer tether-capable option; the Canon EOS 60D remains an owned secondary target.
+- The starting MacBook camera is the first real camera adapter. The iPad camera will then prove that the shared interface is not tied to a camera physically attached to the Host.
 - Essential administration—products, prices, sessions, settings, and local sales—will be inside a PIN-protected owner area.
 - The Host and networked customer device may share venue Wi-Fi or a personal/mobile hotspot. A dedicated router is optional unless field testing shows it is needed for reliability.
+
+### Phase 0 implementation checkpoint
+
+The first working foundation now exists on the `codex/phase-0-foundation` branch:
+
+- React operator and customer surfaces synchronize through a local WebSocket Host.
+- Host-side permissions enforce the difference between Attendant-Operated and Self-Service modes.
+- The selected 2×6 layout fixes the session at three captures.
+- Cash confirmation is staff-only and occurs before capture; no price appears on screen.
+- Session state and command history persist in a local SQLite database.
+- A development-only camera simulator exercises capture and two-retake behavior safely.
+- Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
+- Unit tests and a repeatable end-to-end smoke session verify the current workflow.
+
+This checkpoint is not yet a pilot release. Real camera capture, Epson printing, cloud upload, QR generation, the 30-day download page, and automatic retention cleanup are still required.
 
 ### Why the first release uses a desktop Host and reusable customer client
 
@@ -696,7 +713,7 @@ Tasks:
 
 - Confirm initial products and PHP prices when the business is ready.
 - Use the iPad as the first Self-Service touchscreen, test both iPad and second-monitor display-only attended presentations, and keep the customer client responsive for a future dedicated touchscreen.
-- Choose the first pilot Host operating system and record its exact computer model, processor, memory, and storage.
+- Use the confirmed MacBook Pro and record storage requirements as real session files are measured.
 - Test the Fujifilm X-M5 as the recommended first dedicated camera: tethering, live view, trigger control, and transfer speed. Test the Canon EOS 60D next or use it as a fallback if the X-M5 path fails.
 - Define the shared camera-source contract and implement three feasibility adapters: dedicated camera, standard webcam/built-in camera, and iPad camera.
 - Test Epson L8050 print sizes, margins, speed, quality, paper handling, and failure recovery.
@@ -704,8 +721,8 @@ Tasks:
 - Test Host-to-iPad control over the expected venue Wi-Fi or mobile-hotspot setup.
 - Prototype camera selection, readiness checks, preview, capture, and source switching before a session starts.
 - Prototype operation-mode selection, the laptop operator console, the read-only customer display, and the interactive Self-Service touch flow.
-- Prototype the three individual branded photos, 2×6 composite strip, and looping MP4 slideshow.
-- Prototype the iPad-to-Host control connection.
+- Refine the working prototype for three individual branded photos, a 2×6 composite strip, and an MP4 slideshow.
+- Test the working browser-to-Host control connection from the physical iPad.
 - Prototype queued upload to private cloud storage and a 30-day mobile download page.
 - Verify that capture and printing continue with internet disconnected and that the upload completes after reconnection.
 
@@ -870,21 +887,17 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 ### Hardware
 
-1. Confirm the Fujifilm X-M5 as the first dedicated camera to certify, followed by the Canon EOS 60D. Webcam/built-in and iPad-camera adapters will be tested alongside it.
-2. Should the first pilot Host run Windows 11 or macOS Sequoia 15.7.5+?
-3. What is the exact first-pilot computer model, processor, memory, and available storage?
-4. Will the Host and iPad normally share venue Wi-Fi, a dedicated mobile hotspot, or a phone hotspot?
+1. Will the Host and iPad normally share venue Wi-Fi, a dedicated mobile hotspot, or a phone hotspot?
 
 ### Products and design
 
-5. What will the first products and print quantities be? PHP prices may remain blank until the business decides them.
-6. Is the three-photo vertical 2×6 strip the default multi-photo product, and what arrangement should the first 4×6 product use?
-7. Who will supply the first 5–10 layout/design assets and WanderBooth branding?
-8. Confirm the working assumption that each separately downloadable individual photo also carries WanderBooth/event branding.
+2. What print quantity will be included with the first 2×6 product? PHP prices may remain blank until the business decides them.
+3. What arrangement should the first 4×6 product use?
+4. Who will supply the final 5–10 layout/design assets? The prototype uses original placeholder branding based on the Wander Press PH visual direction.
 
 ### Pilot timing
 
-9. Replace “a few months from now” with a target month or event once it is known.
+5. Replace “a few months from now” with a target month or event once it is known.
 
 ## 17. Plain-language glossary
 
@@ -918,6 +931,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 0.6.0 | 2026-10-02 | Confirmed the starting MacBook Host, X-M5 and built-in-camera order, first three-photo 2×6 product, iPad screen, no on-screen price, placeholder brand direction, and the first working local prototype checkpoint. |
 | 0.5.1 | 2026-10-02 | Confirmed iPad-first and future-touchscreen display support, second-monitor attended presentation, read-only customer photo review, operator-controlled replacement, and product/layout-derived capture counts. |
 | 0.5.0 | 2026-10-02 | Added Attendant-Operated and Self-Service modes with distinct control ownership, screen behavior, permissions, photo replacement/style rules, and operator/customer workflows. |
 | 0.4.1 | 2026-10-02 | Confirmed that camera-source selection is restricted to the owner or attendant and is not shown in the customer-facing flow. |

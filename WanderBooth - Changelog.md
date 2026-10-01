@@ -25,6 +25,22 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.6.1 — 2026-10-02
+
+### Changed
+
+- Reorganized the Template Gallery product choices so the custom 4×6 option spans the full row instead of appearing as a crowded orphan card.
+- Added a clearly separated **Canvas orientation** step for custom templates and a **Photo arrangement** step for built-in products.
+- Reduced and rebalanced the custom portrait/landscape cards, thumbnails, gaps, and selected-state spacing while keeping comfortable touch targets.
+- Preserved a single-column responsive layout for the iPad and other narrow displays.
+
+### Verified
+
+- Visually checked both custom orientations in the live operator Template Gallery at the normal desktop width.
+- Visually checked the same selection flow below the 820 px responsive breakpoint.
+- Confirmed all 37 automated tests, formatting, type checks, Host build, and customer-app build pass.
+- Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.11.1-arm64.dmg` installation image (SHA-256 `29044f3c5ffeabf53b4c07d8d5967393654a76c05033aada201029a1c40c5c92`).
+
 ## 1.6.0 — 2026-10-02
 
 ### Added

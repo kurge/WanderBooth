@@ -23,7 +23,9 @@ All visual testing used synthetic artwork and a separate temporary runtime. No o
 | Simulator session | Pass; three shots filled four holders as `1, 1, 2, 3` |
 | Full-resolution export | Pass; 1200×1800 PNG repeated Capture 1 and rendered Captures 2–3 once each |
 | Deliverable set | Pass; three branded individuals, custom composite, and looping slideshow |
-| Installation image | Pass; `WanderBooth-0.11.0-arm64.dmg`, 133 MB, valid disk-image checksum |
+| Installation image | Pass; `WanderBooth-0.11.1-arm64.dmg`, 133 MB, valid disk-image checksum; SHA-256 `29044f3c5ffeabf53b4c07d8d5967393654a76c05033aada201029a1c40c5c92` |
+| Template Gallery hierarchy | Pass; custom product occupies its own row and orientation choices sit in a labeled, separated step |
+| Responsive spacing | Pass; verified at the normal operator width and below the 820 px single-column breakpoint |
 
 ## Notes
 

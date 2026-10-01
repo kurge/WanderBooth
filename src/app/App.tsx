@@ -1172,9 +1172,9 @@ function TemplateGalleryPanel({
         <div className="product-grid product-grid--compact">
           {products.map((product) => (
             <button
-              className={
-                productId === product.id ? "catalog-card catalog-card--selected" : "catalog-card"
-              }
+              className={`catalog-card ${
+                productId === product.id ? "catalog-card--selected" : ""
+              } ${product.templateOnly ? "catalog-card--custom-product" : ""}`}
               type="button"
               key={product.id}
               onClick={() => {
@@ -1188,15 +1188,27 @@ function TemplateGalleryPanel({
             </button>
           ))}
         </div>
-        <div className="layout-grid layout-grid--compact">
+        <div className="template-layout-heading">
+          <small>{isCustomLayoutId(layoutId) ? "Canvas orientation" : "Photo arrangement"}</small>
+          <h3>
+            {isCustomLayoutId(layoutId)
+              ? "Choose portrait or landscape"
+              : "Choose the photo layout"}
+          </h3>
+        </div>
+        <div
+          className={`layout-grid layout-grid--compact ${
+            isCustomLayoutId(layoutId) ? "layout-grid--orientation" : ""
+          }`}
+        >
           {(selectedProduct?.layoutIds ?? [])
             .map((id) => getLayout(id))
             .filter((layout): layout is Layout => Boolean(layout))
             .map((layout) => (
               <button
-                className={
-                  layoutId === layout.id ? "layout-card layout-card--selected" : "layout-card"
-                }
+                className={`layout-card ${
+                  layoutId === layout.id ? "layout-card--selected" : ""
+                } ${isCustomLayoutId(layout.id) ? "layout-card--orientation" : ""}`}
                 type="button"
                 key={layout.id}
                 onClick={() => {

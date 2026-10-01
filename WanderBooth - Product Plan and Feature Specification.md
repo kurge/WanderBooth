@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.6.0
+document_version: 1.6.1
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge

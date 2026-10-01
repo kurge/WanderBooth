@@ -38,6 +38,18 @@ const database = new BoothDatabase(dataDirectory);
 const defaultState = initialBoothState();
 const savedState = database.loadState();
 const savedCustomOverlays = savedState?.customOverlays ?? [];
+const savedTemplates = (savedState?.savedTemplates ?? []).map((template) => ({
+  ...template,
+  frameTransform: normalizeMediaTransform(template.frameTransform),
+  holderTransforms: (template.holderTransforms ?? []).map(({ slot, ...transform }) => ({
+    slot,
+    ...normalizeMediaTransform(transform),
+  })),
+  photoTransforms: (template.photoTransforms ?? []).map(({ slot, ...transform }) => ({
+    slot,
+    ...normalizePhotoTransform(transform),
+  })),
+}));
 const savedOverlay = savedState
   ? getOverlay(savedState.overlayId ?? "none", savedCustomOverlays)
   : null;
@@ -48,12 +60,15 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 9,
+      schemaVersion: 10,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
       overlayId: savedState.overlayId ?? "none",
       customOverlays: savedCustomOverlays,
+      savedTemplates,
+      selectedTemplateId: savedState.selectedTemplateId ?? null,
+      templateEditor: savedState.templateEditor ?? null,
       frameMode: savedFrameMode,
       designId: savedFrameMode === "custom" ? null : savedState.designId,
       frameTransform: normalizeMediaTransform(savedState.frameTransform),
@@ -227,7 +242,7 @@ const headerValue = (request: IncomingMessage, name: string) => {
 };
 
 const receiveOverlayImport = async (request: IncomingMessage, response: ServerResponse) => {
-  if (!["idle", "selecting", "reviewing"].includes(state.phase)) {
+  if (!["idle", "template_gallery", "selecting", "reviewing"].includes(state.phase)) {
     throw new CommandError("Import designs before payment, or while reviewing the photos.");
   }
 
@@ -278,11 +293,14 @@ const overlayPathFromMediaUrl = (mediaUrl: string) => {
 };
 
 const receiveOverlayDelete = async (overlayId: string, response: ServerResponse) => {
-  if (!["idle", "selecting", "reviewing"].includes(state.phase)) {
+  if (!["idle", "template_gallery", "selecting", "reviewing"].includes(state.phase)) {
     throw new CommandError("Delete imported frames before payment, or while reviewing photos.");
   }
   const overlay = state.customOverlays.find((item) => item.id === overlayId);
   if (!overlay) throw new CommandError("That imported frame is no longer available.");
+  if (state.savedTemplates.some((template) => template.overlayId === overlay.id)) {
+    throw new CommandError("Delete templates using this artwork before deleting the artwork.");
+  }
 
   const files = new Set([overlay.mediaUrl, overlay.sourceMediaUrl].filter(Boolean) as string[]);
   await Promise.all(

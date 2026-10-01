@@ -37,6 +37,78 @@ const completeSelection = (mode: "attendant" | "self_service" = "attendant") => 
   return reduceCommand(state, { type: "SUBMIT_SELECTION" }, actor);
 };
 
+const createSavedTemplate = () => {
+  let state = reduceCommand(
+    initialBoothState(),
+    { type: "REGISTER_CUSTOM_OVERLAY", overlay: customOverlay },
+    "system",
+  );
+  state = reduceCommand(state, { type: "OPEN_TEMPLATE_GALLERY" }, "attendant");
+  state = reduceCommand(
+    state,
+    {
+      type: "BEGIN_TEMPLATE_CREATE",
+      name: "Test Double Strip",
+      productId: "three-photo-strip",
+      layoutId: "double-strip-4x6",
+      overlayId: customOverlay.id,
+    },
+    "attendant",
+  );
+  state = reduceCommand(
+    state,
+    {
+      type: "UPDATE_FRAME_TRANSFORM",
+      transform: {
+        offsetX: 0.04,
+        offsetY: -0.03,
+        scaleX: 1.05,
+        scaleY: 0.95,
+        rotation: 2,
+        locked: true,
+      },
+    },
+    "attendant",
+  );
+  state = reduceCommand(
+    state,
+    {
+      type: "UPDATE_HOLDER_TRANSFORM",
+      slot: 1,
+      transform: {
+        offsetX: 0.08,
+        offsetY: 0.05,
+        scaleX: 1.15,
+        scaleY: 0.82,
+        rotation: -3,
+        locked: true,
+      },
+    },
+    "attendant",
+  );
+  state = reduceCommand(
+    state,
+    {
+      type: "UPDATE_PHOTO_TRANSFORM",
+      slot: 1,
+      transform: {
+        offsetX: -0.1,
+        offsetY: 0.12,
+        scaleX: 1.3,
+        scaleY: 1.3,
+        rotation: 4,
+        locked: false,
+      },
+    },
+    "attendant",
+  );
+  return reduceCommand(
+    state,
+    { type: "SAVE_TEMPLATE", templateId: "saved-template-1", name: "Test Double Strip" },
+    "attendant",
+  );
+};
+
 describe("WanderBooth session rules", () => {
   it("migrates legacy uniform transforms into the direct editor model", () => {
     expect(normalizeMediaTransform({ offsetX: 0.1, offsetY: -0.2, scale: 1.4 })).toEqual({
@@ -333,6 +405,116 @@ describe("WanderBooth session rules", () => {
         "customer",
       ),
     ).toThrow("staff-only");
+  });
+
+  it("lets staff align numbered placeholders and save them as a reusable template", () => {
+    const state = createSavedTemplate();
+    expect(state.phase).toBe("template_gallery");
+    expect(state.savedTemplates).toHaveLength(1);
+    expect(state.savedTemplates[0]).toMatchObject({
+      id: "saved-template-1",
+      name: "Test Double Strip",
+      productId: "three-photo-strip",
+      layoutId: "double-strip-4x6",
+      overlayId: customOverlay.id,
+      approved: true,
+      frameTransform: { scaleX: 1.05, scaleY: 0.95, locked: true },
+      holderTransforms: [{ slot: 1, scaleX: 1.15, scaleY: 0.82, locked: true }],
+      photoTransforms: [{ slot: 1, scaleX: 1.3, scaleY: 1.3 }],
+    });
+    expect(state.captures).toEqual([]);
+  });
+
+  it("lets a self-service guest apply a saved template before capture", () => {
+    let state = createSavedTemplate();
+    state = reduceCommand(state, { type: "CLOSE_TEMPLATE_GALLERY" }, "attendant");
+    state = reduceCommand(state, { type: "SET_MODE", mode: "self_service" }, "attendant");
+    state = reduceCommand(
+      state,
+      { type: "BEGIN_SESSION", sessionId: "template-session" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_TEMPLATE", templateId: "saved-template-1" },
+      "customer",
+    );
+
+    expect(state.selectedTemplateId).toBe("saved-template-1");
+    expect(state.requiredCaptureCount).toBe(6);
+    expect(state.overlayId).toBe(customOverlay.id);
+    expect(state.frameTransform.locked).toBe(true);
+    expect(state.holderTransforms[0]).toMatchObject({ slot: 1, scaleY: 0.82 });
+    expect(state.photoTransforms[0]).toMatchObject({ slot: 1, offsetX: -0.1 });
+  });
+
+  it("supports both Save changes and Save as new without losing the original", () => {
+    let state = createSavedTemplate();
+    state = reduceCommand(
+      state,
+      { type: "BEGIN_TEMPLATE_EDIT", templateId: "saved-template-1" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SAVE_TEMPLATE", templateId: "saved-template-1", name: "Updated Strip" },
+      "attendant",
+    );
+    expect(state.savedTemplates).toHaveLength(1);
+    expect(state.savedTemplates[0].name).toBe("Updated Strip");
+
+    state = reduceCommand(
+      state,
+      { type: "BEGIN_TEMPLATE_EDIT", templateId: "saved-template-1" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SAVE_TEMPLATE", templateId: "saved-template-2", name: "Copied Strip" },
+      "attendant",
+    );
+    expect(state.savedTemplates.map((template) => template.name)).toEqual([
+      "Copied Strip",
+      "Updated Strip",
+    ]);
+    expect(state.savedTemplates.map((template) => template.id)).toContain("saved-template-1");
+  });
+
+  it("protects artwork used by a template and leaves it available after template deletion", () => {
+    let state = createSavedTemplate();
+    expect(() =>
+      reduceCommand(
+        state,
+        { type: "DELETE_CUSTOM_OVERLAY", overlayId: customOverlay.id },
+        "system",
+      ),
+    ).toThrow("Delete templates using this artwork");
+
+    state = reduceCommand(
+      state,
+      { type: "DELETE_TEMPLATE", templateId: "saved-template-1" },
+      "attendant",
+    );
+    expect(state.savedTemplates).toEqual([]);
+    expect(state.customOverlays).toEqual([customOverlay]);
+
+    state = reduceCommand(
+      state,
+      { type: "DELETE_CUSTOM_OVERLAY", overlayId: customOverlay.id },
+      "system",
+    );
+    expect(state.customOverlays).toEqual([]);
+  });
+
+  it("keeps template management staff-only and preserves saved templates on reset", () => {
+    expect(() =>
+      reduceCommand(initialBoothState(), { type: "OPEN_TEMPLATE_GALLERY" }, "customer"),
+    ).toThrow("staff-only");
+
+    const gallery = createSavedTemplate();
+    const reset = reduceCommand(gallery, { type: "RESET" }, "attendant");
+    expect(reset.phase).toBe("idle");
+    expect(reset.savedTemplates).toEqual(gallery.savedTemplates);
   });
 
   it("deletes an imported frame and clears it when selected", () => {

@@ -2,17 +2,39 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.6.1
+**Version:** 0.7.0
 
 **Updated:** 2026-10-02
 
-WanderBooth separates three ideas that are often combined into one flattened “template” image:
+WanderBooth separates four ideas that are often combined into one flattened “template” image:
 
 1. **Layout:** where each captured photo appears, how many unique photos are required, the canvas orientation, and whether a capture is repeated.
 2. **Frame:** either a generated fixed-color WanderBooth treatment or one imported custom event design. These are mutually exclusive choices.
 3. **Built-in decoration:** an optional film, confetti, or heart treatment available only with a fixed-color frame.
+4. **Saved template:** an approved, reusable session setup that combines one product/layout with imported artwork plus every saved artwork, photo-holder, and default crop placement.
 
 This separation lets one layout work with many colors and event themes without duplicating photo-placement logic. A custom frame never stacks on top of a selected color frame.
+
+## The reusable Template Gallery
+
+The Template Gallery is the normal path for designs that will be served repeatedly. Staff prepare the design once before customers arrive:
+
+1. From the idle operator screen, choose **Manage Template Gallery**.
+2. Enter a clear template name, choose the product and layout, and select already imported transparent artwork or upload a new PNG.
+3. Choose **Open template setup**. WanderBooth displays one numbered placeholder for every required capture.
+4. Move and resize each photo holder to match the transparent opening. Enter **Crop image** to set the default image position and scale inside that holder. Rotate or lock objects as needed.
+5. Choose **Save template**. The approved item now appears in the gallery at the start of each session.
+
+When a saved template is selected, real Photo 1 replaces Placeholder 1, Photo 2 replaces Placeholder 2, and so on. WanderBooth also restores the saved artwork position, holder shapes, default image crops, rotation, and lock state. The required capture count still comes from the saved layout—six for Double strip 4×6.
+
+Editing an existing gallery item provides two deliberate choices:
+
+- **Save changes** replaces that template's saved setup.
+- **Save as new** keeps the original and creates another gallery item with the current setup.
+
+Creating, editing, duplicating, importing, and deleting templates are owner/attendant actions. In Self-Service mode, customers may select an approved gallery template. They cannot change its saved definition. Staff can still use the review editor for one-session adjustments after capture.
+
+Deleting a saved template leaves its uploaded artwork available for another template. Deleting uploaded artwork is blocked while any saved template still uses it, preventing broken gallery choices.
 
 ## Current menu
 
@@ -58,14 +80,14 @@ Because the white, black, pink, or red photo placeholders and example subjects a
 
 The Host still understands the earlier **Flat template** records so previously imported test assets do not break. The operator interface no longer offers automatic cutout creation for new imports; transparent artwork is the single production path.
 
-## Importing an event frame
+## Importing event-frame artwork
 
-1. Start a session from the Mac operator screen.
-2. Choose the product and layout first.
+1. Open **Manage Template Gallery** from the idle Mac operator screen.
+2. Name the new template and choose its product and layout.
 3. Export a PNG at the layout's exact pixel dimensions, with transparent pixels wherever photos should show.
-4. Choose **Imported custom frame**, then open **Import an event frame** and choose that PNG file up to 25 MB.
+4. In the frame-artwork area, open **Import an event frame** and choose that PNG file up to 25 MB.
 5. Give the design a recognizable event name.
-6. Select **Import and select**. WanderBooth verifies that the image contains transparency, validates the aspect ratio, stores a normalized source and rendered preview at the exact layout dimensions, and adds it to that layout's custom-frame menu.
+6. Select **Import and select**. WanderBooth verifies that the image contains transparency, validates the aspect ratio, stores a normalized source and rendered preview at the exact layout dimensions, and selects it for the template setup.
 
 Only the operator screen exposes the import control. In Self-Service mode, a guest may select a frame that the operator already imported, but cannot add files.
 
@@ -85,7 +107,7 @@ The review screen places the final composed layout beside the full uncropped cap
 
 Moving the artwork adjusts the imported design. Moving, resizing, or rotating a photo frame changes the complete clipped photo area behind that artwork, while Crop image mode changes only the capture inside the area. Corner handles always preserve the selected object's current ratio. The holder's pill-shaped middle handles can change one edge independently, but the photo is cover-fitted into the new crop area and is never stretched. The Double strip uses six independent photos and transforms rather than matching repeated copies. Selection outlines, labels, handles, and lock indicators are editor guides only and never appear in the exported file. The transparent artwork remains above the photos in both preview and export. Position, holder width/height, proportional photo scale, rotation, and lock state are stored in the Host session and the final renderer reuses the visual transforms, so the preview is not a cosmetic-only adjustment.
 
-The operator can delete any imported frame from its custom-frame card or review thumbnail. WanderBooth asks for confirmation, then removes the catalog record plus its local normalized and preview artwork files. Deletion cannot be undone; the original source file outside WanderBooth is not changed.
+The operator can delete any unreferenced imported frame from its artwork card or review thumbnail. WanderBooth asks for confirmation, then removes the catalog record plus its local normalized and preview artwork files. Artwork used by a saved template is protected until those template entries are deleted. Deletion cannot be undone; the original source file outside WanderBooth is not changed.
 
 Only staff can reposition the frame or photos. A Self-Service guest may select an owner-approved imported frame and review the result, but the attendant performs detailed alignment.
 

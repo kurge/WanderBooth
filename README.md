@@ -29,13 +29,13 @@ WanderBooth is an offline-first photo booth application being developed for our 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **1.4.1 — Proportional Resizing and Non-Distorting Crop Frames**
+- Product-plan version: **1.5.0 — Reusable Template Gallery**
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
 - Current catalog: **two product families and five layouts, with a mutually exclusive choice of a fixed colored frame or locally imported event frame**, iPad customer screen, no on-screen price
 - Current cameras: **prototype simulator and experimental MacBook camera**, now with a relayed customer-screen preview and automatic capture sequence; Fujifilm X-M5 is the first dedicated-camera target
 - First print decision: **one 4×6 sheet containing two three-photo 2×6 strips with six unique shots**; the renderer now produces this file, but printer submission is not implemented
-- Immediate next step: align and approve the production event artwork on the physical iPad/Mac workflow, then test the Epson L8050 print path. Private 30-day cloud QR delivery follows.
+- Immediate next step: prepare and approve the first production designs in the Template Gallery on the physical iPad/Mac workflow, then test the Epson L8050 print path. Private 30-day cloud QR delivery follows.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**
 - Repository visibility: **Public**
 
@@ -51,11 +51,13 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Five reusable fixed-color frames with optional no-overlay, film-edge, confetti, and heart treatments.
 - A mutually exclusive imported-frame path: selecting a custom frame hides and clears fixed colors, while selecting a color clears the custom frame.
 - Operator-only event-frame import for transparent PNG artwork with pre-cut photo openings. The Host preserves a normalized source plus a rendered preview so later alignment is lossless and survives restart; previously imported flat templates remain readable.
+- A persistent staff-only Template Gallery: upload or reuse artwork, align numbered photo placeholders before service, save the complete product/layout/frame/holder/crop setup, update it or save a copy, and delete it without destroying shared artwork.
+- One-tap approved-template selection at the start of a session. Real captures automatically fill the saved numbered positions, while the existing review editor remains available for session-specific staff adjustments.
 - Rectangle, rounded, heart-shaped, portrait, and landscape rendering.
 - Cash confirmation before capture, with no price shown in the application.
 - Two retakes, full uncropped source-photo review, a final composed-layout preview, and final approval.
 - Operator-only direct composition canvas for imported frames: click the artwork or a photo frame, drag it in place, use corners for proportional scaling, use middle edge handles to reshape the crop frame without stretching the photo, rotate it from the round handle, enter Crop image mode to reposition or proportionally scale the capture, and lock finished objects. There is no zoom slider. The precise stored adjustment is rendered into the final file.
-- Operator-confirmed deletion for imported templates, including removal of their private local artwork files.
+- Separate confirmed deletion for saved templates and imported artwork. Artwork referenced by a saved template is protected from deletion so gallery items cannot break silently.
 - Captured and waiting review cards share the same 16:9 footprint while preserving the full source image with `contain` fitting.
 - Local SQLite state and event history so the Host remains authoritative.
 - A layout-defined set of branded individual PNGs, a 300-DPI composite strip/card, and an MP4 slideshow.
@@ -67,11 +69,11 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - A double-clickable Apple-silicon Mac application and local DMG build.
 - Supplied Wander Press PH artwork and exact blue, lime, yellow, cream, orange, and purple brand tokens.
 
-The prototype now controls the starting MacBook camera, renders a reusable template catalog, and imports owner artwork locally, but it does **not** yet control the X-M5, submit jobs to the Epson L8050, upload to cloud storage, or generate the private 30-day QR page. The built-in camera remains Experimental until the full reliability and print-quality test is complete.
+The prototype now controls the starting MacBook camera, provides a reusable Template Gallery, and imports owner artwork locally, but it does **not** yet control the X-M5, submit jobs to the Epson L8050, upload to cloud storage, or generate the private 30-day QR page. The built-in camera remains Experimental until the full reliability and print-quality test is complete.
 
 ## Open the app on this Mac
 
-The current local installation image is generated at `release/WanderBooth-0.9.1-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
+The current local installation image is generated at `release/WanderBooth-0.10.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

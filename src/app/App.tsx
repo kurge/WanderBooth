@@ -24,6 +24,7 @@ import type {
   HolderTransform,
   OperationMode,
   PhotoTransform,
+  SavedTemplate,
 } from "../shared/session";
 import { createId } from "./createId";
 import { type ResizeHandle, resizeTransform } from "./resizeTransform";
@@ -37,6 +38,8 @@ const surface = (new URLSearchParams(window.location.search).get("surface") ??
 
 const phaseLabels: Record<BoothState["phase"], string> = {
   idle: "Ready for a new guest",
+  template_gallery: "Template gallery",
+  template_editing: "Editing a reusable template",
   selecting: "Choose the experience",
   awaiting_cash: "Waiting for cash confirmation",
   ready: "Ready for the next photo",
@@ -410,10 +413,12 @@ function LayoutPreview({
   state,
   editable,
   sendCommand,
+  context = "session",
 }: {
   state: BoothState;
   editable: boolean;
   sendCommand: (command: Command) => void;
+  context?: "session" | "template";
 }) {
   const layout = getLayout(state.layoutId);
   const design = getDesign(state.designId) ?? getDesign("wander-splash");
@@ -727,17 +732,28 @@ function LayoutPreview({
   );
 
   return (
-    <section className="layout-preview-card" aria-label="Final layout preview">
+    <section
+      className="layout-preview-card"
+      aria-label={context === "template" ? "Template layout preview" : "Final layout preview"}
+    >
       <div className="layout-preview-card__heading">
         <div>
-          <span>Final layout preview</span>
+          <span>
+            {context === "template" ? "Reusable template preview" : "Final layout preview"}
+          </span>
           <strong>{layout.name}</strong>
         </div>
         <small>{layout.printSize.replace("x", "×")} output</small>
       </div>
       <div
         role="application"
-        aria-label={editable ? "Direct layout editor" : "Final layout"}
+        aria-label={
+          editable
+            ? context === "template"
+              ? "Template placeholder editor"
+              : "Direct layout editor"
+            : "Final layout"
+        }
         className={`layout-composer ${editable ? "layout-composer--editable" : ""}`}
         style={{
           aspectRatio: `${layout.canvasWidth} / ${layout.canvasHeight}`,
@@ -783,6 +799,14 @@ function LayoutPreview({
                   style={transformStyle(photoTransform)}
                   alt=""
                 />
+              ) : context === "template" ? (
+                <div
+                  className="layout-composer__sample-photo"
+                  style={transformStyle(photoTransform)}
+                >
+                  <strong>{captureSlot}</strong>
+                  <small>Photo placeholder</small>
+                </div>
               ) : (
                 <span>{captureSlot}</span>
               )}
@@ -939,9 +963,364 @@ function LayoutPreview({
             edge handle to reshape the crop area without stretching the photo. Drag the round handle
             to rotate. Double-click—or choose Crop image—to reposition or scale the photo inside.
             Lock an object when its placement is finished.
+            {context === "template" &&
+              " These placeholders will be replaced automatically by real captures."}
           </p>
         </div>
       )}
+    </section>
+  );
+}
+
+function TemplateThumbnail({ template, state }: { template: SavedTemplate; state: BoothState }) {
+  const layout = getLayout(template.layoutId);
+  const overlay = getOverlay(template.overlayId, state.customOverlays);
+  if (!layout || overlay?.kind !== "custom") {
+    return (
+      <span className="saved-template-thumbnail saved-template-thumbnail--missing">Missing</span>
+    );
+  }
+
+  const holderTransforms = slotTransformMap(template.holderTransforms);
+  return (
+    <span
+      className="saved-template-thumbnail"
+      style={{
+        aspectRatio: `${layout.canvasWidth} / ${layout.canvasHeight}`,
+        width: layout.canvasHeight > layout.canvasWidth ? "min(100%, 170px)" : "100%",
+      }}
+      aria-hidden="true"
+    >
+      {layout.slots.map((slot) => {
+        const captureSlot = slot.captureIndex + 1;
+        const transform = holderTransforms[captureSlot] ?? identityMediaTransform();
+        return (
+          <i
+            key={`${captureSlot}-${slot.x}-${slot.y}`}
+            style={holderStyle(slot, layout, transform)}
+          >
+            {captureSlot}
+          </i>
+        );
+      })}
+      <img
+        src={mediaSource(overlay.mediaUrl)}
+        style={transformStyle(template.frameTransform)}
+        alt=""
+      />
+    </span>
+  );
+}
+
+function TemplateGalleryPanel({
+  state,
+  sendCommand,
+}: {
+  state: BoothState;
+  sendCommand: (command: Command) => void;
+}) {
+  const [productId, setProductId] = useState(products[0]?.id ?? "");
+  const selectedProduct = getProduct(productId);
+  const [layoutId, setLayoutId] = useState(selectedProduct?.layoutIds[0] ?? "");
+  const [overlayId, setOverlayId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const selectedLayout = getLayout(layoutId);
+  const compatibleArtwork = useMemo(
+    () =>
+      selectedLayout
+        ? state.customOverlays.filter((overlay) =>
+            overlaySupportsLayout(overlay, selectedLayout.id),
+          )
+        : [],
+    [selectedLayout, state.customOverlays],
+  );
+
+  useEffect(() => {
+    if (selectedProduct && !selectedProduct.layoutIds.includes(layoutId)) {
+      setLayoutId(selectedProduct.layoutIds[0] ?? "");
+      setOverlayId(null);
+    }
+  }, [layoutId, selectedProduct]);
+
+  useEffect(() => {
+    if (overlayId && !compatibleArtwork.some((overlay) => overlay.id === overlayId)) {
+      setOverlayId(null);
+    }
+  }, [compatibleArtwork, overlayId]);
+
+  const beginTemplate = () => {
+    if (!selectedLayout || !overlayId || !name.trim()) return;
+    sendCommand({
+      type: "BEGIN_TEMPLATE_CREATE",
+      name: name.trim(),
+      productId,
+      layoutId: selectedLayout.id,
+      overlayId,
+    });
+  };
+
+  return (
+    <section className="template-gallery-stage">
+      <div className="section-heading section-heading--horizontal">
+        <div>
+          <span className="eyebrow">Staff setup</span>
+          <h1>Template Gallery</h1>
+          <p>
+            Prepare each frame once. Real captures will fill the saved placeholders automatically.
+          </p>
+        </div>
+        <button
+          className="button button--quiet"
+          type="button"
+          onClick={() => sendCommand({ type: "CLOSE_TEMPLATE_GALLERY" })}
+        >
+          Back to booth
+        </button>
+      </div>
+
+      <section className="saved-template-library">
+        <div className="catalog-section__subheading">
+          <small>Ready for sessions</small>
+          <h2>Saved templates</h2>
+        </div>
+        <div className="saved-template-grid">
+          {state.savedTemplates.map((template) => {
+            const layout = getLayout(template.layoutId);
+            return (
+              <article className="saved-template-card" key={template.id}>
+                <TemplateThumbnail template={template} state={state} />
+                <div className="saved-template-card__copy">
+                  <strong>{template.name}</strong>
+                  <small>
+                    {layout?.name ?? "Missing layout"} · {layout?.requiredCaptureCount ?? "?"}{" "}
+                    photos
+                  </small>
+                </div>
+                <div className="saved-template-card__actions">
+                  <button
+                    className="button button--primary button--tiny"
+                    type="button"
+                    onClick={() =>
+                      sendCommand({ type: "BEGIN_TEMPLATE_EDIT", templateId: template.id })
+                    }
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="button button--danger button--tiny"
+                    type="button"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Delete “${template.name}” from the Template Gallery? The uploaded artwork will remain available.`,
+                        )
+                      ) {
+                        sendCommand({ type: "DELETE_TEMPLATE", templateId: template.id });
+                      }
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+          {state.savedTemplates.length === 0 && (
+            <p className="catalog-empty">No reusable templates yet. Create the first one below.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="template-creator">
+        <div className="catalog-section__subheading">
+          <small>New reusable template</small>
+          <h2>Choose the layout and artwork</h2>
+        </div>
+        <label className="template-name-field">
+          Template name
+          <input
+            type="text"
+            maxLength={80}
+            value={name}
+            placeholder="Example: Birthday Blue Double Strip"
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <div className="product-grid product-grid--compact">
+          {products.map((product) => (
+            <button
+              className={
+                productId === product.id ? "catalog-card catalog-card--selected" : "catalog-card"
+              }
+              type="button"
+              key={product.id}
+              onClick={() => {
+                setProductId(product.id);
+                setLayoutId(product.layoutIds[0] ?? "");
+                setOverlayId(null);
+              }}
+            >
+              <strong>{product.name}</strong>
+              <span>{product.description}</span>
+            </button>
+          ))}
+        </div>
+        <div className="layout-grid layout-grid--compact">
+          {(selectedProduct?.layoutIds ?? [])
+            .map((id) => getLayout(id))
+            .filter((layout): layout is Layout => Boolean(layout))
+            .map((layout) => (
+              <button
+                className={
+                  layoutId === layout.id ? "layout-card layout-card--selected" : "layout-card"
+                }
+                type="button"
+                key={layout.id}
+                onClick={() => {
+                  setLayoutId(layout.id);
+                  setOverlayId(null);
+                }}
+              >
+                <LayoutThumbnail layout={layout} />
+                <span>
+                  <strong>{layout.name}</strong>
+                  <small>{layout.requiredCaptureCount} placeholders</small>
+                </span>
+              </button>
+            ))}
+        </div>
+
+        {selectedLayout && (
+          <>
+            <div className="catalog-section__subheading">
+              <small>Frame artwork</small>
+              <h3>Choose an upload or add a new transparent PNG</h3>
+            </div>
+            <div className="overlay-grid">
+              {compatibleArtwork.map((overlay) => (
+                <div className="overlay-choice" key={overlay.id}>
+                  <button
+                    className={
+                      overlayId === overlay.id
+                        ? "overlay-card overlay-card--selected"
+                        : "overlay-card"
+                    }
+                    type="button"
+                    onClick={() => setOverlayId(overlay.id)}
+                  >
+                    <OverlayThumbnail overlay={overlay} />
+                    <span>
+                      <strong>{overlay.name}</strong>
+                      <small>Uploaded artwork</small>
+                    </span>
+                  </button>
+                  <DeleteImportedOverlayButton overlay={overlay} />
+                </div>
+              ))}
+              {compatibleArtwork.length === 0 && (
+                <p className="catalog-empty">Upload artwork for this layout to continue.</p>
+              )}
+            </div>
+            <OverlayImporter
+              key={selectedLayout.id}
+              layout={selectedLayout}
+              onImported={setOverlayId}
+            />
+          </>
+        )}
+
+        <div className="template-creator__footer">
+          <p>The next screen uses numbered sample photos so you can align every opening.</p>
+          <button
+            className="button button--primary button--large"
+            type="button"
+            disabled={!name.trim() || !selectedLayout || !overlayId}
+            onClick={beginTemplate}
+          >
+            Open template setup
+          </button>
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function TemplateEditorPanel({
+  state,
+  sendCommand,
+}: {
+  state: BoothState;
+  sendCommand: (command: Command) => void;
+}) {
+  const editor = state.templateEditor;
+  const sourceTemplate = editor?.sourceTemplateId
+    ? state.savedTemplates.find((template) => template.id === editor.sourceTemplateId)
+    : null;
+  const [name, setName] = useState(editor?.startingName ?? "");
+
+  useEffect(() => setName(editor?.startingName ?? ""), [editor?.startingName]);
+
+  if (!editor) return null;
+
+  const saveTemplate = (templateId: string) => {
+    if (!name.trim()) return;
+    sendCommand({ type: "SAVE_TEMPLATE", templateId, name: name.trim() });
+  };
+
+  return (
+    <section className="template-editor-stage">
+      <div className="section-heading section-heading--horizontal">
+        <div>
+          <span className="eyebrow">Reusable setup</span>
+          <h1>Place the photo placeholders once.</h1>
+          <p>Every future capture will enter these saved positions automatically.</p>
+        </div>
+        <button
+          className="button button--quiet"
+          type="button"
+          onClick={() => sendCommand({ type: "CANCEL_TEMPLATE_EDIT" })}
+        >
+          Cancel
+        </button>
+      </div>
+      <label className="template-name-field">
+        Template name
+        <input
+          type="text"
+          maxLength={80}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+      </label>
+      <div className="template-editor-stage__canvas">
+        <LayoutPreview state={state} editable sendCommand={sendCommand} context="template" />
+      </div>
+      <div className="template-editor-stage__footer">
+        <p>
+          Save changes updates this gallery item. Save as new keeps the original and creates another
+          reusable version.
+        </p>
+        <div className="template-editor-stage__actions">
+          {sourceTemplate && (
+            <button
+              className="button button--quiet button--large"
+              type="button"
+              disabled={!name.trim()}
+              onClick={() => saveTemplate(sourceTemplate.id)}
+            >
+              Save changes
+            </button>
+          )}
+          <button
+            className="button button--primary button--large"
+            type="button"
+            disabled={!name.trim()}
+            onClick={() => saveTemplate(createId())}
+          >
+            {sourceTemplate ? "Save as new" : "Save template"}
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
@@ -1029,6 +1408,7 @@ function SelectionPanel({
   const canSubmit = Boolean(
     state.productId && state.layoutId && validFrame && state.consentRecorded,
   );
+  const approvedTemplates = state.savedTemplates.filter((template) => template.approved);
 
   if (!interactive) {
     return (
@@ -1051,12 +1431,60 @@ function SelectionPanel({
     <section className="selection-panel">
       <div className="section-heading">
         <span className="eyebrow">Build your photo keepsake</span>
-        <h1>Choose a product, layout, and frame.</h1>
+        <h1>Choose a ready template or build your own.</h1>
         <p>
-          Every layout sets its own photo count automatically. Pricing remains on the physical menu
-          for now.
+          Saved templates already know where every photo belongs. You can still choose a product,
+          layout, and frame manually below.
         </p>
       </div>
+
+      {approvedTemplates.length > 0 && (
+        <div className="catalog-section catalog-section--templates">
+          <div className="catalog-section__heading">
+            <span className="choice-summary__number">★</span>
+            <div>
+              <small>Fastest option</small>
+              <h2>Template Gallery</h2>
+            </div>
+          </div>
+          <p className="catalog-section__intro">
+            Pick a prepared design. Your captures will automatically fill its numbered photo
+            positions.
+          </p>
+          <div className="saved-template-grid saved-template-grid--selectable">
+            {approvedTemplates.map((template) => {
+              const layout = getLayout(template.layoutId);
+              return (
+                <button
+                  className={
+                    state.selectedTemplateId === template.id
+                      ? "saved-template-card saved-template-card--selected"
+                      : "saved-template-card"
+                  }
+                  type="button"
+                  key={template.id}
+                  onClick={() => sendCommand({ type: "SELECT_TEMPLATE", templateId: template.id })}
+                >
+                  <TemplateThumbnail template={template} state={state} />
+                  <span className="saved-template-card__copy">
+                    <strong>{template.name}</strong>
+                    <small>
+                      {layout?.name ?? "Missing layout"} · {layout?.requiredCaptureCount ?? "?"}{" "}
+                      photos
+                    </small>
+                  </span>
+                  <span className="saved-template-card__ready">
+                    {state.selectedTemplateId === template.id ? "Selected" : "Use template"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="catalog-divider">
+            <span>or build manually</span>
+          </div>
+        </div>
+      )}
 
       <div className="catalog-section">
         <div className="catalog-section__heading">
@@ -1297,6 +1725,30 @@ function SessionPanel({
   isOperator: boolean;
   sendCommand: (command: Command) => void;
 }) {
+  if (state.phase === "template_gallery") {
+    return isOperator ? (
+      <TemplateGalleryPanel state={state} sendCommand={sendCommand} />
+    ) : (
+      <section className="customer-message">
+        <span className="eyebrow">Staff setup</span>
+        <h1>Your attendant is preparing the Template Gallery.</h1>
+        <p>The next guest session will appear here when setup is finished.</p>
+      </section>
+    );
+  }
+
+  if (state.phase === "template_editing") {
+    return isOperator ? (
+      <TemplateEditorPanel state={state} sendCommand={sendCommand} />
+    ) : (
+      <section className="customer-message">
+        <span className="eyebrow">Staff setup</span>
+        <h1>Your attendant is aligning a reusable template.</h1>
+        <p>Numbered placeholders on the Mac will become real photos during each session.</p>
+      </section>
+    );
+  }
+
   if (state.phase === "selecting") {
     return (
       <SelectionPanel
@@ -1391,6 +1843,9 @@ function SessionPanel({
     const compatibleCustomFrames = state.customOverlays.filter(
       (overlay) => Boolean(state.layoutId) && overlaySupportsLayout(overlay, state.layoutId ?? ""),
     );
+    const compatibleTemplates = state.savedTemplates.filter(
+      (template) => template.approved && template.layoutId === state.layoutId,
+    );
     return (
       <section className="review-stage">
         <div className="section-heading section-heading--horizontal">
@@ -1441,6 +1896,40 @@ function SessionPanel({
         </div>
         {interactive ? (
           <>
+            {compatibleTemplates.length > 0 && (
+              <section className="review-template-picker">
+                <div className="review-frame-settings__heading">
+                  <span>Saved templates</span>
+                  <small>Apply a prepared alignment for this layout in one tap.</small>
+                </div>
+                <div className="saved-template-grid saved-template-grid--review">
+                  {compatibleTemplates.map((template) => (
+                    <button
+                      className={
+                        state.selectedTemplateId === template.id
+                          ? "saved-template-card saved-template-card--selected"
+                          : "saved-template-card"
+                      }
+                      type="button"
+                      key={template.id}
+                      onClick={() =>
+                        sendCommand({ type: "SELECT_TEMPLATE", templateId: template.id })
+                      }
+                    >
+                      <TemplateThumbnail template={template} state={state} />
+                      <span className="saved-template-card__copy">
+                        <strong>{template.name}</strong>
+                        <small>
+                          {state.selectedTemplateId === template.id
+                            ? "Applied to this session"
+                            : "Apply saved positions"}
+                        </small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
             <section className="review-frame-settings">
               <div className="review-frame-settings__heading">
                 <span>Frame choice</span>
@@ -1856,19 +2345,22 @@ function App() {
               Open customer screen
             </button>
           )}
-          {isOperator && !["idle", "complete", "error"].includes(state.phase) && (
-            <button
-              className="button button--danger button--tiny"
-              type="button"
-              onClick={() => {
-                if (window.confirm("Cancel this session and clear its current selections?")) {
-                  sendCommand({ type: "RESET" });
-                }
-              }}
-            >
-              Cancel session
-            </button>
-          )}
+          {isOperator &&
+            !["idle", "template_gallery", "template_editing", "complete", "error"].includes(
+              state.phase,
+            ) && (
+              <button
+                className="button button--danger button--tiny"
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Cancel this session and clear its current selections?")) {
+                    sendCommand({ type: "RESET" });
+                  }
+                }}
+              >
+                Cancel session
+              </button>
+            )}
         </div>
       </header>
 
@@ -1892,14 +2384,25 @@ function App() {
                   </p>
                 </div>
                 <ModeSelector value={state.operationMode} sendCommand={sendCommand} />
-                <button
-                  className="button button--primary button--large"
-                  type="button"
-                  disabled={state.cameraSourceId === "macbook_camera" && camera.status !== "ready"}
-                  onClick={() => sendCommand({ type: "BEGIN_SESSION", sessionId: createId() })}
-                >
-                  Start a new session
-                </button>
+                <div className="welcome-panel__actions">
+                  <button
+                    className="button button--primary button--large"
+                    type="button"
+                    disabled={
+                      state.cameraSourceId === "macbook_camera" && camera.status !== "ready"
+                    }
+                    onClick={() => sendCommand({ type: "BEGIN_SESSION", sessionId: createId() })}
+                  >
+                    Start a new session
+                  </button>
+                  <button
+                    className="button button--quiet button--large"
+                    type="button"
+                    onClick={() => sendCommand({ type: "OPEN_TEMPLATE_GALLERY" })}
+                  >
+                    Manage Template Gallery
+                  </button>
+                </div>
                 {state.cameraSourceId === "macbook_camera" && camera.status !== "ready" && (
                   <p className="start-note">Enable the MacBook camera before starting a session.</p>
                 )}

@@ -2,7 +2,7 @@
 
 **Status:** Confirmed product behavior
 
-**Version:** 0.7.1
+**Version:** 0.8.0
 
 **Updated:** 2026-10-02
 
@@ -14,13 +14,14 @@ WanderBooth supports two staff-selected workflows. The difference is who control
 |---|---|---|
 | Primary controller | Operator console on the Host laptop | Customer touchscreen |
 | Customer screen | Display-only | Interactive kiosk |
-| Product, layout, and design | Chosen by operator | Chosen by customer from owner-approved options |
+| Product, layout, and design | Operator can choose an approved saved template or build manually | Customer can choose an approved saved template or build from owner-approved options |
 | Required photo count | Automatically defined by selected product/layout | Automatically defined by selected product/layout |
 | Capture start | Operator | Customer after cash approval |
 | Photo review | Shown on customer display; changes are submitted by operator | Interactive on customer touchscreen |
 | Replace photo / retake | Operator only | Customer within configured limits |
 | Change design/style before approval | Operator only | Customer from compatible allowed choices |
 | Align imported frame, photo holder, or image crop | Operator only | Attendant on operator console |
+| Create/edit/duplicate/delete saved templates | Owner or attendant before a session | Owner or attendant before a session |
 | Final approval | Operator | Customer |
 | Cash confirmation | Attendant | Attendant |
 | Camera-source selection | Owner or attendant | Owner or attendant |
@@ -50,8 +51,8 @@ WanderBooth supports two staff-selected workflows. The difference is who control
 
 ### Control flow
 
-1. The operator chooses the product.
-2. The operator chooses a compatible layout and either a fixed colored frame with an optional built-in decoration or one imported custom frame.
+1. The operator chooses an approved saved template, or chooses the product manually.
+2. A saved template restores its layout, photo count, imported frame, and prepared placements automatically. In the manual path, the operator chooses a compatible layout and either a fixed colored frame with an optional built-in decoration or one imported custom frame.
 3. WanderBooth loads and shows the photo count required by that product/layout.
 4. The operator explains the privacy notice and records the customer's consent.
 5. The operator confirms cash received.
@@ -74,8 +75,8 @@ Even when the customer display shows captured images, only the operator can subm
 
 ### Control flow
 
-1. The customer chooses an enabled product.
-2. WanderBooth offers compatible layouts and an exclusive choice between owner-approved fixed-color and imported custom frames.
+1. The customer chooses an approved saved template or an enabled product.
+2. A saved template restores the prepared layout and frame setup. In the manual path, WanderBooth offers compatible layouts and an exclusive choice between owner-approved fixed-color and imported custom frames.
 3. The selected product/layout automatically supplies and displays the required photo count.
 4. The customer accepts the privacy notice.
 5. The interface waits while the attendant confirms cash.
@@ -93,6 +94,8 @@ See [iPad setup](IPAD_SETUP.md) for the exact Safari and Sidecar steps.
 ## Photo replacement and style rules
 
 - Photo count is not an independent session choice. Each enabled product/layout combination defines the exact number of unique captures, currently three, four, or six.
+- A saved template carries its product/layout and complete prepared alignment. Selecting it never creates a new photo count; it restores the count defined by that layout.
+- During final review, staff or an authorized Self-Service guest may switch only to another saved template for the already captured layout. A different layout requires a controlled restart rather than silently discarding or inventing captures.
 - Double strip 4×6 takes six unique photos. Photos 1–3 appear on the left strip and Photos 4–6 appear on the right strip.
 - WanderBooth shows that required number before cash confirmation and capture.
 - A replacement chooses one existing slot, captures a new photo, and replaces only that slot after confirmation.

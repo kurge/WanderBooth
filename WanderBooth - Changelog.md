@@ -25,6 +25,32 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.5.0 — 2026-10-02
+
+### Added
+
+- Added a staff-only **Template Gallery** available from the idle operator screen.
+- Added a pre-capture template editor with numbered photo placeholders. Staff can use the existing direct canvas to position, resize, rotate, crop, and lock the artwork and every placeholder without taking customer photos.
+- Added persistent approved template records containing the product, layout, imported artwork, frame transform, every holder transform, every default photo-crop transform, rotation, and lock state.
+- Added **Save changes** and **Save as new** so an existing setup can be updated or duplicated safely.
+- Added saved-template cards to session selection. Choosing one restores its full setup and capture count; real captures then fill the numbered positions automatically.
+- Added compatible saved-template choices during review for fast switching without changing the already captured layout.
+- Added schema version 10 for saved templates, the active template selection, and template-editor state.
+- Added ADR 0016 documenting the reusable template model, permissions, lifecycle, and artwork-reference protection.
+
+### Changed
+
+- Separated uploaded artwork from saved templates. One artwork upload may support multiple reusable alignments, and deleting one template leaves that artwork available.
+- Protected uploaded artwork from deletion while a saved template references it.
+- Kept template creation, editing, duplication, deletion, and import staff-only. Self-Service guests may select approved templates but cannot modify their definitions.
+
+### Verified
+
+- Added state-machine tests for placeholder editing without captures, saved-template selection in Self-Service, Save changes, Save as new, role enforcement, reset persistence, and safe artwork deletion.
+- Confirmed all 35 automated tests, formatting, type checks, Host build, and customer-app build pass.
+- Created a six-photo transparent-frame template in an isolated runtime, selected it in a fresh session, captured six simulated photos, and verified the saved setup reached review and the final 1200×1800 export.
+- Completed the standard six-photo smoke session and built and checksum-validated the unsigned Apple-silicon `WanderBooth-0.10.0-arm64.dmg` installation image.
+
 ## 1.4.1 — 2026-10-02
 
 ### Changed

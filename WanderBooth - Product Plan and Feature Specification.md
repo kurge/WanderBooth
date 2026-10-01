@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.4.1
+document_version: 1.5.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -104,7 +104,10 @@ The business should be able to keep serving customers during internet interrupti
 - Initial slot shapes include rectangles, rounded rectangles, and a heart-shaped feature photo.
 - The owner or attendant can import event-frame artwork from the Mac operator screen after selecting a layout. New imports use a transparent PNG whose photo openings are prepared before import; the artwork is always layered above the photos. Previously imported flat templates remain readable for backward compatibility, but automatic cutout creation is no longer part of the normal operator flow.
 - Imported frames are stored locally, persist across application restarts, are limited to their selected layout, and are not added to the public repository.
-- The operator can delete an imported frame after a destructive-action confirmation; WanderBooth removes its private normalized source and preview files without changing the owner's original artwork file.
+- Before serving customers, the owner or attendant can turn imported artwork into an approved reusable template by aligning numbered photo placeholders once and saving the product, layout, frame artwork, artwork transform, every photo-holder transform, every default image crop, rotations, and locks.
+- Saved templates appear in a Template Gallery at session selection. Choosing one automatically restores its layout, required photo count, artwork, and every saved placement; real captures fill the numbered placeholders in capture order.
+- Template creation, editing, duplication, and deletion are staff-only. A Self-Service customer may choose an approved saved template but cannot change the saved definition. The post-capture direct editor remains available to staff for session-specific final adjustments.
+- The operator can delete a saved template after confirmation without deleting its reusable artwork. Imported artwork can be deleted separately only after no saved templates reference it; deleting it removes WanderBooth's private normalized source and preview without changing the owner's original file.
 - During review, the finished composed layout is shown beside uncropped source captures in consistently sized 16:9 cards. Only the owner or attendant can use the direct canvas: click the imported artwork or a photo frame, drag it in place, resize proportionally from a corner, reshape one holder edge from its middle handle, rotate it directly, lock it, or enter Crop image mode to reposition and proportionally scale the capture inside its frame. Reshaping the holder changes the crop window without stretching the photograph. There is no zoom slider. Those adjustments are stored and applied to the final render.
 - One tap starts the complete layout-defined sequence of three, four, or six photos, with a **three-second countdown before each photo**.
 - The customer preview is mirrored for natural posing, while saved and delivered photos are not mirrored.
@@ -153,6 +156,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - The renderer now reads data-driven canvas, slot, shape, branding-area, frame, and overlay definitions instead of one hard-coded strip.
 - Synthetic rendering checks passed for the six-shot 4×6 double strip with film overlay and the four-photo heart layout with heart overlay.
 - The operator imports a transparent PNG whose photo openings have already been prepared. The Host validates, normalizes, stores, and registers the frame locally; the old flat-template format remains renderable for previously imported records.
+- The staff-only Template Gallery turns imported artwork into reusable, approved session choices. A pre-capture placeholder editor stores product/layout choice plus artwork, holder, crop, rotation, and lock geometry; real photos automatically replace the six or fewer numbered samples when that template is selected.
 - Fixed colored and imported custom frames use separate selection modes. The review screen previews the actual composition, keeps captured and waiting cards the same size without cropping source images, and gives staff a Canva-style direct canvas for moving, proportionally scaling, rotating, and locking artwork, photo frames, and the images inside them. Middle holder handles can change width or height independently to match an opening, but this changes the crop boundary instead of distorting the capture. Imported frames can also be deleted from local storage after confirmation. The final renderer reuses the exact stored values.
 - The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
@@ -226,7 +230,7 @@ The touchscreen is interactive. The customer controls only the choices that the 
 ```text
 Attract screen
      ↓
-Customer chooses product/package
+Customer chooses an approved saved template or builds from owner-approved choices
      ↓
 Customer chooses an allowed layout and design
      ↓
@@ -348,7 +352,10 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - Mutually exclusive fixed-color and imported-custom frame modes, with compatible built-in decorations available only for fixed colors
 - Final composed-layout review beside full-aspect, uncropped source captures
 - Staff-only direct canvas for selecting, dragging, proportional corner resizing, one-axis middle-edge holder reshaping, rotating, locking, and resetting custom-frame artwork and each photo frame, plus a non-distorting crop mode for direct manipulation of the image inside it
-- Operator-confirmed deletion of imported templates and their private local copies
+- Operator-confirmed deletion of saved templates and unreferenced imported artwork; referenced artwork is protected from accidental deletion
+- Staff-only Template Gallery for creating, editing, duplicating, and deleting approved reusable templates before customer sessions
+- Numbered pre-capture photo placeholders whose saved holder and crop geometry is automatically reused by real captures
+- One-tap approved-template selection in both controlled workflows, with detailed template management hidden from customers
 - Six-shot Double strip layout with Photos 1–3 on the left and Photos 4–6 on the right of one 4×6 sheet
 - Rectangle, rounded-rectangle, and heart-shaped photo slots
 - Up to two configured retake or photo-replacement actions
@@ -766,6 +773,7 @@ Tasks:
 - Render a print-ready 4×6 sheet containing two different three-photo 2×6 strips from six unique captures.
 - Use the working data-driven catalog to test three-, four-, and six-photo layouts, frame palettes, overlays, and shaped slots.
 - Test the implemented staff-only transparent-artwork and flat-template importer with the final production designs.
+- Use the implemented Template Gallery to prepare, save, and reuse the first production layouts before the first busy event test.
 - Test the working browser-to-Host control connection from the physical iPad.
 - Prototype queued upload to private cloud storage and a 30-day mobile download page.
 - Verify that capture and printing continue with internet disconnected and that the upload completes after reconnection.
@@ -793,7 +801,7 @@ Exit condition: a complete unpaid test session works repeatedly, local capture r
 Tasks:
 
 - Add products and local pricing.
-- Add the first 5–10 configurable templates and branding assets.
+- Prepare and approve the first 5–10 production templates and branding assets in the working Template Gallery.
 - Add session history and CSV export.
 - Add retention and cleanup.
 - Add staff PIN and audit records.
@@ -974,6 +982,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.5.0 | 2026-10-02 | Added a staff-only reusable Template Gallery: align numbered placeholders before service, save or duplicate the full frame/holder/crop setup, let sessions apply approved templates in one tap, and protect referenced artwork from deletion. |
 | 1.4.1 | 2026-10-02 | Made corner resizing proportional, changed middle edge handles into one-axis crop-frame controls, prevented image stretching in preview and export, and added schema-version-9 photo-transform normalization. |
 | 1.4.0 | 2026-10-02 | Changed Double strip 4×6 to six unique captures, replaced slider scaling with direct edge/corner resizing and rotation, added persistent object locks and imported-template deletion, and normalized captured/waiting review-card sizes. |
 | 1.3.0 | 2026-10-02 | Replaced the target-button alignment panel with a Canva-style direct composition canvas: click/tap to select, drag to move, resize from corner handles, and enter Crop image mode to position a capture inside its frame. |

@@ -16,6 +16,8 @@ export type CameraSourceId = "simulator" | "macbook_camera";
 export type FrameMode = "color" | "custom";
 export type Phase =
   | "idle"
+  | "template_gallery"
+  | "template_editing"
   | "selecting"
   | "awaiting_cash"
   | "ready"
@@ -53,8 +55,27 @@ export type Deliverable = {
 export type PhotoTransform = MediaTransform & { slot: number };
 export type HolderTransform = MediaTransform & { slot: number };
 
+export type SavedTemplate = {
+  id: string;
+  name: string;
+  productId: string;
+  layoutId: string;
+  overlayId: string;
+  frameTransform: MediaTransform;
+  holderTransforms: HolderTransform[];
+  photoTransforms: PhotoTransform[];
+  approved: true;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TemplateEditorState = {
+  sourceTemplateId: string | null;
+  startingName: string;
+};
+
 export type BoothState = {
-  schemaVersion: 9;
+  schemaVersion: 10;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -66,6 +87,9 @@ export type BoothState = {
   designId: string | null;
   overlayId: string;
   customOverlays: CustomOverlay[];
+  savedTemplates: SavedTemplate[];
+  selectedTemplateId: string | null;
+  templateEditor: TemplateEditorState | null;
   frameTransform: MediaTransform;
   holderTransforms: HolderTransform[];
   photoTransforms: PhotoTransform[];
@@ -84,7 +108,21 @@ export type BoothState = {
 export type Command =
   | { type: "SET_MODE"; mode: OperationMode }
   | { type: "SET_CAMERA_SOURCE"; cameraSourceId: CameraSourceId }
+  | { type: "OPEN_TEMPLATE_GALLERY" }
+  | { type: "CLOSE_TEMPLATE_GALLERY" }
+  | {
+      type: "BEGIN_TEMPLATE_CREATE";
+      name: string;
+      productId: string;
+      layoutId: string;
+      overlayId: string;
+    }
+  | { type: "BEGIN_TEMPLATE_EDIT"; templateId: string }
+  | { type: "SAVE_TEMPLATE"; templateId: string; name: string }
+  | { type: "CANCEL_TEMPLATE_EDIT" }
+  | { type: "DELETE_TEMPLATE"; templateId: string }
   | { type: "BEGIN_SESSION"; sessionId: string }
+  | { type: "SELECT_TEMPLATE"; templateId: string }
   | { type: "SELECT_PRODUCT"; productId: string }
   | { type: "SELECT_LAYOUT"; layoutId: string }
   | { type: "SELECT_FRAME_MODE"; frameMode: FrameMode }
@@ -116,7 +154,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 9,
+  schemaVersion: 10,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -128,6 +166,9 @@ export const initialBoothState = (): BoothState => ({
   designId: null,
   overlayId: "none",
   customOverlays: [],
+  savedTemplates: [],
+  selectedTemplateId: null,
+  templateEditor: null,
   frameTransform: identityMediaTransform(),
   holderTransforms: [],
   photoTransforms: [],
@@ -191,6 +232,13 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
       if (!isStaff(actor)) throw new CommandError("Only staff can choose the camera source.");
       requirePhase(state, ["idle"]);
       return;
+    case "OPEN_TEMPLATE_GALLERY":
+    case "CLOSE_TEMPLATE_GALLERY":
+    case "BEGIN_TEMPLATE_CREATE":
+    case "BEGIN_TEMPLATE_EDIT":
+    case "SAVE_TEMPLATE":
+    case "CANCEL_TEMPLATE_EDIT":
+    case "DELETE_TEMPLATE":
     case "RESET":
     case "CONFIRM_CASH":
     case "CAMERA_CAPTURE_FAILED":
@@ -200,6 +248,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
       if (!isStaff(actor)) throw new CommandError("This action is staff-only.");
       return;
     case "BEGIN_SESSION":
+    case "SELECT_TEMPLATE":
     case "SELECT_PRODUCT":
     case "SELECT_LAYOUT":
     case "SELECT_FRAME_MODE":
@@ -237,6 +286,36 @@ const revised = (state: BoothState, patch: Partial<BoothState>): BoothState => (
   lastError: patch.lastError === undefined ? null : patch.lastError,
 });
 
+const validatedTemplateName = (name: string) => {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 80) {
+    throw new CommandError("Use a template name between 1 and 80 characters.");
+  }
+  return trimmed;
+};
+
+const clearedWorkspace = (): Partial<BoothState> => ({
+  sessionId: null,
+  productId: null,
+  layoutId: null,
+  frameMode: null,
+  designId: null,
+  overlayId: "none",
+  selectedTemplateId: null,
+  templateEditor: null,
+  frameTransform: identityMediaTransform(),
+  holderTransforms: [],
+  photoTransforms: [],
+  requiredCaptureCount: 0,
+  captures: [],
+  pendingCapture: null,
+  captureSequence: null,
+  retakesRemaining: 2,
+  cashConfirmed: false,
+  consentRecorded: false,
+  deliverables: [],
+});
+
 export function reduceCommand(state: BoothState, command: Command, actor: Actor): BoothState {
   assertCommandAllowed(state, command, actor);
 
@@ -245,6 +324,108 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       return revised(state, { operationMode: command.mode });
     case "SET_CAMERA_SOURCE":
       return revised(state, { cameraSourceId: command.cameraSourceId });
+    case "OPEN_TEMPLATE_GALLERY":
+      requirePhase(state, ["idle"]);
+      return revised(state, { ...clearedWorkspace(), phase: "template_gallery" });
+    case "CLOSE_TEMPLATE_GALLERY":
+      requirePhase(state, ["template_gallery"]);
+      return revised(state, { ...clearedWorkspace(), phase: "idle" });
+    case "BEGIN_TEMPLATE_CREATE": {
+      requirePhase(state, ["template_gallery"]);
+      const name = validatedTemplateName(command.name);
+      const product = getProduct(command.productId);
+      const layout = getLayout(command.layoutId);
+      const overlay = getOverlay(command.overlayId, state.customOverlays);
+      if (!product || !layout || !product.layoutIds.includes(layout.id)) {
+        throw new CommandError("Choose a valid product and layout for this template.");
+      }
+      if (overlay?.kind !== "custom" || !overlaySupportsLayout(overlay, layout.id)) {
+        throw new CommandError("Choose imported artwork made for this layout.");
+      }
+      return revised(state, {
+        ...clearedWorkspace(),
+        phase: "template_editing",
+        productId: product.id,
+        layoutId: layout.id,
+        requiredCaptureCount: layout.requiredCaptureCount,
+        frameMode: "custom",
+        overlayId: overlay.id,
+        templateEditor: { sourceTemplateId: null, startingName: name },
+      });
+    }
+    case "BEGIN_TEMPLATE_EDIT": {
+      requirePhase(state, ["template_gallery"]);
+      const template = state.savedTemplates.find((item) => item.id === command.templateId);
+      if (!template) throw new CommandError("That saved template is no longer available.");
+      const layout = getLayout(template.layoutId);
+      const product = getProduct(template.productId);
+      const overlay = getOverlay(template.overlayId, state.customOverlays);
+      if (!layout || !product?.layoutIds.includes(layout.id) || overlay?.kind !== "custom") {
+        throw new CommandError("That template is missing its layout or imported artwork.");
+      }
+      return revised(state, {
+        ...clearedWorkspace(),
+        phase: "template_editing",
+        productId: product.id,
+        layoutId: layout.id,
+        requiredCaptureCount: layout.requiredCaptureCount,
+        frameMode: "custom",
+        overlayId: overlay.id,
+        selectedTemplateId: template.id,
+        templateEditor: { sourceTemplateId: template.id, startingName: template.name },
+        frameTransform: template.frameTransform,
+        holderTransforms: template.holderTransforms,
+        photoTransforms: template.photoTransforms,
+      });
+    }
+    case "SAVE_TEMPLATE": {
+      requirePhase(state, ["template_editing"]);
+      const name = validatedTemplateName(command.name);
+      const product = getProduct(state.productId);
+      const layout = getLayout(state.layoutId);
+      const overlay = getOverlay(state.overlayId, state.customOverlays);
+      if (!product || !layout || overlay?.kind !== "custom" || !state.templateEditor) {
+        throw new CommandError("The template setup is incomplete.");
+      }
+      const existing = state.savedTemplates.find((item) => item.id === command.templateId);
+      if (existing && existing.id !== state.templateEditor.sourceTemplateId) {
+        throw new CommandError("Choose a new template name instead of replacing another template.");
+      }
+      const timestamp = now();
+      const template: SavedTemplate = {
+        id: command.templateId,
+        name,
+        productId: product.id,
+        layoutId: layout.id,
+        overlayId: overlay.id,
+        frameTransform: state.frameTransform,
+        holderTransforms: state.holderTransforms,
+        photoTransforms: state.photoTransforms,
+        approved: true,
+        createdAt: existing?.createdAt ?? timestamp,
+        updatedAt: timestamp,
+      };
+      return revised(state, {
+        ...clearedWorkspace(),
+        phase: "template_gallery",
+        savedTemplates: [
+          ...state.savedTemplates.filter((item) => item.id !== template.id),
+          template,
+        ].sort((a, b) => a.name.localeCompare(b.name)),
+      });
+    }
+    case "CANCEL_TEMPLATE_EDIT":
+      requirePhase(state, ["template_editing"]);
+      return revised(state, { ...clearedWorkspace(), phase: "template_gallery" });
+    case "DELETE_TEMPLATE": {
+      requirePhase(state, ["template_gallery"]);
+      if (!state.savedTemplates.some((item) => item.id === command.templateId)) {
+        throw new CommandError("That saved template is no longer available.");
+      }
+      return revised(state, {
+        savedTemplates: state.savedTemplates.filter((item) => item.id !== command.templateId),
+      });
+    }
     case "BEGIN_SESSION":
       requirePhase(state, ["idle"]);
       return revised(state, {
@@ -255,6 +436,8 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         frameMode: null,
         designId: null,
         overlayId: "none",
+        selectedTemplateId: null,
+        templateEditor: null,
         frameTransform: identityMediaTransform(),
         holderTransforms: [],
         photoTransforms: [],
@@ -267,12 +450,45 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         consentRecorded: false,
         deliverables: [],
       });
+    case "SELECT_TEMPLATE": {
+      requirePhase(state, ["selecting", "reviewing"]);
+      const template = state.savedTemplates.find((item) => item.id === command.templateId);
+      if (!template?.approved) throw new CommandError("That template is not available.");
+      const product = getProduct(template.productId);
+      const layout = getLayout(template.layoutId);
+      const overlay = getOverlay(template.overlayId, state.customOverlays);
+      if (
+        !product ||
+        !layout ||
+        !product.layoutIds.includes(layout.id) ||
+        overlay?.kind !== "custom" ||
+        !overlaySupportsLayout(overlay, layout.id)
+      ) {
+        throw new CommandError("That template is missing its layout or imported artwork.");
+      }
+      if (state.phase === "reviewing" && state.layoutId !== layout.id) {
+        throw new CommandError("After capture, choose a template made for the current layout.");
+      }
+      return revised(state, {
+        productId: product.id,
+        layoutId: layout.id,
+        requiredCaptureCount: layout.requiredCaptureCount,
+        frameMode: "custom",
+        designId: null,
+        overlayId: overlay.id,
+        selectedTemplateId: template.id,
+        frameTransform: template.frameTransform,
+        holderTransforms: template.holderTransforms,
+        photoTransforms: template.photoTransforms,
+      });
+    }
     case "SELECT_PRODUCT": {
       requirePhase(state, ["selecting"]);
       const product = getProduct(command.productId);
       if (!product) throw new CommandError("That product is not available.");
       return revised(state, {
         productId: product.id,
+        selectedTemplateId: null,
         layoutId: null,
         frameMode: null,
         designId: null,
@@ -292,6 +508,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       }
       return revised(state, {
         layoutId: layout.id,
+        selectedTemplateId: null,
         frameMode: null,
         designId: null,
         requiredCaptureCount: layout.requiredCaptureCount,
@@ -307,6 +524,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       const currentOverlay = getOverlay(state.overlayId, state.customOverlays);
       return revised(state, {
         frameMode: command.frameMode,
+        selectedTemplateId: null,
         designId: command.frameMode === "custom" ? null : state.designId,
         overlayId:
           command.frameMode === "custom"
@@ -325,6 +543,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       const currentOverlay = getOverlay(state.overlayId, state.customOverlays);
       return revised(state, {
         frameMode: "color",
+        selectedTemplateId: null,
         designId: command.designId,
         overlayId: currentOverlay?.kind === "custom" ? "none" : state.overlayId,
         frameTransform: identityMediaTransform(),
@@ -339,13 +558,14 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       }
       return revised(state, {
         frameMode: overlay.kind === "custom" ? "custom" : "color",
+        selectedTemplateId: null,
         designId: overlay.kind === "custom" ? null : state.designId,
         overlayId: overlay.id,
         frameTransform: overlay.kind === "custom" ? identityMediaTransform() : state.frameTransform,
       });
     }
     case "UPDATE_FRAME_TRANSFORM":
-      requirePhase(state, ["reviewing"]);
+      requirePhase(state, ["reviewing", "template_editing"]);
       if (
         state.frameMode !== "custom" ||
         getOverlay(state.overlayId, state.customOverlays)?.kind !== "custom"
@@ -355,15 +575,24 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       assertMediaTransform(command.transform);
       return revised(state, { frameTransform: command.transform });
     case "UPDATE_HOLDER_TRANSFORM":
-      requirePhase(state, ["reviewing"]);
+      requirePhase(state, ["reviewing", "template_editing"]);
       if (
         state.frameMode !== "custom" ||
         getOverlay(state.overlayId, state.customOverlays)?.kind !== "custom"
       ) {
         throw new CommandError("Photo-holder positioning is available with a custom frame.");
       }
-      if (!state.captures.some((capture) => capture.slot === command.slot)) {
+      if (
+        state.phase === "reviewing" &&
+        !state.captures.some((capture) => capture.slot === command.slot)
+      ) {
         throw new CommandError("Choose an existing photo holder to reposition.");
+      }
+      if (
+        state.phase === "template_editing" &&
+        !getLayout(state.layoutId)?.slots.some((slot) => slot.captureIndex + 1 === command.slot)
+      ) {
+        throw new CommandError("Choose a placeholder in this template.");
       }
       assertMediaTransform(command.transform);
       return revised(state, {
@@ -373,15 +602,24 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         ].sort((a, b) => a.slot - b.slot),
       });
     case "UPDATE_PHOTO_TRANSFORM": {
-      requirePhase(state, ["reviewing"]);
+      requirePhase(state, ["reviewing", "template_editing"]);
       if (
         state.frameMode !== "custom" ||
         getOverlay(state.overlayId, state.customOverlays)?.kind !== "custom"
       ) {
         throw new CommandError("Photo positioning is available with a custom frame.");
       }
-      if (!state.captures.some((capture) => capture.slot === command.slot)) {
+      if (
+        state.phase === "reviewing" &&
+        !state.captures.some((capture) => capture.slot === command.slot)
+      ) {
         throw new CommandError("Choose an existing photo to reposition.");
+      }
+      if (
+        state.phase === "template_editing" &&
+        !getLayout(state.layoutId)?.slots.some((slot) => slot.captureIndex + 1 === command.slot)
+      ) {
+        throw new CommandError("Choose a placeholder in this template.");
       }
       assertMediaTransform(command.transform);
       const photoTransform = normalizePhotoTransform(command.transform);
@@ -576,6 +814,9 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
     case "DELETE_CUSTOM_OVERLAY": {
       const overlay = state.customOverlays.find((item) => item.id === command.overlayId);
       if (!overlay) throw new CommandError("That imported frame is no longer available.");
+      if (state.savedTemplates.some((template) => template.overlayId === overlay.id)) {
+        throw new CommandError("Delete templates using this artwork before deleting the artwork.");
+      }
       const wasSelected = state.overlayId === overlay.id;
       return revised(state, {
         customOverlays: state.customOverlays.filter((item) => item.id !== overlay.id),
@@ -596,6 +837,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         operationMode: state.operationMode,
         cameraSourceId: state.cameraSourceId,
         customOverlays: state.customOverlays,
+        savedTemplates: state.savedTemplates,
         revision: state.revision + 1,
         updatedAt: now(),
       };

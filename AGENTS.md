@@ -36,7 +36,7 @@ iPad display ────┘                     │
 - `src/host/` — local HTTP/WebSocket service, persistence, and deliverable processing.
 - `src/camera/` — Host-side replaceable camera adapters; currently contains the simulator.
 - `src/app/useMacBookCamera.ts` — standard media-device preview and JPEG capture for the Mac operator renderer.
-- `src/shared/` — product catalog, permissions, session state machine, and wire messages.
+- `src/shared/` — product catalog, reusable template records, permissions, session state machine, and wire messages.
 - `electron/` — desktop window wrapper for the operator surface.
 - `assets/brand/` — owner-supplied Wander Press source artwork and documented color tokens.
 - `docs/` — product, hardware, operating-mode, and architecture decisions.
@@ -46,13 +46,13 @@ The Host is authoritative. Every screen sends a command, the Host applies role a
 
 ## Current Phase 0 boundaries
 
-- Products/templates: two product families currently expose five layouts, five frame palettes, four built-in overlays, and locally imported event frames. Layout geometry fixes the unique capture count at three, four, or six; the double-strip 4×6 uses six different shots.
+- Products/templates: two product families currently expose five layouts, five frame palettes, four built-in overlays, locally imported event frames, and a persistent staff-managed Template Gallery. Layout geometry fixes the unique capture count at three, four, or six; the double-strip 4×6 uses six different shots.
 - Payments: staff-confirmed cash only; price is intentionally absent from the UI.
 - Camera: simulator and experimental MacBook camera work; Fujifilm X-M5 follows. Camera selection remains staff-only and idle-only.
 - Capture: one command starts the product-defined sequence. Countdown ticks and capture triggers are Host-owned and broadcast to every screen.
 - Preview: the Mac renderer sends reduced mirrored JPEG frames to an in-memory Host relay; full-resolution unmirrored captures use a separate persisted route.
 - Delivery: branded local files work; cloud upload, QR generation, and 30-day expiry are not implemented yet.
-- Rendering: layout slots can repeat capture indices and use rectangle, rounded, or heart masks. A session uses either a generated fixed-color frame (with an optional built-in treatment) or one imported custom frame. New imports use transparent PNG artwork with pre-cut openings; legacy flat-template records remain renderable. The Host applies persisted frame, holder, and image transforms in preview and export.
+- Rendering: layout slots can repeat capture indices and use rectangle, rounded, or heart masks. A session uses either a generated fixed-color frame (with an optional built-in treatment) or one imported custom frame. New imports use transparent PNG artwork with pre-cut openings; legacy flat-template records remain renderable. The staff-only Template Gallery stores approved product/layout/artwork combinations plus all placeholder, holder, crop, rotation, and lock transforms. Selecting a saved template fills those numbered positions with real captures. The Host applies the same persisted transforms in preview and export.
 - Review: the final composed layout is the primary preview. Captured and waiting source cards share a 16:9 footprint and use `contain` for uncropped review. The staff-only direct canvas uses click/tap selection, drag movement, proportional corner resizing, independent middle-edge crop-frame reshaping, direct rotation, object locking, and Crop image mode. Holder bounds may change aspect ratio, but the photo content always keeps its natural proportions. Frame artwork, each photo frame, and the image inside each frame have separate normalized transforms in authoritative Host state. Imported templates can be deleted with confirmation from the operator UI.
 - Printing: the 2×6 and 4×6 composite files render at 300 DPI. The first double-strip file now exists, but Epson L8050 queue control is not implemented yet.
 - Authentication: local prototype roles are screen-based, not authenticated accounts.

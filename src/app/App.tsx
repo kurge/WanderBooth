@@ -23,6 +23,7 @@ import {
 } from "../shared/catalog";
 import type {
   Actor,
+  BoothEvent,
   BoothState,
   Command,
   HolderTransform,
@@ -30,6 +31,7 @@ import type {
   PhotoTransform,
   SavedTemplate,
 } from "../shared/session";
+import { activeEventFor, galleryTemplatesFor, sessionTemplatesFor } from "../shared/session";
 import { createId } from "./createId";
 import { type ResizeHandle, resizeTransform } from "./resizeTransform";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
@@ -996,7 +998,481 @@ function LayoutPreview({
   );
 }
 
-function TemplateThumbnail({ template, state }: { template: SavedTemplate; state: BoothState }) {
+const readableEventDate = (value: string) =>
+  new Intl.DateTimeFormat("en-PH", { dateStyle: "medium" }).format(new Date(`${value}T12:00:00`));
+
+function EventCard({
+  event,
+  sendCommand,
+}: {
+  event: BoothEvent;
+  sendCommand: (command: Command) => void;
+}) {
+  return (
+    <article className="event-card">
+      <div className="event-card__heading">
+        <span className={`event-status event-status--${event.status}`}>{event.status}</span>
+        <strong>{event.name}</strong>
+        <small>
+          {readableEventDate(event.eventDate)} · {event.sessions.length} session
+          {event.sessions.length === 1 ? "" : "s"}
+        </small>
+      </div>
+      <dl>
+        {event.clientName && (
+          <div>
+            <dt>Client</dt>
+            <dd>{event.clientName}</dd>
+          </div>
+        )}
+        {event.venue && (
+          <div>
+            <dt>Venue</dt>
+            <dd>{event.venue}</dd>
+          </div>
+        )}
+        <div>
+          <dt>Starting folder</dt>
+          <dd>{event.initialTemplateFolderName}</dd>
+        </div>
+      </dl>
+      <div className="event-card__actions">
+        <button
+          className="button button--primary"
+          type="button"
+          onClick={() => sendCommand({ type: "OPEN_EVENT", eventId: event.id })}
+        >
+          {event.status === "archived" ? "Restore and open" : "Open event"}
+        </button>
+        {event.status === "active" ? (
+          <button
+            className="button button--quiet"
+            type="button"
+            onClick={() => sendCommand({ type: "ARCHIVE_EVENT", eventId: event.id })}
+          >
+            Archive
+          </button>
+        ) : (
+          <button
+            className="button button--quiet"
+            type="button"
+            onClick={() => sendCommand({ type: "RESTORE_EVENT", eventId: event.id })}
+          >
+            Restore
+          </button>
+        )}
+        <button
+          className="button button--danger"
+          type="button"
+          onClick={() => {
+            if (
+              window.confirm(
+                `Permanently delete “${event.name}” and all of its local sessions, photos, layouts, and videos? This cannot be undone.`,
+              )
+            ) {
+              sendCommand({ type: "DELETE_EVENT", eventId: event.id });
+            }
+          }}
+        >
+          Delete
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function EventLibraryPanel({
+  state,
+  sendCommand,
+}: {
+  state: BoothState;
+  sendCommand: (command: Command) => void;
+}) {
+  const [showCreate, setShowCreate] = useState(state.events.length === 0);
+  const [folderName, setFolderName] = useState("");
+  const [name, setName] = useState("");
+  const [eventDate, setEventDate] = useState(new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [venue, setVenue] = useState("");
+  const [notes, setNotes] = useState("");
+  const [templateFolderId, setTemplateFolderId] = useState(state.templateFolders[0]?.id ?? "");
+  const activeEvents = state.events.filter((event) => event.status === "active");
+  const archivedEvents = state.events.filter((event) => event.status === "archived");
+
+  useEffect(() => {
+    if (!state.templateFolders.some((folder) => folder.id === templateFolderId)) {
+      setTemplateFolderId(state.templateFolders[0]?.id ?? "");
+    }
+  }, [state.templateFolders, templateFolderId]);
+
+  const createEvent = () => {
+    if (!name.trim() || !eventDate || !templateFolderId) return;
+    sendCommand({
+      type: "CREATE_EVENT",
+      eventId: createId(),
+      name,
+      eventDate,
+      endDate: endDate || undefined,
+      clientName,
+      venue,
+      notes,
+      templateFolderId,
+    });
+  };
+
+  return (
+    <section className="event-library">
+      <div className="event-library__hero">
+        <div>
+          <span className="eyebrow">Local event workspace</span>
+          <h1>Choose an event or create a new one.</h1>
+          <p>
+            Every customer session, capture, finished layout, and video stays grouped with its event
+            on this computer until you delete it.
+          </p>
+        </div>
+        <div className="event-library__hero-actions">
+          <button
+            className="button button--primary button--large"
+            type="button"
+            onClick={() => setShowCreate((visible) => !visible)}
+          >
+            {showCreate ? "Close event form" : "Create an Event"}
+          </button>
+          <button
+            className="button button--quiet button--large"
+            type="button"
+            onClick={() => sendCommand({ type: "OPEN_TEMPLATE_GALLERY", scope: "library" })}
+          >
+            Open Template Library
+          </button>
+        </div>
+      </div>
+
+      {showCreate && (
+        <section className="event-create-panel">
+          <div className="catalog-section__subheading">
+            <small>New local project</small>
+            <h2>Create an Event</h2>
+          </div>
+          <div className="event-form-grid">
+            <label className="event-form-grid__wide">
+              Event name
+              <input
+                type="text"
+                maxLength={120}
+                value={name}
+                placeholder="LenaMiu Event - Nov 22"
+                onChange={(event) => setName(event.target.value)}
+              />
+            </label>
+            <label>
+              Event date
+              <input
+                type="date"
+                value={eventDate}
+                onChange={(event) => setEventDate(event.target.value)}
+              />
+            </label>
+            <label>
+              End date <small>Optional</small>
+              <input
+                type="date"
+                min={eventDate}
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
+            </label>
+            <label>
+              Client name <small>Optional</small>
+              <input
+                type="text"
+                maxLength={120}
+                value={clientName}
+                onChange={(event) => setClientName(event.target.value)}
+              />
+            </label>
+            <label>
+              Venue <small>Optional</small>
+              <input
+                type="text"
+                maxLength={180}
+                value={venue}
+                onChange={(event) => setVenue(event.target.value)}
+              />
+            </label>
+            <label className="event-form-grid__wide">
+              Starting template folder
+              <select
+                value={templateFolderId}
+                onChange={(event) => setTemplateFolderId(event.target.value)}
+              >
+                {state.templateFolders.map((folder) => (
+                  <option value={folder.id} key={folder.id}>
+                    {folder.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="event-form-grid__wide">
+              Notes <small>Optional</small>
+              <textarea
+                maxLength={1000}
+                value={notes}
+                rows={3}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="event-create-panel__footer">
+            <p>
+              Templates in the selected folder are copied into this event, so event-only edits do
+              not change other events.
+            </p>
+            <button
+              className="button button--primary button--large"
+              type="button"
+              disabled={!name.trim() || !eventDate || !templateFolderId}
+              onClick={createEvent}
+            >
+              Create and open event
+            </button>
+          </div>
+        </section>
+      )}
+
+      <section className="folder-manager">
+        <div>
+          <span className="eyebrow">Template folders</span>
+          <h2>Organize reusable designs</h2>
+        </div>
+        <div className="folder-manager__create">
+          <input
+            type="text"
+            maxLength={60}
+            value={folderName}
+            placeholder="Weddings, birthdays…"
+            aria-label="New template folder name"
+            onChange={(event) => setFolderName(event.target.value)}
+          />
+          <button
+            className="button button--dark"
+            type="button"
+            disabled={!folderName.trim()}
+            onClick={() => {
+              sendCommand({
+                type: "CREATE_TEMPLATE_FOLDER",
+                folderId: createId(),
+                name: folderName,
+              });
+              setFolderName("");
+            }}
+          >
+            Add folder
+          </button>
+        </div>
+        <div className="folder-chip-list">
+          {state.templateFolders.map((folder) => (
+            <span className="folder-chip" key={folder.id}>
+              {folder.name}
+              {state.templateFolders.length > 1 && (
+                <button
+                  type="button"
+                  aria-label={`Delete ${folder.name} folder`}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Delete the “${folder.name}” folder? Its templates will remain in the library but will no longer belong to this folder.`,
+                      )
+                    ) {
+                      sendCommand({ type: "DELETE_TEMPLATE_FOLDER", folderId: folder.id });
+                    }
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="event-list-section">
+        <div className="catalog-section__subheading">
+          <small>Ready to continue</small>
+          <h2>Active events</h2>
+        </div>
+        <div className="event-card-grid">
+          {activeEvents.map((event) => (
+            <EventCard event={event} sendCommand={sendCommand} key={event.id} />
+          ))}
+          {activeEvents.length === 0 && (
+            <p className="catalog-empty">No active events yet. Create the first one above.</p>
+          )}
+        </div>
+      </section>
+
+      {archivedEvents.length > 0 && (
+        <section className="event-list-section event-list-section--archived">
+          <div className="catalog-section__subheading">
+            <small>Kept locally</small>
+            <h2>Archived events</h2>
+          </div>
+          <div className="event-card-grid">
+            {archivedEvents.map((event) => (
+              <EventCard event={event} sendCommand={sendCommand} key={event.id} />
+            ))}
+          </div>
+        </section>
+      )}
+    </section>
+  );
+}
+
+function EventWorkspacePanel({
+  state,
+  cameraReady,
+  sendCommand,
+}: {
+  state: BoothState;
+  cameraReady: boolean;
+  sendCommand: (command: Command) => void;
+}) {
+  const event = activeEventFor(state);
+  const [customerName, setCustomerName] = useState("");
+  if (!event) return null;
+
+  return (
+    <section className="event-workspace">
+      <div className="event-workspace__heading">
+        <div>
+          <span className="eyebrow">Active event · {readableEventDate(event.eventDate)}</span>
+          <h1>{event.name}</h1>
+          <p>
+            {event.clientName || "No client name"}
+            {event.venue ? ` · ${event.venue}` : ""} · {event.templates.length} event template
+            {event.templates.length === 1 ? "" : "s"}
+          </p>
+        </div>
+        <div className="event-workspace__heading-actions">
+          <button
+            className="button button--quiet"
+            type="button"
+            onClick={() => sendCommand({ type: "CLOSE_EVENT" })}
+          >
+            All events
+          </button>
+          <button
+            className="button button--quiet"
+            type="button"
+            onClick={() => sendCommand({ type: "ARCHIVE_EVENT", eventId: event.id })}
+          >
+            Archive event
+          </button>
+        </div>
+      </div>
+
+      <div className="event-workspace__setup">
+        <ModeSelector value={state.operationMode} sendCommand={sendCommand} />
+        <section className="next-session-card">
+          <span className="eyebrow">Next customer</span>
+          <h2>Start session {event.sessions.length + 1}</h2>
+          <label>
+            Customer or group name <small>Optional</small>
+            <input
+              type="text"
+              maxLength={80}
+              value={customerName}
+              placeholder="Example: Santos family"
+              onChange={(inputEvent) => setCustomerName(inputEvent.target.value)}
+            />
+          </label>
+          <div className="next-session-card__actions">
+            <button
+              className="button button--primary button--large"
+              type="button"
+              disabled={!cameraReady}
+              onClick={() =>
+                sendCommand({
+                  type: "BEGIN_SESSION",
+                  sessionId: createId(),
+                  customerName,
+                })
+              }
+            >
+              Start a new session
+            </button>
+            <button
+              className="button button--quiet button--large"
+              type="button"
+              onClick={() => sendCommand({ type: "OPEN_TEMPLATE_GALLERY", scope: "event" })}
+            >
+              Manage event templates
+            </button>
+          </div>
+          {!cameraReady && <p className="start-note">Enable the selected camera first.</p>}
+        </section>
+      </div>
+
+      <section className="event-session-history">
+        <div className="catalog-section__subheading">
+          <small>Saved locally</small>
+          <h2>Customer sessions</h2>
+        </div>
+        <div className="event-session-list">
+          {[...event.sessions].reverse().map((session) => (
+            <article className="event-session-card" key={session.id}>
+              <div className="event-session-card__heading">
+                <span>Session {session.number}</span>
+                <strong>{session.customerName || `Guest session ${session.number}`}</strong>
+                <small>{new Date(session.completedAt).toLocaleString("en-PH")}</small>
+              </div>
+              <div className="event-session-card__captures">
+                {session.captures.map((capture) => (
+                  <img
+                    src={mediaSource(capture.mediaUrl)}
+                    alt={`Session ${session.number} capture ${capture.slot}`}
+                    key={`${session.id}-${capture.slot}`}
+                  />
+                ))}
+              </div>
+              <div className="event-session-card__deliverables">
+                {session.deliverables.map((deliverable) => (
+                  <a
+                    href={mediaSource(deliverable.mediaUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    key={deliverable.mediaUrl}
+                  >
+                    {deliverable.label}
+                  </a>
+                ))}
+              </div>
+              <p className="event-session-card__qr">
+                QR delivery: waiting for the cloud-delivery milestone · future links expire after 30
+                days.
+              </p>
+            </article>
+          ))}
+          {event.sessions.length === 0 && (
+            <p className="catalog-empty">Completed customer sessions will appear here.</p>
+          )}
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function TemplateThumbnail({
+  template,
+  state,
+  compact = false,
+}: {
+  template: SavedTemplate;
+  state: BoothState;
+  compact?: boolean;
+}) {
   const layout = resolveLayout(template.layoutId, template.customSlots);
   const overlay = getOverlay(template.overlayId, state.customOverlays);
   if (!layout || overlay?.kind !== "custom") {
@@ -1011,7 +1487,11 @@ function TemplateThumbnail({ template, state }: { template: SavedTemplate; state
       className="saved-template-thumbnail"
       style={{
         aspectRatio: `${layout.canvasWidth} / ${layout.canvasHeight}`,
-        width: layout.canvasHeight > layout.canvasWidth ? "min(100%, 170px)" : "100%",
+        width: compact
+          ? "70px"
+          : layout.canvasHeight > layout.canvasWidth
+            ? "min(100%, 170px)"
+            : "100%",
       }}
       aria-hidden="true"
     >
@@ -1046,7 +1526,31 @@ function TemplateGalleryPanel({
   const [layoutId, setLayoutId] = useState(selectedProduct?.layoutIds[0] ?? "");
   const [overlayId, setOverlayId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [folderFilter, setFolderFilter] = useState<string>("all");
+  const [selectedFolderIds, setSelectedFolderIds] = useState<string[]>(
+    state.templateFolders[0] ? [state.templateFolders[0].id] : [],
+  );
+  const [promotion, setPromotion] = useState<{
+    templateId: string;
+    name: string;
+    folderIds: string[];
+  } | null>(null);
   const selectedLayout = getLayout(layoutId);
+  const activeEvent = activeEventFor(state);
+  const isEventGallery = state.templateGalleryScope === "event";
+  const galleryTemplates = galleryTemplatesFor(state);
+  const visibleTemplates =
+    !isEventGallery && folderFilter !== "all"
+      ? galleryTemplates.filter((template) => template.folderIds.includes(folderFilter))
+      : galleryTemplates;
+  const addableLibraryTemplates = isEventGallery
+    ? state.savedTemplates.filter(
+        (template) =>
+          !activeEvent?.templates.some(
+            (eventTemplate) => eventTemplate.sourceTemplateId === template.id,
+          ),
+      )
+    : [];
   const compatibleArtwork = useMemo(
     () =>
       selectedLayout
@@ -1071,13 +1575,20 @@ function TemplateGalleryPanel({
   }, [compatibleArtwork, overlayId]);
 
   const beginTemplate = () => {
-    if (!selectedLayout || !overlayId || !name.trim()) return;
+    if (
+      !selectedLayout ||
+      !overlayId ||
+      !name.trim() ||
+      (!isEventGallery && selectedFolderIds.length === 0)
+    )
+      return;
     sendCommand({
       type: "BEGIN_TEMPLATE_CREATE",
       name: name.trim(),
       productId,
       layoutId: selectedLayout.id,
       overlayId,
+      folderIds: isEventGallery ? [] : selectedFolderIds,
       ...(isCustomLayoutId(selectedLayout.id) ? { initialHolderId: createId() } : {}),
     });
   };
@@ -1086,10 +1597,14 @@ function TemplateGalleryPanel({
     <section className="template-gallery-stage">
       <div className="section-heading section-heading--horizontal">
         <div>
-          <span className="eyebrow">Staff setup</span>
-          <h1>Template Gallery</h1>
+          <span className="eyebrow">{isEventGallery ? "Event setup" : "Reusable library"}</span>
+          <h1>
+            {isEventGallery ? `${activeEvent?.name ?? "Event"} Templates` : "Template Library"}
+          </h1>
           <p>
-            Prepare each frame once. Real captures will fill the saved placeholders automatically.
+            {isEventGallery
+              ? "Changes here stay inside this event. Completed customer sessions remain unchanged."
+              : "Organize master templates into folders, then copy them into event workspaces."}
           </p>
         </div>
         <button
@@ -1097,17 +1612,39 @@ function TemplateGalleryPanel({
           type="button"
           onClick={() => sendCommand({ type: "CLOSE_TEMPLATE_GALLERY" })}
         >
-          Back to booth
+          {isEventGallery ? "Back to event" : "Back to events"}
         </button>
       </div>
 
       <section className="saved-template-library">
         <div className="catalog-section__subheading">
-          <small>Ready for sessions</small>
-          <h2>Saved templates</h2>
+          <small>{isEventGallery ? "Available at this event" : "Reusable masters"}</small>
+          <h2>{isEventGallery ? "Event templates" : "Saved templates"}</h2>
         </div>
+        {!isEventGallery && (
+          <fieldset className="folder-filter">
+            <legend>Filter templates by folder</legend>
+            <button
+              type="button"
+              aria-pressed={folderFilter === "all"}
+              onClick={() => setFolderFilter("all")}
+            >
+              All templates
+            </button>
+            {state.templateFolders.map((folder) => (
+              <button
+                type="button"
+                aria-pressed={folderFilter === folder.id}
+                onClick={() => setFolderFilter(folder.id)}
+                key={folder.id}
+              >
+                {folder.name}
+              </button>
+            ))}
+          </fieldset>
+        )}
         <div className="saved-template-grid">
-          {state.savedTemplates.map((template) => {
+          {visibleTemplates.map((template) => {
             const layout = resolveLayout(template.layoutId, template.customSlots);
             return (
               <article className="saved-template-card" key={template.id}>
@@ -1144,15 +1681,133 @@ function TemplateGalleryPanel({
                   >
                     Delete
                   </button>
+                  {isEventGallery && (
+                    <button
+                      className="button button--quiet button--tiny"
+                      type="button"
+                      onClick={() =>
+                        setPromotion({
+                          templateId: template.id,
+                          name: template.name,
+                          folderIds: state.templateFolders[0] ? [state.templateFolders[0].id] : [],
+                        })
+                      }
+                    >
+                      Save to Library
+                    </button>
+                  )}
                 </div>
               </article>
             );
           })}
-          {state.savedTemplates.length === 0 && (
-            <p className="catalog-empty">No reusable templates yet. Create the first one below.</p>
+          {visibleTemplates.length === 0 && (
+            <p className="catalog-empty">
+              {isEventGallery
+                ? "No templates are available in this event yet."
+                : "No reusable templates are in this folder yet."}
+            </p>
           )}
         </div>
+        {promotion && (
+          <div className="template-promotion-panel">
+            <div>
+              <span className="eyebrow">Create reusable master</span>
+              <h3>Save this event version to the Template Library</h3>
+            </div>
+            <label>
+              Template name
+              <input
+                type="text"
+                maxLength={80}
+                value={promotion.name}
+                onChange={(event) =>
+                  setPromotion((current) =>
+                    current ? { ...current, name: event.target.value } : current,
+                  )
+                }
+              />
+            </label>
+            <fieldset className="folder-checkboxes">
+              <legend>Save to folder(s)</legend>
+              {state.templateFolders.map((folder) => (
+                <label key={folder.id}>
+                  <input
+                    type="checkbox"
+                    checked={promotion.folderIds.includes(folder.id)}
+                    onChange={(event) =>
+                      setPromotion((current) =>
+                        current
+                          ? {
+                              ...current,
+                              folderIds: event.target.checked
+                                ? [...current.folderIds, folder.id]
+                                : current.folderIds.filter((folderId) => folderId !== folder.id),
+                            }
+                          : current,
+                      )
+                    }
+                  />
+                  {folder.name}
+                </label>
+              ))}
+            </fieldset>
+            <div className="template-promotion-panel__actions">
+              <button
+                className="button button--quiet"
+                type="button"
+                onClick={() => setPromotion(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="button button--primary"
+                type="button"
+                disabled={!promotion.name.trim() || promotion.folderIds.length === 0}
+                onClick={() => {
+                  sendCommand({
+                    type: "SAVE_EVENT_TEMPLATE_TO_LIBRARY",
+                    templateId: promotion.templateId,
+                    libraryTemplateId: createId(),
+                    name: promotion.name,
+                    folderIds: promotion.folderIds,
+                  });
+                  setPromotion(null);
+                }}
+              >
+                Save reusable copy
+              </button>
+            </div>
+          </div>
+        )}
       </section>
+
+      {isEventGallery && (
+        <section className="event-template-importer">
+          <div className="catalog-section__subheading">
+            <small>From other folders</small>
+            <h2>Add a Template Library design</h2>
+          </div>
+          <div className="event-template-importer__list">
+            {addableLibraryTemplates.map((template) => (
+              <button
+                className="event-template-importer__item"
+                type="button"
+                onClick={() => sendCommand({ type: "ADD_EVENT_TEMPLATE", templateId: template.id })}
+                key={template.id}
+              >
+                <TemplateThumbnail template={template} state={state} compact />
+                <span>
+                  <strong>{template.name}</strong>
+                  <small>Add an event-only copy</small>
+                </span>
+              </button>
+            ))}
+            {addableLibraryTemplates.length === 0 && (
+              <p className="catalog-empty">Every library template is already in this event.</p>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="template-creator">
         <div className="catalog-section__subheading">
@@ -1169,6 +1824,27 @@ function TemplateGalleryPanel({
             onChange={(event) => setName(event.target.value)}
           />
         </label>
+        {!isEventGallery && (
+          <fieldset className="folder-checkboxes folder-checkboxes--creator">
+            <legend>Save to folder(s)</legend>
+            {state.templateFolders.map((folder) => (
+              <label key={folder.id}>
+                <input
+                  type="checkbox"
+                  checked={selectedFolderIds.includes(folder.id)}
+                  onChange={(event) =>
+                    setSelectedFolderIds((current) =>
+                      event.target.checked
+                        ? [...current, folder.id]
+                        : current.filter((folderId) => folderId !== folder.id),
+                    )
+                  }
+                />
+                {folder.name}
+              </label>
+            ))}
+          </fieldset>
+        )}
         <div className="product-grid product-grid--compact">
           {products.map((product) => (
             <button
@@ -1273,7 +1949,12 @@ function TemplateGalleryPanel({
           <button
             className="button button--primary button--large"
             type="button"
-            disabled={!name.trim() || !selectedLayout || !overlayId}
+            disabled={
+              !name.trim() ||
+              !selectedLayout ||
+              !overlayId ||
+              (!isEventGallery && selectedFolderIds.length === 0)
+            }
             onClick={beginTemplate}
           >
             Open template setup
@@ -1293,9 +1974,10 @@ function TemplateEditorPanel({
 }) {
   const editor = state.templateEditor;
   const sourceTemplate = editor?.sourceTemplateId
-    ? state.savedTemplates.find((template) => template.id === editor.sourceTemplateId)
+    ? galleryTemplatesFor(state).find((template) => template.id === editor.sourceTemplateId)
     : null;
   const [name, setName] = useState(editor?.startingName ?? "");
+  const [folderIds, setFolderIds] = useState(editor?.startingFolderIds ?? []);
   const customLayout = isCustomLayoutId(state.layoutId);
   const customSlots = state.customSlots ?? [];
   const captureChoices = Array.from(
@@ -1304,12 +1986,14 @@ function TemplateEditorPanel({
   );
 
   useEffect(() => setName(editor?.startingName ?? ""), [editor?.startingName]);
+  useEffect(() => setFolderIds(editor?.startingFolderIds ?? []), [editor?.startingFolderIds]);
 
   if (!editor) return null;
 
   const saveTemplate = (templateId: string) => {
-    if (!name.trim()) return;
-    sendCommand({ type: "SAVE_TEMPLATE", templateId, name: name.trim() });
+    if (!name.trim() || (state.templateGalleryScope === "library" && folderIds.length === 0))
+      return;
+    sendCommand({ type: "SAVE_TEMPLATE", templateId, name: name.trim(), folderIds });
   };
 
   return (
@@ -1337,6 +2021,27 @@ function TemplateEditorPanel({
           onChange={(event) => setName(event.target.value)}
         />
       </label>
+      {state.templateGalleryScope === "library" && (
+        <fieldset className="folder-checkboxes folder-checkboxes--creator">
+          <legend>Save to folder(s)</legend>
+          {state.templateFolders.map((folder) => (
+            <label key={folder.id}>
+              <input
+                type="checkbox"
+                checked={folderIds.includes(folder.id)}
+                onChange={(event) =>
+                  setFolderIds((current) =>
+                    event.target.checked
+                      ? [...current, folder.id]
+                      : current.filter((folderId) => folderId !== folder.id),
+                  )
+                }
+              />
+              {folder.name}
+            </label>
+          ))}
+        </fieldset>
+      )}
       {customLayout && (
         <section className="holder-mapping-panel" aria-labelledby="holder-mapping-title">
           <div className="holder-mapping-panel__heading">
@@ -1408,15 +2113,18 @@ function TemplateEditorPanel({
       </div>
       <div className="template-editor-stage__footer">
         <p>
-          Save changes updates this gallery item. Save as new keeps the original and creates another
-          reusable version.
+          {state.templateGalleryScope === "event"
+            ? "Changes stay inside this event. Save as new creates another event-only version."
+            : "Save changes updates this library item everywhere it is listed. Save as new keeps the original."}
         </p>
         <div className="template-editor-stage__actions">
           {sourceTemplate && (
             <button
               className="button button--quiet button--large"
               type="button"
-              disabled={!name.trim()}
+              disabled={
+                !name.trim() || (state.templateGalleryScope === "library" && folderIds.length === 0)
+              }
               onClick={() => saveTemplate(sourceTemplate.id)}
             >
               Save changes
@@ -1425,7 +2133,9 @@ function TemplateEditorPanel({
           <button
             className="button button--primary button--large"
             type="button"
-            disabled={!name.trim()}
+            disabled={
+              !name.trim() || (state.templateGalleryScope === "library" && folderIds.length === 0)
+            }
             onClick={() => saveTemplate(createId())}
           >
             {sourceTemplate ? "Save as new" : "Save template"}
@@ -1521,7 +2231,7 @@ function SelectionPanel({
   const canSubmit = Boolean(
     state.productId && state.layoutId && validFrame && state.consentRecorded,
   );
-  const approvedTemplates = state.savedTemplates.filter((template) => template.approved);
+  const approvedTemplates = sessionTemplatesFor(state).filter((template) => template.approved);
 
   if (!interactive) {
     return (
@@ -1969,7 +2679,7 @@ function SessionPanel({
     const compatibleCustomFrames = state.customOverlays.filter(
       (overlay) => Boolean(state.layoutId) && overlaySupportsLayout(overlay, state.layoutId ?? ""),
     );
-    const compatibleTemplates = state.savedTemplates.filter(
+    const compatibleTemplates = sessionTemplatesFor(state).filter(
       (template) => template.approved && template.layoutId === state.layoutId,
     );
     return (
@@ -2207,7 +2917,7 @@ function SessionPanel({
             type="button"
             onClick={() => sendCommand({ type: "RESET" })}
           >
-            Finish and reset booth
+            Finish and return to event
           </button>
         )}
       </section>
@@ -2429,6 +3139,8 @@ function App() {
     () => isOperator || state?.operationMode === "self_service",
     [isOperator, state?.operationMode],
   );
+  const activeEvent = state ? activeEventFor(state) : null;
+  const showOperatorSidebar = isOperator && Boolean(activeEvent);
 
   useEffect(() => {
     if (state?.phase) window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -2460,7 +3172,9 @@ function App() {
       <header className="topbar">
         <BrandMark compact />
         <div className="topbar__status">
-          <span className="phase-label">{phaseLabels[state.phase]}</span>
+          <span className="phase-label">
+            {state.phase === "idle" && !activeEvent ? "Event library" : phaseLabels[state.phase]}
+          </span>
           <ConnectionBadge connected={connected} />
           {isOperator && (
             <button
@@ -2496,43 +3210,21 @@ function App() {
         </div>
       )}
 
-      <div className={isOperator ? "workspace workspace--operator" : "workspace"}>
+      <div className={showOperatorSidebar ? "workspace workspace--operator" : "workspace"}>
         <main className="booth-stage">
           {state.phase === "idle" ? (
             isOperator ? (
-              <section className="welcome-panel">
-                <div className="welcome-panel__copy">
-                  <span className="eyebrow">Phase 0 · working prototype</span>
-                  <h1>Set the mode, then welcome your next guest.</h1>
-                  <p>
-                    The same session will stay synchronized between this Mac and the iPad customer
-                    screen.
-                  </p>
-                </div>
-                <ModeSelector value={state.operationMode} sendCommand={sendCommand} />
-                <div className="welcome-panel__actions">
-                  <button
-                    className="button button--primary button--large"
-                    type="button"
-                    disabled={
-                      state.cameraSourceId === "macbook_camera" && camera.status !== "ready"
-                    }
-                    onClick={() => sendCommand({ type: "BEGIN_SESSION", sessionId: createId() })}
-                  >
-                    Start a new session
-                  </button>
-                  <button
-                    className="button button--quiet button--large"
-                    type="button"
-                    onClick={() => sendCommand({ type: "OPEN_TEMPLATE_GALLERY" })}
-                  >
-                    Manage Template Gallery
-                  </button>
-                </div>
-                {state.cameraSourceId === "macbook_camera" && camera.status !== "ready" && (
-                  <p className="start-note">Enable the MacBook camera before starting a session.</p>
-                )}
-              </section>
+              activeEvent ? (
+                <EventWorkspacePanel
+                  state={state}
+                  cameraReady={
+                    state.cameraSourceId !== "macbook_camera" || camera.status === "ready"
+                  }
+                  sendCommand={sendCommand}
+                />
+              ) : (
+                <EventLibraryPanel state={state} sendCommand={sendCommand} />
+              )
             ) : (
               <section className="customer-hero">
                 <div className="customer-hero__splat" aria-hidden="true" />
@@ -2541,9 +3233,15 @@ function App() {
                   src={wanderPressSplashLogo}
                   alt="Wander Press PH"
                 />
-                <span className="eyebrow">Your photos. One keepsake.</span>
-                <h1>Ready to wander?</h1>
-                <p>Your attendant will start the next session.</p>
+                <span className="eyebrow">
+                  {activeEvent ? activeEvent.name : "Waiting for an event"}
+                </span>
+                <h1>{activeEvent ? "Ready to wander?" : "The booth is getting ready."}</h1>
+                <p>
+                  {activeEvent
+                    ? "Your attendant will start the next session."
+                    : "The event will appear here when your attendant opens it."}
+                </p>
               </section>
             )
           ) : (
@@ -2555,7 +3253,7 @@ function App() {
             />
           )}
         </main>
-        {isOperator && (
+        {showOperatorSidebar && (
           <OperatorSidebar
             state={state}
             camera={camera}

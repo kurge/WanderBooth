@@ -1,5 +1,5 @@
 import { createReadStream, existsSync } from "node:fs";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, rm, unlink, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { networkInterfaces } from "node:os";
 import { extname, resolve } from "node:path";
@@ -38,8 +38,23 @@ const database = new BoothDatabase(dataDirectory);
 const defaultState = initialBoothState();
 const savedState = database.loadState();
 const savedCustomOverlays = savedState?.customOverlays ?? [];
-const savedTemplates = (savedState?.savedTemplates ?? []).map((template) => ({
+const migrationTimestamp = new Date().toISOString();
+const generalFolder = {
+  id: "folder-general",
+  name: "General",
+  createdAt: migrationTimestamp,
+  updatedAt: migrationTimestamp,
+};
+const savedTemplateFolders = savedState?.templateFolders?.length
+  ? savedState.templateFolders
+  : [generalFolder];
+const normalizeSavedTemplate = (
+  template: (typeof defaultState.savedTemplates)[number],
+  fallbackFolderIds: string[] = [],
+) => ({
   ...template,
+  folderIds: template.folderIds?.length ? template.folderIds : fallbackFolderIds,
+  sourceTemplateId: template.sourceTemplateId ?? null,
   customSlots: template.customSlots ?? null,
   frameTransform: normalizeMediaTransform(template.frameTransform),
   holderTransforms: (template.holderTransforms ?? []).map(({ slot, ...transform }) => ({
@@ -50,6 +65,14 @@ const savedTemplates = (savedState?.savedTemplates ?? []).map((template) => ({
     slot,
     ...normalizePhotoTransform(transform),
   })),
+});
+const savedTemplates = (savedState?.savedTemplates ?? []).map((template) =>
+  normalizeSavedTemplate(template, [savedTemplateFolders[0]?.id ?? generalFolder.id]),
+);
+const savedEvents = (savedState?.events ?? []).map((event) => ({
+  ...event,
+  templates: (event.templates ?? []).map((template) => normalizeSavedTemplate(template)),
+  sessions: event.sessions ?? [],
 }));
 const savedOverlay = savedState
   ? getOverlay(savedState.overlayId ?? "none", savedCustomOverlays)
@@ -61,15 +84,24 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 11,
+      schemaVersion: 12,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
       overlayId: savedState.overlayId ?? "none",
       customOverlays: savedCustomOverlays,
+      templateFolders: savedTemplateFolders,
       savedTemplates,
+      events: savedEvents,
+      activeEventId: savedState.activeEventId ?? null,
+      templateGalleryScope: savedState.templateGalleryScope ?? "library",
       selectedTemplateId: savedState.selectedTemplateId ?? null,
-      templateEditor: savedState.templateEditor ?? null,
+      templateEditor: savedState.templateEditor
+        ? {
+            ...savedState.templateEditor,
+            startingFolderIds: savedState.templateEditor.startingFolderIds ?? [],
+          }
+        : null,
       customSlots: savedState.customSlots ?? null,
       frameMode: savedFrameMode,
       designId: savedFrameMode === "custom" ? null : savedState.designId,
@@ -82,6 +114,8 @@ let state: BoothState = savedState
         slot,
         ...normalizePhotoTransform(transform),
       })),
+      sessionCustomerName: savedState.sessionCustomerName ?? null,
+      sessionStartedAt: savedState.sessionStartedAt ?? null,
     }
   : defaultState;
 database.saveState(state);
@@ -219,8 +253,12 @@ const receiveCameraCapture = async (request: IncomingMessage, response: ServerRe
 
   const pending = state.pendingCapture;
   const sessionId = safeSessionId(state.sessionId);
+  const eventId = state.activeEventId ? safeEventId(state.activeEventId) : null;
   const body = await readImageBody(request);
-  const captureDirectory = resolve(dataDirectory, "sessions", sessionId, "captures");
+  const sessionRoot = eventId
+    ? resolve(dataDirectory, "events", eventId, "sessions", sessionId)
+    : resolve(dataDirectory, "sessions", sessionId);
+  const captureDirectory = resolve(sessionRoot, "captures");
   await mkdir(captureDirectory, { recursive: true });
   const filename = `photo-${pending.slot}-r${pending.revision}.jpg`;
   await writeFile(resolve(captureDirectory, filename), body);
@@ -230,7 +268,9 @@ const receiveCameraCapture = async (request: IncomingMessage, response: ServerRe
     capture: {
       slot: pending.slot,
       revision: pending.revision,
-      mediaUrl: `/media/sessions/${sessionId}/captures/${filename}`,
+      mediaUrl: eventId
+        ? `/media/events/${eventId}/sessions/${sessionId}/captures/${filename}`
+        : `/media/sessions/${sessionId}/captures/${filename}`,
       capturedAt: new Date().toISOString(),
     },
   });
@@ -300,7 +340,12 @@ const receiveOverlayDelete = async (overlayId: string, response: ServerResponse)
   }
   const overlay = state.customOverlays.find((item) => item.id === overlayId);
   if (!overlay) throw new CommandError("That imported frame is no longer available.");
-  if (state.savedTemplates.some((template) => template.overlayId === overlay.id)) {
+  if (
+    state.savedTemplates.some((template) => template.overlayId === overlay.id) ||
+    state.events.some((event) =>
+      event.templates.some((template) => template.overlayId === overlay.id),
+    )
+  ) {
     throw new CommandError("Delete templates using this artwork before deleting the artwork.");
   }
 
@@ -480,11 +525,19 @@ const safeSessionId = (sessionId: string) => {
   return sessionId;
 };
 
+const safeEventId = (eventId: string) => {
+  if (!/^[a-zA-Z0-9_-]{8,100}$/.test(eventId)) {
+    throw new CommandError("The event identifier is invalid.");
+  }
+  return eventId;
+};
+
 const runSimulatorPendingCapture = async (sessionId: string) => {
   const pending = state.pendingCapture;
   if (!pending) throw new CommandError("The simulator capture was not scheduled.");
   const result = await takeSimulatedPhoto({
     dataDirectory,
+    eventId: state.activeEventId,
     sessionId,
     slot: pending.slot,
     revision: pending.revision,
@@ -560,6 +613,17 @@ const runApproval = async (
   systemCommit({ type: "PROCESSING_COMPLETED", deliverables });
 };
 
+const runDeleteEvent = async (
+  command: Extract<Command, { type: "DELETE_EVENT" }>,
+  actor: Actor,
+  id: string,
+) => {
+  const eventId = safeEventId(command.eventId);
+  const nextState = reduceCommand(state, command, actor);
+  await rm(resolve(dataDirectory, "events", eventId), { recursive: true, force: true });
+  commit(nextState, actor, command, id);
+};
+
 const processMessage = async (socket: WebSocket, rawData: WebSocket.RawData) => {
   let message: ClientMessage;
   try {
@@ -606,6 +670,8 @@ const processMessage = async (socket: WebSocket, rawData: WebSocket.RawData) => 
       scheduleCountdownStep();
     } else if (message.command.type === "APPROVE") {
       await runApproval(message.command, message.actor, message.commandId);
+    } else if (message.command.type === "DELETE_EVENT") {
+      await runDeleteEvent(message.command, message.actor, message.commandId);
     } else {
       commit(
         reduceCommand(state, message.command, message.actor),

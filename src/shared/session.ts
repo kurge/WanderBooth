@@ -58,6 +58,13 @@ export type Deliverable = {
   mimeType: string;
 };
 
+export type TemplateFolder = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type PhotoTransform = MediaTransform & { slot: number; holderId?: string };
 export type HolderTransform = MediaTransform & { slot: number; holderId?: string };
 
@@ -71,18 +78,56 @@ export type SavedTemplate = {
   frameTransform: MediaTransform;
   holderTransforms: HolderTransform[];
   photoTransforms: PhotoTransform[];
+  folderIds: string[];
+  sourceTemplateId: string | null;
   approved: true;
   createdAt: string;
   updatedAt: string;
 };
 
+export type EventSessionRecord = {
+  id: string;
+  number: number;
+  customerName: string | null;
+  startedAt: string;
+  completedAt: string;
+  productId: string | null;
+  layoutId: string | null;
+  templateId: string | null;
+  templateName: string | null;
+  captures: Capture[];
+  deliverables: Deliverable[];
+  qrStatus: "pending_cloud";
+  qrExpiresAt: string | null;
+};
+
+export type BoothEvent = {
+  id: string;
+  name: string;
+  eventDate: string;
+  endDate: string | null;
+  clientName: string;
+  venue: string;
+  notes: string;
+  initialTemplateFolderId: string;
+  initialTemplateFolderName: string;
+  status: "active" | "archived";
+  templates: SavedTemplate[];
+  sessions: EventSessionRecord[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TemplateGalleryScope = "library" | "event";
+
 export type TemplateEditorState = {
   sourceTemplateId: string | null;
   startingName: string;
+  startingFolderIds: string[];
 };
 
 export type BoothState = {
-  schemaVersion: 11;
+  schemaVersion: 12;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -94,7 +139,11 @@ export type BoothState = {
   designId: string | null;
   overlayId: string;
   customOverlays: CustomOverlay[];
+  templateFolders: TemplateFolder[];
   savedTemplates: SavedTemplate[];
+  events: BoothEvent[];
+  activeEventId: string | null;
+  templateGalleryScope: TemplateGalleryScope;
   selectedTemplateId: string | null;
   templateEditor: TemplateEditorState | null;
   customSlots: PhotoSlot[] | null;
@@ -109,6 +158,8 @@ export type BoothState = {
   cashConfirmed: boolean;
   consentRecorded: boolean;
   deliverables: Deliverable[];
+  sessionCustomerName: string | null;
+  sessionStartedAt: string | null;
   updatedAt: string;
   lastError: string | null;
 };
@@ -116,7 +167,33 @@ export type BoothState = {
 export type Command =
   | { type: "SET_MODE"; mode: OperationMode }
   | { type: "SET_CAMERA_SOURCE"; cameraSourceId: CameraSourceId }
-  | { type: "OPEN_TEMPLATE_GALLERY" }
+  | { type: "CREATE_TEMPLATE_FOLDER"; folderId: string; name: string }
+  | { type: "DELETE_TEMPLATE_FOLDER"; folderId: string }
+  | {
+      type: "CREATE_EVENT";
+      eventId: string;
+      name: string;
+      eventDate: string;
+      endDate?: string;
+      clientName?: string;
+      venue?: string;
+      notes?: string;
+      templateFolderId: string;
+    }
+  | { type: "OPEN_EVENT"; eventId: string }
+  | { type: "CLOSE_EVENT" }
+  | { type: "ARCHIVE_EVENT"; eventId: string }
+  | { type: "RESTORE_EVENT"; eventId: string }
+  | { type: "DELETE_EVENT"; eventId: string }
+  | { type: "ADD_EVENT_TEMPLATE"; templateId: string }
+  | {
+      type: "SAVE_EVENT_TEMPLATE_TO_LIBRARY";
+      templateId: string;
+      libraryTemplateId: string;
+      name: string;
+      folderIds: string[];
+    }
+  | { type: "OPEN_TEMPLATE_GALLERY"; scope?: TemplateGalleryScope }
   | { type: "CLOSE_TEMPLATE_GALLERY" }
   | {
       type: "BEGIN_TEMPLATE_CREATE";
@@ -125,15 +202,16 @@ export type Command =
       layoutId: string;
       overlayId: string;
       initialHolderId?: string;
+      folderIds?: string[];
     }
   | { type: "BEGIN_TEMPLATE_EDIT"; templateId: string }
-  | { type: "SAVE_TEMPLATE"; templateId: string; name: string }
+  | { type: "SAVE_TEMPLATE"; templateId: string; name: string; folderIds?: string[] }
   | { type: "CANCEL_TEMPLATE_EDIT" }
   | { type: "DELETE_TEMPLATE"; templateId: string }
   | { type: "ADD_TEMPLATE_HOLDER"; holderId: string }
   | { type: "REMOVE_TEMPLATE_HOLDER"; holderId: string }
   | { type: "SET_TEMPLATE_HOLDER_CAPTURE"; holderId: string; captureSlot: number }
-  | { type: "BEGIN_SESSION"; sessionId: string }
+  | { type: "BEGIN_SESSION"; sessionId: string; customerName?: string }
   | { type: "SELECT_TEMPLATE"; templateId: string }
   | { type: "SELECT_PRODUCT"; productId: string }
   | { type: "SELECT_LAYOUT"; layoutId: string }
@@ -176,7 +254,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 11,
+  schemaVersion: 12,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -188,7 +266,18 @@ export const initialBoothState = (): BoothState => ({
   designId: null,
   overlayId: "none",
   customOverlays: [],
+  templateFolders: [
+    {
+      id: "folder-general",
+      name: "General",
+      createdAt: now(),
+      updatedAt: now(),
+    },
+  ],
   savedTemplates: [],
+  events: [],
+  activeEventId: null,
+  templateGalleryScope: "library",
   selectedTemplateId: null,
   templateEditor: null,
   customSlots: null,
@@ -203,6 +292,8 @@ export const initialBoothState = (): BoothState => ({
   cashConfirmed: false,
   consentRecorded: false,
   deliverables: [],
+  sessionCustomerName: null,
+  sessionStartedAt: null,
   updatedAt: now(),
   lastError: null,
 });
@@ -255,6 +346,16 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
       if (!isStaff(actor)) throw new CommandError("Only staff can choose the camera source.");
       requirePhase(state, ["idle"]);
       return;
+    case "CREATE_TEMPLATE_FOLDER":
+    case "DELETE_TEMPLATE_FOLDER":
+    case "CREATE_EVENT":
+    case "OPEN_EVENT":
+    case "CLOSE_EVENT":
+    case "ARCHIVE_EVENT":
+    case "RESTORE_EVENT":
+    case "DELETE_EVENT":
+    case "ADD_EVENT_TEMPLATE":
+    case "SAVE_EVENT_TEMPLATE_TO_LIBRARY":
     case "OPEN_TEMPLATE_GALLERY":
     case "CLOSE_TEMPLATE_GALLERY":
     case "BEGIN_TEMPLATE_CREATE":
@@ -319,6 +420,57 @@ const validatedTemplateName = (name: string) => {
   }
   return trimmed;
 };
+
+const validatedShortText = (value: string | undefined, label: string, maximum = 120) => {
+  const trimmed = value?.trim() ?? "";
+  if (trimmed.length > maximum) {
+    throw new CommandError(`${label} must be ${maximum} characters or fewer.`);
+  }
+  return trimmed;
+};
+
+const validatedRequiredText = (value: string, label: string, maximum = 120) => {
+  const trimmed = validatedShortText(value, label, maximum);
+  if (!trimmed) throw new CommandError(`${label} is required.`);
+  return trimmed;
+};
+
+const validatedEventDate = (value: string, label: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new CommandError(`${label} must be a valid calendar date.`);
+  }
+  return value;
+};
+
+export const activeEventFor = (state: BoothState) =>
+  state.events.find((event) => event.id === state.activeEventId) ?? null;
+
+export const galleryTemplatesFor = (state: BoothState) =>
+  state.templateGalleryScope === "event"
+    ? (activeEventFor(state)?.templates ?? [])
+    : state.savedTemplates;
+
+export const sessionTemplatesFor = (state: BoothState) =>
+  activeEventFor(state)?.templates ?? state.savedTemplates;
+
+const eventTemplateCopy = (
+  template: SavedTemplate,
+  eventId: string,
+  templateId = `${eventId}--${template.id}`,
+): SavedTemplate => ({
+  ...template,
+  id: templateId,
+  folderIds: [],
+  sourceTemplateId: template.sourceTemplateId ?? template.id,
+  createdAt: now(),
+  updatedAt: now(),
+});
+
+const updateEvent = (
+  state: BoothState,
+  eventId: string,
+  update: (event: BoothEvent) => BoothEvent,
+) => state.events.map((event) => (event.id === eventId ? update(event) : event));
 
 const defaultCustomSlot = (layoutId: string, holderId: string, index: number): PhotoSlot => {
   const layout = getLayout(layoutId);
@@ -385,6 +537,8 @@ const clearedWorkspace = (): Partial<BoothState> => ({
   cashConfirmed: false,
   consentRecorded: false,
   deliverables: [],
+  sessionCustomerName: null,
+  sessionStartedAt: null,
 });
 
 export function reduceCommand(state: BoothState, command: Command, actor: Actor): BoothState {
@@ -395,9 +549,209 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       return revised(state, { operationMode: command.mode });
     case "SET_CAMERA_SOURCE":
       return revised(state, { cameraSourceId: command.cameraSourceId });
-    case "OPEN_TEMPLATE_GALLERY":
+    case "CREATE_TEMPLATE_FOLDER": {
+      requirePhase(state, ["idle", "template_gallery"]);
+      const name = validatedRequiredText(command.name, "Folder name", 60);
+      if (!command.folderId.trim() || command.folderId.length > 100) {
+        throw new CommandError("The template folder identifier is invalid.");
+      }
+      if (state.templateFolders.some((folder) => folder.id === command.folderId)) {
+        throw new CommandError("That template folder already exists.");
+      }
+      if (
+        state.templateFolders.some((folder) => folder.name.toLowerCase() === name.toLowerCase())
+      ) {
+        throw new CommandError("A template folder with that name already exists.");
+      }
+      const timestamp = now();
+      return revised(state, {
+        templateFolders: [
+          ...state.templateFolders,
+          { id: command.folderId, name, createdAt: timestamp, updatedAt: timestamp },
+        ].sort((a, b) => a.name.localeCompare(b.name)),
+      });
+    }
+    case "DELETE_TEMPLATE_FOLDER": {
+      requirePhase(state, ["idle", "template_gallery"]);
+      if (!state.templateFolders.some((folder) => folder.id === command.folderId)) {
+        throw new CommandError("That template folder is no longer available.");
+      }
+      if (state.templateFolders.length === 1) {
+        throw new CommandError("Keep at least one template folder.");
+      }
+      return revised(state, {
+        templateFolders: state.templateFolders.filter((folder) => folder.id !== command.folderId),
+        savedTemplates: state.savedTemplates.map((template) => ({
+          ...template,
+          folderIds: template.folderIds.filter((folderId) => folderId !== command.folderId),
+        })),
+      });
+    }
+    case "CREATE_EVENT": {
       requirePhase(state, ["idle"]);
-      return revised(state, { ...clearedWorkspace(), phase: "template_gallery" });
+      if (!/^[a-zA-Z0-9_-]{8,100}$/.test(command.eventId)) {
+        throw new CommandError("The event identifier is invalid.");
+      }
+      if (state.events.some((event) => event.id === command.eventId)) {
+        throw new CommandError("That event already exists.");
+      }
+      const folder = state.templateFolders.find((item) => item.id === command.templateFolderId);
+      if (!folder) throw new CommandError("Choose a template folder for this event.");
+      const name = validatedRequiredText(command.name, "Event name", 120);
+      const eventDate = validatedEventDate(command.eventDate, "Event date");
+      const endDate = command.endDate ? validatedEventDate(command.endDate, "End date") : null;
+      if (endDate && endDate < eventDate) {
+        throw new CommandError("The event end date cannot be before its start date.");
+      }
+      const timestamp = now();
+      const templates = state.savedTemplates
+        .filter((template) => template.folderIds.includes(folder.id))
+        .map((template) => eventTemplateCopy(template, command.eventId));
+      const event: BoothEvent = {
+        id: command.eventId,
+        name,
+        eventDate,
+        endDate,
+        clientName: validatedShortText(command.clientName, "Client name"),
+        venue: validatedShortText(command.venue, "Venue", 180),
+        notes: validatedShortText(command.notes, "Notes", 1_000),
+        initialTemplateFolderId: folder.id,
+        initialTemplateFolderName: folder.name,
+        status: "active",
+        templates,
+        sessions: [],
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      return revised(state, {
+        ...clearedWorkspace(),
+        events: [...state.events, event],
+        activeEventId: event.id,
+        phase: "idle",
+      });
+    }
+    case "OPEN_EVENT": {
+      requirePhase(state, ["idle"]);
+      const event = state.events.find((item) => item.id === command.eventId);
+      if (!event) throw new CommandError("That event is no longer available.");
+      return revised(state, {
+        ...clearedWorkspace(),
+        events: updateEvent(state, event.id, (item) => ({
+          ...item,
+          status: "active",
+          updatedAt: now(),
+        })),
+        activeEventId: event.id,
+        phase: "idle",
+      });
+    }
+    case "CLOSE_EVENT":
+      requirePhase(state, ["idle"]);
+      return revised(state, { ...clearedWorkspace(), activeEventId: null, phase: "idle" });
+    case "ARCHIVE_EVENT": {
+      requirePhase(state, ["idle"]);
+      if (!state.events.some((event) => event.id === command.eventId)) {
+        throw new CommandError("That event is no longer available.");
+      }
+      return revised(state, {
+        ...clearedWorkspace(),
+        events: updateEvent(state, command.eventId, (event) => ({
+          ...event,
+          status: "archived",
+          updatedAt: now(),
+        })),
+        activeEventId: state.activeEventId === command.eventId ? null : state.activeEventId,
+        phase: "idle",
+      });
+    }
+    case "RESTORE_EVENT": {
+      requirePhase(state, ["idle"]);
+      if (!state.events.some((event) => event.id === command.eventId)) {
+        throw new CommandError("That event is no longer available.");
+      }
+      return revised(state, {
+        events: updateEvent(state, command.eventId, (event) => ({
+          ...event,
+          status: "active",
+          updatedAt: now(),
+        })),
+      });
+    }
+    case "DELETE_EVENT": {
+      requirePhase(state, ["idle"]);
+      if (!state.events.some((event) => event.id === command.eventId)) {
+        throw new CommandError("That event is no longer available.");
+      }
+      return revised(state, {
+        ...clearedWorkspace(),
+        events: state.events.filter((event) => event.id !== command.eventId),
+        activeEventId: state.activeEventId === command.eventId ? null : state.activeEventId,
+        phase: "idle",
+      });
+    }
+    case "ADD_EVENT_TEMPLATE": {
+      requirePhase(state, ["template_gallery"]);
+      const event = activeEventFor(state);
+      if (!event || state.templateGalleryScope !== "event") {
+        throw new CommandError("Open an event Template Gallery first.");
+      }
+      const source = state.savedTemplates.find((template) => template.id === command.templateId);
+      if (!source) throw new CommandError("That library template is no longer available.");
+      if (event.templates.some((template) => template.sourceTemplateId === source.id)) {
+        throw new CommandError("That template is already available in this event.");
+      }
+      return revised(state, {
+        events: updateEvent(state, event.id, (item) => ({
+          ...item,
+          templates: [...item.templates, eventTemplateCopy(source, item.id)].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          ),
+          updatedAt: now(),
+        })),
+      });
+    }
+    case "SAVE_EVENT_TEMPLATE_TO_LIBRARY": {
+      requirePhase(state, ["template_gallery"]);
+      const event = activeEventFor(state);
+      const source = event?.templates.find((template) => template.id === command.templateId);
+      if (!event || state.templateGalleryScope !== "event" || !source) {
+        throw new CommandError("That event template is no longer available.");
+      }
+      if (state.savedTemplates.some((template) => template.id === command.libraryTemplateId)) {
+        throw new CommandError("Choose a new library template identifier.");
+      }
+      const folderIds = [...new Set(command.folderIds)].filter((folderId) =>
+        state.templateFolders.some((folder) => folder.id === folderId),
+      );
+      if (!folderIds.length) throw new CommandError("Choose at least one template folder.");
+      const timestamp = now();
+      return revised(state, {
+        savedTemplates: [
+          ...state.savedTemplates,
+          {
+            ...source,
+            id: command.libraryTemplateId,
+            name: validatedTemplateName(command.name),
+            folderIds,
+            sourceTemplateId: null,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+        ].sort((a, b) => a.name.localeCompare(b.name)),
+      });
+    }
+    case "OPEN_TEMPLATE_GALLERY": {
+      requirePhase(state, ["idle"]);
+      const scope = command.scope ?? "library";
+      if (scope === "event" && !activeEventFor(state)) {
+        throw new CommandError("Open an event before managing its templates.");
+      }
+      return revised(state, {
+        ...clearedWorkspace(),
+        phase: "template_gallery",
+        templateGalleryScope: scope,
+      });
+    }
     case "CLOSE_TEMPLATE_GALLERY":
       requirePhase(state, ["template_gallery"]);
       return revised(state, { ...clearedWorkspace(), phase: "idle" });
@@ -427,12 +781,17 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
           : layout.requiredCaptureCount,
         frameMode: "custom",
         overlayId: overlay.id,
-        templateEditor: { sourceTemplateId: null, startingName: name },
+        templateEditor: {
+          sourceTemplateId: null,
+          startingName: name,
+          startingFolderIds:
+            state.templateGalleryScope === "library" ? (command.folderIds ?? []) : [],
+        },
       });
     }
     case "BEGIN_TEMPLATE_EDIT": {
       requirePhase(state, ["template_gallery"]);
-      const template = state.savedTemplates.find((item) => item.id === command.templateId);
+      const template = galleryTemplatesFor(state).find((item) => item.id === command.templateId);
       if (!template) throw new CommandError("That saved template is no longer available.");
       const layout = getLayout(template.layoutId);
       const product = getProduct(template.productId);
@@ -451,7 +810,11 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         frameMode: "custom",
         overlayId: overlay.id,
         selectedTemplateId: template.id,
-        templateEditor: { sourceTemplateId: template.id, startingName: template.name },
+        templateEditor: {
+          sourceTemplateId: template.id,
+          startingName: template.name,
+          startingFolderIds: template.folderIds,
+        },
         frameTransform: template.frameTransform,
         holderTransforms: template.holderTransforms,
         photoTransforms: template.photoTransforms,
@@ -469,11 +832,25 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       if (isCustomLayoutId(layout.id) && !state.customSlots?.length) {
         throw new CommandError("Add at least one photo holder before saving this template.");
       }
-      const existing = state.savedTemplates.find((item) => item.id === command.templateId);
+      const scopedTemplates = galleryTemplatesFor(state);
+      const existing = scopedTemplates.find((item) => item.id === command.templateId);
       if (existing && existing.id !== state.templateEditor.sourceTemplateId) {
         throw new CommandError("Choose a new template name instead of replacing another template.");
       }
       const timestamp = now();
+      const folderIds =
+        state.templateGalleryScope === "library"
+          ? [
+              ...new Set(
+                command.folderIds ??
+                  existing?.folderIds ??
+                  (state.templateFolders[0] ? [state.templateFolders[0].id] : []),
+              ),
+            ].filter((folderId) => state.templateFolders.some((folder) => folder.id === folderId))
+          : [];
+      if (state.templateGalleryScope === "library" && folderIds.length === 0) {
+        throw new CommandError("Choose at least one template folder.");
+      }
       const template: SavedTemplate = {
         id: command.templateId,
         name,
@@ -484,10 +861,28 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         frameTransform: state.frameTransform,
         holderTransforms: state.holderTransforms,
         photoTransforms: state.photoTransforms,
+        folderIds,
+        sourceTemplateId: existing?.sourceTemplateId ?? null,
         approved: true,
         createdAt: existing?.createdAt ?? timestamp,
         updatedAt: timestamp,
       };
+      if (state.templateGalleryScope === "event") {
+        const event = activeEventFor(state);
+        if (!event) throw new CommandError("Open an event before saving its template.");
+        return revised(state, {
+          ...clearedWorkspace(),
+          phase: "template_gallery",
+          events: updateEvent(state, event.id, (item) => ({
+            ...item,
+            templates: [
+              ...item.templates.filter((saved) => saved.id !== template.id),
+              template,
+            ].sort((a, b) => a.name.localeCompare(b.name)),
+            updatedAt: timestamp,
+          })),
+        });
+      }
       return revised(state, {
         ...clearedWorkspace(),
         phase: "template_gallery",
@@ -502,8 +897,19 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       return revised(state, { ...clearedWorkspace(), phase: "template_gallery" });
     case "DELETE_TEMPLATE": {
       requirePhase(state, ["template_gallery"]);
-      if (!state.savedTemplates.some((item) => item.id === command.templateId)) {
+      if (!galleryTemplatesFor(state).some((item) => item.id === command.templateId)) {
         throw new CommandError("That saved template is no longer available.");
+      }
+      if (state.templateGalleryScope === "event") {
+        const event = activeEventFor(state);
+        if (!event) throw new CommandError("Open an event before deleting its template.");
+        return revised(state, {
+          events: updateEvent(state, event.id, (item) => ({
+            ...item,
+            templates: item.templates.filter((template) => template.id !== command.templateId),
+            updatedAt: now(),
+          })),
+        });
       }
       return revised(state, {
         savedTemplates: state.savedTemplates.filter((item) => item.id !== command.templateId),
@@ -585,6 +991,8 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       return revised(state, {
         phase: "selecting",
         sessionId: command.sessionId,
+        sessionCustomerName: validatedShortText(command.customerName, "Customer name", 80) || null,
+        sessionStartedAt: now(),
         productId: null,
         layoutId: null,
         frameMode: null,
@@ -607,7 +1015,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       });
     case "SELECT_TEMPLATE": {
       requirePhase(state, ["selecting", "reviewing"]);
-      const template = state.savedTemplates.find((item) => item.id === command.templateId);
+      const template = sessionTemplatesFor(state).find((item) => item.id === command.templateId);
       if (!template?.approved) throw new CommandError("That template is not available.");
       const product = getProduct(template.productId);
       const layout = getLayout(template.layoutId);
@@ -982,9 +1390,47 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
     case "PROCESSING_STARTED":
       requirePhase(state, ["processing"]);
       return revised(state, { phase: "processing" });
-    case "PROCESSING_COMPLETED":
+    case "PROCESSING_COMPLETED": {
       requirePhase(state, ["processing"]);
-      return revised(state, { phase: "complete", deliverables: command.deliverables });
+      const event = activeEventFor(state);
+      const completedAt = now();
+      const selectedTemplate = sessionTemplatesFor(state).find(
+        (template) => template.id === state.selectedTemplateId,
+      );
+      const events = event
+        ? updateEvent(state, event.id, (item) => {
+            const existing = item.sessions.find((session) => session.id === state.sessionId);
+            const record: EventSessionRecord = {
+              id: state.sessionId ?? "",
+              number: existing?.number ?? item.sessions.length + 1,
+              customerName: state.sessionCustomerName,
+              startedAt: state.sessionStartedAt ?? completedAt,
+              completedAt,
+              productId: state.productId,
+              layoutId: state.layoutId,
+              templateId: state.selectedTemplateId,
+              templateName: selectedTemplate?.name ?? null,
+              captures: state.captures,
+              deliverables: command.deliverables,
+              qrStatus: "pending_cloud",
+              qrExpiresAt: null,
+            };
+            return {
+              ...item,
+              sessions: [
+                ...item.sessions.filter((session) => session.id !== record.id),
+                record,
+              ].sort((a, b) => a.number - b.number),
+              updatedAt: completedAt,
+            };
+          })
+        : state.events;
+      return revised(state, {
+        phase: "complete",
+        deliverables: command.deliverables,
+        events,
+      });
+    }
     case "REGISTER_CUSTOM_OVERLAY": {
       const overlay = command.overlay;
       if (!getLayout(overlay.layoutIds[0])) {
@@ -997,7 +1443,12 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
     case "DELETE_CUSTOM_OVERLAY": {
       const overlay = state.customOverlays.find((item) => item.id === command.overlayId);
       if (!overlay) throw new CommandError("That imported frame is no longer available.");
-      if (state.savedTemplates.some((template) => template.overlayId === overlay.id)) {
+      if (
+        state.savedTemplates.some((template) => template.overlayId === overlay.id) ||
+        state.events.some((event) =>
+          event.templates.some((template) => template.overlayId === overlay.id),
+        )
+      ) {
         throw new CommandError("Delete templates using this artwork before deleting the artwork.");
       }
       const wasSelected = state.overlayId === overlay.id;
@@ -1020,7 +1471,11 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         operationMode: state.operationMode,
         cameraSourceId: state.cameraSourceId,
         customOverlays: state.customOverlays,
+        templateFolders: state.templateFolders,
         savedTemplates: state.savedTemplates,
+        events: state.events,
+        activeEventId: state.activeEventId,
+        templateGalleryScope: state.templateGalleryScope,
         revision: state.revision + 1,
         updatedAt: now(),
       };

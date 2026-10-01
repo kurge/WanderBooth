@@ -29,13 +29,14 @@ export type SimulatedCaptureResult = {
 
 export async function takeSimulatedPhoto(input: {
   dataDirectory: string;
+  eventId?: string | null;
   sessionId: string;
   slot: number;
   revision: number;
 }): Promise<SimulatedCaptureResult> {
   const palette = palettes[(input.slot - 1) % palettes.length];
   const relativePath = join(
-    "sessions",
+    ...(input.eventId ? ["events", input.eventId, "sessions"] : ["sessions"]),
     input.sessionId,
     "captures",
     `photo-${input.slot}-r${input.revision}.png`,

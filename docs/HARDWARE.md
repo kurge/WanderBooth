@@ -24,7 +24,7 @@ This document records the hardware already available for WanderBooth, the suppor
 | Host/iPad network | Venue Wi-Fi, mobile hotspot, or phone hotspot | Exact first-pilot setup not selected; dedicated travel router is optional |
 | Guest delivery | Customer's mobile data or any internet connection | Cloud QR link; guest does not join WanderBooth Wi-Fi |
 
-At the start of Phase 0 the Mac had approximately 25 GiB of free storage. That is adequate for development but too little to assume safe event operation without storage monitoring and 30-day cleanup. Before the first live pilot, measure real session size and reserve enough space for the expected event plus a recovery margin. Machine serial numbers, UUIDs, and personal device identifiers are intentionally excluded from this public repository.
+At the start of Phase 0 the Mac had approximately 25 GiB of free storage. That is adequate for development but too little to assume safe event operation when local events remain until staff manually delete them. Before the first live pilot, add storage monitoring, measure real session size, and reserve enough space for the expected event plus a recovery margin. Machine serial numbers, UUIDs, and personal device identifiers are intentionally excluded from this public repository.
 
 ### Current iPad connection choices
 

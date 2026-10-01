@@ -28,6 +28,7 @@ Operator window ─┐
 iPad display ────┘                     │
                                       ├── Host-owned countdown/capture sequence
                                       ├── in-memory local preview relay
+                                      ├── event/session media folders
                                       ├── camera sources (simulator + Mac media device)
                                       └── data-driven layout/frame/composition renderer
 ```
@@ -36,7 +37,7 @@ iPad display ────┘                     │
 - `src/host/` — local HTTP/WebSocket service, persistence, and deliverable processing.
 - `src/camera/` — Host-side replaceable camera adapters; currently contains the simulator.
 - `src/app/useMacBookCamera.ts` — standard media-device preview and JPEG capture for the Mac operator renderer.
-- `src/shared/` — product catalog, reusable template records, permissions, session state machine, and wire messages.
+- `src/shared/` — event records, template collections, product catalog, permissions, session state machine, and wire messages.
 - `electron/` — desktop window wrapper for the operator surface.
 - `assets/brand/` — owner-supplied Wander Press source artwork and documented color tokens.
 - `docs/` — product, hardware, operating-mode, and architecture decisions.
@@ -46,13 +47,15 @@ The Host is authoritative. Every screen sends a command, the Host applies role a
 
 ## Current Phase 0 boundaries
 
-- Products/templates: two normal product families expose five built-in layouts, five frame palettes, four built-in overlays, locally imported event frames, and a persistent staff-managed Template Gallery. Staff can also build portrait or landscape custom 4×6 templates with one to eight holders. Each holder maps to Capture 1–8, repeated capture labels are allowed, and the normalized labels determine the unique capture count.
+- Products/templates: two normal product families expose five built-in layouts, five frame palettes, four built-in overlays, locally imported event frames, and a persistent staff-managed Template Library. Staff can also build portrait or landscape custom 4×6 templates with one to eight holders. Each holder maps to Capture 1–8, repeated capture labels are allowed, and the normalized labels determine the unique capture count.
+- Events: the operator starts in a local event library. Each event owns isolated template copies and completed session records. Captures and deliverables are written below `data/events/<event-id>/sessions/<session-id>/`; archiving hides an event without deleting it, while confirmed event deletion removes both its state record and local event directory.
+- Template collections: reusable library templates may belong to multiple folders. New events copy one selected folder. Event edits never mutate the master; an explicit promote action creates a new library master in selected folders.
 - Payments: staff-confirmed cash only; price is intentionally absent from the UI.
 - Camera: simulator and experimental MacBook camera work; Fujifilm X-M5 follows. Camera selection remains staff-only and idle-only.
 - Capture: one command starts the product-defined sequence. Countdown ticks and capture triggers are Host-owned and broadcast to every screen.
 - Preview: the Mac renderer sends reduced mirrored JPEG frames to an in-memory Host relay; full-resolution unmirrored captures use a separate persisted route.
-- Delivery: branded local files work; cloud upload, QR generation, and 30-day expiry are not implemented yet.
-- Rendering: layout slots can repeat capture indices and use rectangle, rounded, or heart masks. Repeated custom holders keep independent holder/crop transforms through stable holder IDs even when they show the same capture. A session uses either a generated fixed-color frame (with an optional built-in treatment) or one imported custom frame. New imports use transparent PNG artwork with pre-cut openings; legacy flat-template records remain renderable. The staff-only Template Gallery stores approved product/layout/artwork combinations plus all placeholder, holder, crop, rotation, and lock transforms. Selecting a saved template fills those numbered positions with real captures. The Host applies the same persisted transforms in preview and export.
+- Delivery: branded local files and event history work; cloud upload, QR generation, and 30-day expiry are not implemented yet. The interface must keep this state visibly pending.
+- Rendering: layout slots can repeat capture indices and use rectangle, rounded, or heart masks. Repeated custom holders keep independent holder/crop transforms through stable holder IDs even when they show the same capture. A session uses either a generated fixed-color frame (with an optional built-in treatment) or one imported custom frame. New imports use transparent PNG artwork with pre-cut openings; legacy flat-template records remain renderable. The staff-only Template Library and isolated event copies store approved product/layout/artwork combinations plus all placeholder, holder, crop, rotation, and lock transforms. Selecting a saved template fills those numbered positions with real captures. The Host applies the same persisted transforms in preview and export.
 - Review: the final composed layout is the primary preview. Captured and waiting source cards share a 16:9 footprint and use `contain` for uncropped review. The staff-only direct canvas uses click/tap selection, drag movement, proportional corner resizing, independent middle-edge crop-frame reshaping, direct rotation, object locking, and Crop image mode. Holder bounds may change aspect ratio, but the photo content always keeps its natural proportions. Frame artwork, each photo frame, and the image inside each frame have separate normalized transforms in authoritative Host state. Imported templates can be deleted with confirmation from the operator UI.
 - Printing: the 2×6 and 4×6 composite files render at 300 DPI. The first double-strip file now exists, but Epson L8050 queue control is not implemented yet.
 - Authentication: local prototype roles are screen-based, not authenticated accounts.

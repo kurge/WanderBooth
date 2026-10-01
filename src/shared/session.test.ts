@@ -816,4 +816,163 @@ describe("WanderBooth session rules", () => {
     expect(reset.captureSequence).toBeNull();
     expect(reset.pendingCapture).toBeNull();
   });
+
+  it("assigns one master template to multiple reusable folders", () => {
+    let state = createSavedTemplate();
+    state = reduceCommand(
+      state,
+      { type: "CREATE_TEMPLATE_FOLDER", folderId: "folder-weddings", name: "Weddings" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "BEGIN_TEMPLATE_EDIT", templateId: "saved-template-1" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      {
+        type: "SAVE_TEMPLATE",
+        templateId: "saved-template-1",
+        name: "Test Double Strip",
+        folderIds: ["folder-general", "folder-weddings"],
+      },
+      "attendant",
+    );
+
+    expect(state.savedTemplates[0]?.folderIds).toEqual(["folder-general", "folder-weddings"]);
+  });
+
+  it("keeps one template folder available and rejects duplicate folder identifiers", () => {
+    const state = initialBoothState();
+    expect(() =>
+      reduceCommand(
+        state,
+        { type: "CREATE_TEMPLATE_FOLDER", folderId: "folder-general", name: "Duplicate" },
+        "attendant",
+      ),
+    ).toThrow("already exists");
+    expect(() =>
+      reduceCommand(
+        state,
+        { type: "DELETE_TEMPLATE_FOLDER", folderId: "folder-general" },
+        "attendant",
+      ),
+    ).toThrow("at least one template folder");
+  });
+
+  it("copies folder templates into an event and keeps event edits isolated", () => {
+    let state = createSavedTemplate();
+    state = reduceCommand(state, { type: "CLOSE_TEMPLATE_GALLERY" }, "attendant");
+    state = reduceCommand(
+      state,
+      {
+        type: "CREATE_EVENT",
+        eventId: "event-lena-miu",
+        name: "LenaMiu Event - Nov 22",
+        eventDate: "2026-11-22",
+        templateFolderId: "folder-general",
+      },
+      "attendant",
+    );
+
+    const eventTemplateId = state.events[0]?.templates[0]?.id ?? "";
+    expect(state.events[0]?.templates[0]?.sourceTemplateId).toBe("saved-template-1");
+    state = reduceCommand(state, { type: "OPEN_TEMPLATE_GALLERY", scope: "event" }, "attendant");
+    state = reduceCommand(
+      state,
+      { type: "BEGIN_TEMPLATE_EDIT", templateId: eventTemplateId },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SAVE_TEMPLATE", templateId: eventTemplateId, name: "LenaMiu Event Version" },
+      "attendant",
+    );
+
+    expect(state.events[0]?.templates[0]?.name).toBe("LenaMiu Event Version");
+    expect(state.savedTemplates[0]?.name).toBe("Test Double Strip");
+  });
+
+  it("archives a completed session inside its event and preserves it on reset", () => {
+    let state = reduceCommand(
+      initialBoothState(),
+      {
+        type: "CREATE_EVENT",
+        eventId: "event-session-archive",
+        name: "Archive Test",
+        eventDate: "2026-11-22",
+        templateFolderId: "folder-general",
+      },
+      "attendant",
+    );
+    state = {
+      ...state,
+      phase: "processing",
+      sessionId: "session-event-001",
+      sessionCustomerName: "Santos family",
+      sessionStartedAt: "2026-11-22T10:00:00.000Z",
+      productId: "three-photo-strip",
+      layoutId: "vertical-2x6",
+      captures: [
+        {
+          slot: 1,
+          revision: 1,
+          mediaUrl:
+            "/media/events/event-session-archive/sessions/session-event-001/captures/photo-1.jpg",
+          capturedAt: "2026-11-22T10:01:00.000Z",
+        },
+      ],
+    };
+    state = reduceCommand(
+      state,
+      {
+        type: "PROCESSING_COMPLETED",
+        deliverables: [
+          {
+            kind: "slideshow",
+            label: "Looping slideshow",
+            mediaUrl:
+              "/media/events/event-session-archive/sessions/session-event-001/deliverables/slideshow.mp4",
+            mimeType: "video/mp4",
+          },
+        ],
+      },
+      "system",
+    );
+
+    expect(state.events[0]?.sessions[0]).toMatchObject({
+      id: "session-event-001",
+      number: 1,
+      customerName: "Santos family",
+      qrStatus: "pending_cloud",
+    });
+    const reset = reduceCommand(state, { type: "RESET" }, "attendant");
+    expect(reset.events[0]?.sessions).toHaveLength(1);
+    expect(reset.activeEventId).toBe("event-session-archive");
+  });
+
+  it("archives, restores, and reopens a local event", () => {
+    let state = reduceCommand(
+      initialBoothState(),
+      {
+        type: "CREATE_EVENT",
+        eventId: "event-archive-001",
+        name: "Past Event",
+        eventDate: "2026-10-01",
+        templateFolderId: "folder-general",
+      },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "ARCHIVE_EVENT", eventId: "event-archive-001" },
+      "attendant",
+    );
+    expect(state.activeEventId).toBeNull();
+    expect(state.events[0]?.status).toBe("archived");
+    state = reduceCommand(state, { type: "OPEN_EVENT", eventId: "event-archive-001" }, "attendant");
+    expect(state.activeEventId).toBe("event-archive-001");
+    expect(state.events[0]?.status).toBe("active");
+  });
 });

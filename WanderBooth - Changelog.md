@@ -25,6 +25,40 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.7.0 — 2026-10-02
+
+### Added
+
+- Added an operator-first Event Library with required event name/date/starting-template-folder fields plus optional end date, client, venue, and notes.
+- Added active and archived event cards with open, archive, restore, and confirmed permanent-delete actions.
+- Added an event workspace for operation-mode selection, optional customer/group naming, starting the next numbered session, managing event templates, and reviewing completed local sessions.
+- Added event-specific capture and deliverable paths under `events/<event-id>/sessions/<session-id>/`.
+- Added reusable Template Library folders. A master template may belong to several folders, and deleting a folder preserves its templates.
+- Added isolated event-template copies, adding individual masters to an existing event, and explicit **Save to Template Library** promotion into selected folders.
+- Added schema version 12 for events, completed session snapshots, template folders/membership, event copies, gallery scope, and active-session metadata.
+- Added ADR 0018, an event/storage operating guide, and an end-to-end test record.
+
+### Changed
+
+- Changed local retention from automatic 30-day cleanup to deliberate event deletion. Archiving never deletes files.
+- Kept the 30-day limit specifically for the future private cloud QR page and cloud media.
+- Changed session selection to use the active event's isolated template set, preventing one event's edits from changing another event or the master library.
+- Changed the post-processing action to return to the active event and append the completed session to its local history.
+- Kept QR status visibly pending until cloud delivery is implemented; local media links are not presented as public QR links.
+
+### Safety
+
+- Event deletion validates the command first, removes the exact event directory, and only then commits the database change. A filesystem failure therefore leaves the event record available for recovery.
+- Runtime databases, customer photos, event folders, and deliverables remain ignored and outside the public repository.
+
+### Verified
+
+- Added state-machine coverage for master templates in several folders, last-folder protection, duplicate folder IDs, event-copy edit isolation, completed-session preservation, and event archive/restore; all 42 automated tests pass.
+- Completed an isolated browser session inside `LenaMiu Event - Nov 22`, including the optional `Santos family` session name, cash gate, three simulator captures, review, local processing, and return to event history.
+- Confirmed the event history opens capture thumbnails, branded individual files, the final composite, and MP4 slideshow from the event/session path.
+- Confirmed formatting, type checks, Host build, and customer-app build pass.
+- Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.12.0-arm64.dmg` installation image (133 MB; SHA-256 `e2216fff740d6513bd8b203d06e02804fcb4aa25693dc8cac68a78b62894c456`).
+
 ## 1.6.1 — 2026-10-02
 
 ### Changed

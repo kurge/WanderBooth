@@ -2,11 +2,13 @@
 
 **Status:** Confirmed product behavior
 
-**Version:** 0.9.0
+**Version:** 1.0.0
 
 **Updated:** 2026-10-02
 
 WanderBooth supports two staff-selected workflows. The difference is who controls the session—not whether the booth has staff nearby. In this document, **operator** and **attendant** refer to the same staff role. Because the first release accepts cash, an attendant still confirms payment in both modes.
+
+The operator first creates or opens an event workspace. Mode selection and every customer session then run inside that event, using its isolated approved template copies and saving the completed captures and deliverables back to its local history.
 
 ## At a glance
 
@@ -27,6 +29,8 @@ WanderBooth supports two staff-selected workflows. The difference is who control
 | Camera-source selection | Owner or attendant | Owner or attendant |
 | Recovery, refund, reprint | Owner or attendant | Owner or attendant |
 | QR scanning and downloads | Customer | Customer |
+
+Template administration remains staff-only in both modes. Customers select only from the active event's approved copies; the reusable master library and folder manager are never customer controls.
 
 ## Mode selection
 
@@ -51,16 +55,17 @@ WanderBooth supports two staff-selected workflows. The difference is who control
 
 ### Control flow
 
-1. The operator chooses an approved saved template, or chooses the product manually.
-2. A saved template restores its layout, photo count, imported frame, and prepared placements automatically. In the manual path, the operator chooses a compatible layout and either a fixed colored frame with an optional built-in decoration or one imported custom frame.
-3. WanderBooth loads and shows the photo count required by that product/layout.
-4. The operator explains the privacy notice and records the customer's consent.
-5. The operator confirms cash received.
-6. The operator starts one automatic layout-defined sequence. Built-in layouts take three, four, or six shots; custom saved templates derive one to eight shots from their holder Capture labels. The customer display shows the mirrored preview and the Host-controlled three-second countdown before every photo.
-7. WanderBooth shows the finished composed layout plus each full, uncropped source capture to the customer and operator.
-8. The customer may verbally request a replacement; the operator alone selects the photo slot and starts the replacement/retake.
-9. The operator may change to a compatible frame, then use the direct composition canvas to select, drag, independently resize, rotate, and lock the imported artwork or a photo frame. Crop image mode directly manipulates the capture inside that frame before approval.
-10. WanderBooth renders, prints, uploads, and shows the QR code.
+1. The operator opens the correct event and optionally records the next customer/group name.
+2. The operator chooses an approved event template, or chooses the product manually.
+3. A saved template restores its layout, photo count, imported frame, and prepared placements automatically. In the manual path, the operator chooses a compatible layout and either a fixed colored frame with an optional built-in decoration or one imported custom frame.
+4. WanderBooth loads and shows the photo count required by that product/layout.
+5. The operator explains the privacy notice and records the customer's consent.
+6. The operator confirms cash received.
+7. The operator starts one automatic layout-defined sequence. Built-in layouts take three, four, or six shots; custom saved templates derive one to eight shots from their holder Capture labels. The customer display shows the mirrored preview and the Host-controlled three-second countdown before every photo.
+8. WanderBooth shows the finished composed layout plus each full, uncropped source capture to the customer and operator.
+9. The customer may verbally request a replacement; the operator alone selects the photo slot and starts the replacement/retake.
+10. The operator may change to a compatible frame, then use the direct composition canvas to select, drag, independently resize, rotate, and lock the imported artwork or a photo frame. Crop image mode directly manipulates the capture inside that frame before approval.
+11. WanderBooth renders the deliverables, records the completed session in the event, prints when supported, and shows the QR code when cloud delivery is available.
 
 Even when the customer display shows captured images, only the operator can submit replacement, retake, design, or approval actions.
 
@@ -75,17 +80,18 @@ Even when the customer display shows captured images, only the operator can subm
 
 ### Control flow
 
-1. The customer chooses an approved saved template or an enabled product.
-2. A saved template restores the prepared layout and frame setup. In the manual path, WanderBooth offers compatible layouts and an exclusive choice between owner-approved fixed-color and imported custom frames.
-3. The selected product/layout automatically supplies and displays the required photo count.
-4. The customer accepts the privacy notice.
-5. The interface waits while the attendant confirms cash.
-6. The customer taps once to start the selected layout's complete sequence of up to eight photos. The Host shows the synchronized three-second countdown before every photo.
-7. The customer reviews the final composed layout and the full uncropped source captures.
-8. Within the configured limit, the customer may replace a selected photo or retake.
-9. Before final approval, the customer may change to another compatible enabled frame. Detailed imported-frame and photo alignment remains an attendant control on the operator console.
-10. The customer approves the result.
-11. WanderBooth renders, prints, uploads, and shows the QR code.
+1. The attendant opens the correct event, then presents its Self-Service screen.
+2. The customer chooses an approved event template or an enabled product.
+3. A saved template restores the prepared layout and frame setup. In the manual path, WanderBooth offers compatible layouts and an exclusive choice between owner-approved fixed-color and imported custom frames.
+4. The selected product/layout automatically supplies and displays the required photo count.
+5. The customer accepts the privacy notice.
+6. The interface waits while the attendant confirms cash.
+7. The customer taps once to start the selected layout's complete sequence of up to eight photos. The Host shows the synchronized three-second countdown before every photo.
+8. The customer reviews the final composed layout and the full uncropped source captures.
+9. Within the configured limit, the customer may replace a selected photo or retake.
+10. Before final approval, the customer may change to another compatible enabled frame. Detailed imported-frame and photo alignment remains an attendant control on the operator console.
+11. The customer approves the result.
+12. WanderBooth records the completed session in the event, renders and prints locally, and uploads/shows the QR code when cloud delivery is available.
 
 Self-Service does not grant access to camera selection, payment confirmation, refunds, reprints, diagnostics, mode changes, or owner settings.
 

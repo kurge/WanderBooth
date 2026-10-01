@@ -424,7 +424,16 @@ export async function buildDeliverables(
     throw new Error("A valid layout, frame, and overlay are required to build deliverables.");
   }
 
-  const outputDirectory = join(dataDirectory, "sessions", state.sessionId, "deliverables");
+  const outputDirectory = state.activeEventId
+    ? join(
+        dataDirectory,
+        "events",
+        state.activeEventId,
+        "sessions",
+        state.sessionId,
+        "deliverables",
+      )
+    : join(dataDirectory, "sessions", state.sessionId, "deliverables");
   await mkdir(outputDirectory, { recursive: true });
 
   const individualPaths: string[] = [];

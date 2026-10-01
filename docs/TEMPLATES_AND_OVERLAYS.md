@@ -2,7 +2,7 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.8.0
+**Version:** 0.9.0
 
 **Updated:** 2026-10-02
 
@@ -11,19 +11,19 @@ WanderBooth separates four ideas that are often combined into one flattened “t
 1. **Layout:** where each captured photo appears, how many unique photos are required, the canvas orientation, and whether a capture is repeated.
 2. **Frame:** either a generated fixed-color WanderBooth treatment or one imported custom event design. These are mutually exclusive choices.
 3. **Built-in decoration:** an optional film, confetti, or heart treatment available only with a fixed-color frame.
-4. **Saved template:** an approved, reusable session setup that combines one product/layout with imported artwork plus every saved artwork, photo-holder, and default crop placement.
+4. **Saved template:** an approved setup that combines one product/layout with imported artwork plus every saved artwork, photo-holder, and default crop placement. A master belongs to the reusable Template Library; an event template is an isolated copy for one booking.
 
 This separation lets one layout work with many colors and event themes without duplicating photo-placement logic. A custom frame never stacks on top of a selected color frame.
 
-## The reusable Template Gallery
+## The reusable Template Library
 
-The Template Gallery is the normal path for designs that will be served repeatedly. Staff prepare the design once before customers arrive:
+The Template Library is the normal path for designs that will be served repeatedly. Staff prepare the design once before customers arrive:
 
-1. From the idle operator screen, choose **Manage Template Gallery**.
-2. Enter a clear template name, choose the product and layout, and select already imported transparent artwork or upload a new PNG.
+1. From the Event Library, choose **Open Template Library**.
+2. Create or choose one or more organizational folders, then enter a clear template name, choose the product and layout, and select already imported transparent artwork or upload a new PNG.
 3. Choose **Open template setup**. WanderBooth displays one numbered placeholder for every required capture.
 4. Move and resize each photo holder to match the transparent opening. Enter **Crop image** to set the default image position and scale inside that holder. Rotate or lock objects as needed.
-5. Choose **Save template**. The approved item now appears in the gallery at the start of each session.
+5. Choose **Save template**. The approved master now appears in each selected folder.
 
 When a saved template is selected, real Capture 1 replaces every placeholder labeled 1, Capture 2 replaces every placeholder labeled 2, and so on. WanderBooth also restores the saved artwork position, holder shapes, default image crops, rotation, and lock state. Built-in templates use their catalog capture count—six for Double strip 4×6—while a custom template derives its count from its Capture labels.
 
@@ -44,9 +44,15 @@ Editing an existing gallery item provides two deliberate choices:
 - **Save changes** replaces that template's saved setup.
 - **Save as new** keeps the original and creates another gallery item with the current setup.
 
-Creating, editing, duplicating, importing, and deleting templates are owner/attendant actions. In Self-Service mode, customers may select an approved gallery template. They cannot change its saved definition. Staff can still use the review editor for one-session adjustments after capture.
+Creating, editing, duplicating, importing, and deleting templates are owner/attendant actions. In Self-Service mode, customers may select an approved event template. They cannot change its saved definition. Staff can still use the review editor for one-session adjustments after capture.
 
 Deleting a saved template leaves its uploaded artwork available for another template. Deleting uploaded artwork is blocked while any saved template still uses it, preventing broken gallery choices.
+
+### Folders and event copies
+
+A master template may belong to several library folders. Folders are labels for organizing reusable designs; deleting a folder removes the label but keeps its templates.
+
+When staff create an event, WanderBooth copies every master in the selected starting folder into that event. These event copies are the choices used for customer sessions. Staff may add individual masters from any folder later, edit an event copy, or delete it without changing the master or another event. **Save to Template Library** intentionally promotes the current event design as a new reusable master in one or more selected folders. Completed session outputs remain unchanged even when the event template is edited later.
 
 ## Current menu
 
@@ -96,7 +102,7 @@ The Host still understands the earlier **Flat template** records so previously i
 
 ## Importing event-frame artwork
 
-1. Open **Manage Template Gallery** from the idle Mac operator screen.
+1. Open **Template Library** from the Event Library, or **Manage event templates** from an open event.
 2. Name the new template and choose its product and layout.
 3. Export a PNG at the layout's exact pixel dimensions, with transparent pixels wherever photos should show.
 4. In the frame-artwork area, open **Import an event frame** and choose that PNG file up to 25 MB.

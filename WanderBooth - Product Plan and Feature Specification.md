@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.6.1
+document_version: 1.7.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -61,7 +61,7 @@ The business should be able to keep serving customers during internet interrupti
 6. **Replaceable camera sources:** camera-specific behavior stays behind a common interface so the operator can choose among supported cameras without changing the rest of the booth workflow.
 7. **Explicit control ownership:** every action is assigned to the operator or customer according to the active operation mode; hidden controls are enforced as permissions, not merely removed visually.
 8. **Understandable operations:** error messages, logs, and controls must be readable by a booth attendant who is not a developer.
-9. **Privacy by default:** customer photos are private, access links are difficult to guess, and files are automatically removed according to a documented retention policy.
+9. **Privacy by default:** customer photos are private, access links are difficult to guess, and local/manual versus cloud/automatic retention follows a documented policy.
 
 ## 3. Decisions and assumptions
 
@@ -91,7 +91,7 @@ The business should be able to keep serving customers during internet interrupti
 - QR access will expire after **30 days**.
 - The QR link must work away from the booth for the full 30 days, using private cloud delivery.
 - Guests do not need to join WanderBooth Wi-Fi; they may use mobile data or any internet connection.
-- Local customer-photo backups will be kept for **30 days**.
+- Local event data, captures, and deliverables remain on the booth computer until staff manually delete the event. Archiving hides an event without deleting it.
 - The customer receives the **final branded photo only**, not the original capture.
 - A three-photo strip session will provide three separately downloadable branded photos, the final branded strip, and a looping slideshow video with each photo shown for approximately 1.5 seconds.
 - Customers receive up to **two retakes**.
@@ -106,6 +106,10 @@ The business should be able to keep serving customers during internet interrupti
 - Imported frames are stored locally, persist across application restarts, are limited to their selected layout, and are not added to the public repository.
 - Before serving customers, the owner or attendant can turn imported artwork into an approved reusable template by aligning numbered photo placeholders once and saving the product, layout, frame artwork, artwork transform, every photo-holder transform, every default image crop, rotations, and locks.
 - Saved templates appear in a Template Gallery at session selection. Choosing one automatically restores its layout, required photo count, artwork, and every saved placement; real captures fill the numbered placeholders in capture order.
+- The operator starts by creating or opening a local event project. An event records its dates, optional client/venue/notes, isolated templates, and numbered completed customer sessions so staff can leave and return later.
+- The reusable Template Library supports named folders such as Weddings or Birthdays. A master template may belong to several folders, and deleting a folder does not delete the template.
+- Creating an event copies the selected folder's master templates into that event. Later event-only edits never change the library master, another event, or a completed session.
+- Staff can add another library master to an event or explicitly save an event template back to selected library folders as a new reusable master.
 - The Template Gallery also supports a blank custom 4×6 canvas in portrait or landscape orientation. Staff can add between one and eight independently editable photo holders, assign each holder to Capture 1 through Capture 8, and reuse one capture in several holders. For example, holder labels `1, 1, 2, 3` require only three actual photos while rendering Capture 1 twice.
 - Custom holder assignments are normalized into one continuous capture sequence, so a template never asks the booth to skip a capture number. Every repeated holder keeps its own position, size, rotation, crop, and lock state even when it displays the same captured photo as another holder.
 - Template creation, editing, duplication, and deletion are staff-only. A Self-Service customer may choose an approved saved template but cannot change the saved definition. The post-capture direct editor remains available to staff for session-specific final adjustments.
@@ -150,6 +154,9 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - The selected layout fixes the session capture count. Classic 2×6 uses three; Double strip 4×6 uses six unique shots; a custom saved template derives one to eight unique captures from its holder labels.
 - Cash confirmation is staff-only and occurs before capture; no price appears on screen.
 - Session state and command history persist in a local SQLite database.
+- A local Event Library now creates, opens, archives, restores, and permanently deletes event projects. Each event owns its template copies and completed session history.
+- Finished captures and deliverables are stored below event/session-specific directories. The event workspace shows their local links and an honest pending state for the not-yet-built cloud QR service.
+- Master templates can belong to several named folders. Event creation copies one folder's masters; adding, editing, or deleting an event copy is isolated, while an explicit promotion creates a new library master.
 - A development-only camera simulator exercises capture and two-retake behavior safely.
 - Staff can select the simulator or MacBook camera only while the booth is idle. The Mac path includes permission handling, physical device choice, a reduced mirrored preview relayed to the customer screen, and separate full-resolution unmirrored JPEG transfer.
 - One action starts every photo required by the selected layout. The Host advances and broadcasts the three-second countdown before each capture so the Mac and customer screen cannot drift apart.
@@ -165,7 +172,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
 - A packaged Apple-silicon `WanderBooth.app` and verified DMG can be launched without developer commands on the starting Mac.
 
-This checkpoint is not yet a pilot release. Camera reliability certification, Epson printing, cloud upload, QR generation, the 30-day download page, and automatic retention cleanup are still required.
+This checkpoint is not yet a pilot release. Camera reliability certification, Epson printing, cloud upload, QR generation, the 30-day download page, storage monitoring, and tested manual local-deletion operations are still required.
 
 ### Why the first release uses a desktop Host and reusable customer client
 
@@ -194,7 +201,7 @@ The person configuring prices and products, reviewing sales, exporting records, 
 
 ## 5. Core customer journey
 
-The owner or attendant chooses an operation mode while the booth is idle. The selected mode is PIN-protected, clearly visible on the operator console, recorded on every session, and locked until the current session finishes or is safely cancelled.
+The owner or attendant first creates or opens the correct event project, then chooses an operation mode while the booth is idle. The selected mode is PIN-protected, clearly visible on the operator console, recorded on every session, and locked until the current session finishes or is safely cancelled. Each completed session returns to that event's history.
 
 The first pilot uses an attendant-confirmed cash flow in both modes. Cash is confirmed before capture so there is no dispute about whether the session was purchased. A manager-authorized complimentary session remains available for testing or customer recovery.
 
@@ -317,7 +324,7 @@ This is a defining WanderBooth feature.
 - Access must expire automatically 30 days after the session.
 - The attendant must be able to revoke or re-display a session link.
 - Files remain private in object storage and are served through controlled or short-lived access URLs.
-- Cloud cleanup and local 30-day cleanup must be independently logged and retry safely.
+- Cloud 30-day cleanup and confirmed manual local-event deletion must be independently logged and recover safely.
 - Downloading should not require a name, phone number, email address, or customer account.
 
 ### What happens when internet is unavailable
@@ -393,6 +400,12 @@ The iPad still needs a local connection to the Host for booth controls. This may
 #### Local owner and attendant area
 
 - PIN-protected access
+- Event Library on startup with create, open, archive, restore, and confirmed permanent-delete actions
+- Event details containing name, date range, optional client, venue, notes, and starting template folder
+- Optional customer/group name and an automatically numbered session history inside each event
+- Local capture and deliverable links grouped under the event after processing
+- Reusable Template Library with named many-to-many folders
+- Isolated event template copies, later addition from the master library, and explicit promotion of an event template back to chosen library folders
 - Select the operation mode and configure the default for each booth/event profile
 - Configure the required capture count for each product/layout and which products, layouts, designs, and review actions are available in each mode
 - Open the display-only customer screen or the interactive Self-Service screen
@@ -441,13 +454,15 @@ The iPad still needs a local connection to the Host for booth controls. This may
 #### Local data and recovery
 
 - SQLite local database
+- Predictable event/session directories for captures and deliverables
 - Unique session and order identifiers
 - Persistent state after application restart
 - No lost completed photo after a crash
 - Automatic startup with Windows or macOS
 - Kiosk lock so customers cannot exit into the desktop operating system
 - Storage-capacity warning
-- Automatic retention cleanup with an audit record
+- Manual event deletion with confirmation and an audit record; archiving must never remove media
+- Separate automatic 30-day deletion for future cloud QR media
 - Daily local backup to a separately configured location
 
 #### Cash payment for the first pilot
@@ -563,30 +578,30 @@ This display has no interactive product, layout, design, retake, replacement, ap
 
 ### Attendant screens
 
-1. Status overview and active operation mode
-2. Start or switch mode while the booth is idle
-3. Attendant-Operated session controller
-4. Product, layout, and design selection with automatic required-photo summary
-5. Capture, review, photo replacement/retake, style change, and final approval
-6. Camera-source selection and test
-7. Cash approval
-8. Printer test and queue
-9. Latest sessions
-10. Reprint and re-display QR
-11. Error recovery
-12. End-of-day summary
+1. Event Library with active and archived projects
+2. Create Event form and template-folder manager
+3. Event workspace with active operation mode, next-customer form, event templates, and completed sessions
+4. Start or switch mode while the booth is idle
+5. Attendant-Operated session controller
+6. Product, layout, and design selection with automatic required-photo summary
+7. Capture, review, photo replacement/retake, style change, and final approval
+8. Camera-source selection and test
+9. Cash approval
+10. Printer test and queue
+11. Reprint and re-display QR
+12. Error recovery and end-of-day summary
 
 ### Owner screens
 
-1. Products and prices
-2. Layouts and branding
-3. Operation-mode and customer-flow settings
-4. Sessions and orders
-5. Sales summary and CSV export
-6. Storage and retention
-7. Camera sources, compatibility status, and test preview
-8. Device and network configuration
-9. Diagnostics and logs
+1. Event Library and event archive
+2. Template Library, folders, layouts, and branding
+3. Products and prices
+4. Operation-mode and customer-flow settings
+5. Sessions and orders
+6. Sales summary and CSV export
+7. Storage and retention
+8. Camera sources, compatibility status, and test preview
+9. Device/network configuration, diagnostics, and logs
 
 ## 9. Recommended first-release architecture
 
@@ -702,6 +717,10 @@ These are the main records the application must understand.
 
 | Record | Plain-language meaning |
 |---|---|
+| Event | One local booking/project containing its dates, client context, isolated template copies, and completed customer sessions |
+| Template folder | A named organizational collection; one reusable master template may belong to several folders |
+| Master template | A reusable approved design in the Template Library |
+| Event template | An independent copy used and optionally adjusted inside one event without mutating its master |
 | Product | Something a customer can buy, including its allowed layouts, designs, print quantity, price, and mode availability |
 | Layout | The arrangement and size of captures and branding; it defines the required photo/capture count for that product combination |
 | Session | One customer's complete booth interaction, including its fixed operation mode |
@@ -727,10 +746,11 @@ These are the main records the application must understand.
 - Do not make one customer's photo visible in another customer's gallery.
 - Keep download tokens unguessable.
 - Keep uploaded media private, expose only approved branded deliverables, and remove cloud media after 30 days.
+- Keep local event media until staff deliberately delete the event; make archive visibly different from permanent deletion.
 - Store future payment-provider secrets outside the user interface and logs.
 - Never store full card information when electronic payments are added.
 - Record consent, deletion, reprint, refund, and administrative actions.
-- Define separate retention periods for QR access, local recovery, and financial records.
+- Keep the policies separate: 30-day QR/cloud expiry, manual local event deletion, and future financial-record retention.
 - Provide a way to delete a customer's photo when legally and operationally permitted.
 - Obtain separate consent before future marketing or public-gallery use.
 - Treat children's photos and AI transformations as later policy decisions requiring additional care.
@@ -751,7 +771,7 @@ Before WanderBooth accepts paying customers, it must demonstrate:
 - successful QR downloads on current iPhone and Android devices;
 - successful cloud upload and QR download over venue internet and mobile data;
 - successful capture, processing, saving, and printing with internet disconnected, followed by automatic upload recovery; and
-- correct automatic deletion after the configured retention period.
+- correct automatic deletion of cloud QR media after 30 days and correct confirmed manual deletion of local event media.
 
 ## 13. Development roadmap
 
@@ -775,7 +795,9 @@ Tasks:
 - Render a print-ready 4×6 sheet containing two different three-photo 2×6 strips from six unique captures.
 - Use the working data-driven catalog to test built-in three-, four-, and six-photo layouts plus custom one-to-eight-capture templates, frame palettes, overlays, and shaped slots.
 - Test the implemented staff-only transparent-artwork and flat-template importer with the final production designs.
-- Use the implemented Template Gallery to prepare, save, and reuse the first production layouts before the first busy event test.
+- Use the implemented Template Library folders to prepare and organize the first production layouts before the first busy event test.
+- Use the implemented Event Library to create the pilot event, copy its starting designs, complete repeated named/unnamed sessions, leave the app, and reopen the history.
+- Verify archive/restore and confirmed manual deletion using only a disposable event before any customer data exists.
 - Test the working browser-to-Host control connection from the physical iPad.
 - Prototype queued upload to private cloud storage and a 30-day mobile download page.
 - Verify that capture and printing continue with internet disconnected and that the upload completes after reconnection.
@@ -793,6 +815,7 @@ Tasks:
 - Add staff-only camera selection, per-source readiness tests, and safe recovery when a source disconnects.
 - Add action permissions and actor audit records for product, layout, design, capture, replacement/retake, and final approval.
 - Add session folders and SQLite records.
+- Add the local Event Library, per-event template copies, numbered completed-session history, and event/session media directories.
 - Add restart recovery.
 - Add a simple local owner area.
 
@@ -803,9 +826,9 @@ Exit condition: a complete unpaid test session works repeatedly, local capture r
 Tasks:
 
 - Add products and local pricing.
-- Prepare and approve the first 5–10 production templates and branding assets in the working Template Gallery.
-- Add session history and CSV export.
-- Add retention and cleanup.
+- Prepare and approve the first 5–10 production templates and branding assets in the working Template Library.
+- Add CSV export to the working event/session history.
+- Add local storage monitoring, backup guidance, and audited manual deletion; add automatic cleanup only for the separate cloud QR service.
 - Add staff PIN and audit records.
 
 Exit condition: the business can configure and operate one booth without editing code.
@@ -984,6 +1007,9 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.7.0 | 2026-10-02 | Added local event projects with isolated templates and completed-session history, reusable multi-folder template collections, explicit event-template promotion, manual local-event retention, and a separate future 30-day cloud QR policy. |
+| 1.6.1 | 2026-10-02 | Reorganized the custom-template choices and spacing for clearer desktop and iPad selection. |
+| 1.6.0 | 2026-10-02 | Added portrait/landscape custom 4×6 canvases with up to eight independently mapped holders and repeated Capture labels. |
 | 1.5.0 | 2026-10-02 | Added a staff-only reusable Template Gallery: align numbered placeholders before service, save or duplicate the full frame/holder/crop setup, let sessions apply approved templates in one tap, and protect referenced artwork from deletion. |
 | 1.4.1 | 2026-10-02 | Made corner resizing proportional, changed middle edge handles into one-axis crop-frame controls, prevented image stretching in preview and export, and added schema-version-9 photo-transform normalization. |
 | 1.4.0 | 2026-10-02 | Changed Double strip 4×6 to six unique captures, replaced slider scaling with direct edge/corner resizing and rotation, added persistent object locks and imported-template deletion, and normalized captured/waiting review-card sizes. |

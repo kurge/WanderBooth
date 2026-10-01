@@ -2,7 +2,7 @@
 
 **Status:** Confirmed product behavior
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 
 **Updated:** 2026-10-02
 
@@ -50,7 +50,7 @@ WanderBooth supports two staff-selected workflows. The difference is who control
 ### Control flow
 
 1. The operator chooses the product.
-2. The operator chooses a compatible layout and design/style.
+2. The operator chooses a compatible layout, frame, and optional overlay.
 3. WanderBooth loads and shows the photo count required by that product/layout.
 4. The operator explains the privacy notice and records the customer's consent.
 5. The operator confirms cash received.
@@ -74,7 +74,7 @@ Even when the customer display shows captured images, only the operator can subm
 ### Control flow
 
 1. The customer chooses an enabled product.
-2. WanderBooth offers only layouts and designs compatible with that product.
+2. WanderBooth offers only layouts, frame palettes, and overlays compatible with that product/layout.
 3. The selected product/layout automatically supplies and displays the required photo count.
 4. The customer accepts the privacy notice.
 5. The interface waits while the attendant confirms cash.
@@ -91,13 +91,14 @@ See [iPad setup](IPAD_SETUP.md) for the exact Safari and Sidecar steps.
 
 ## Photo replacement and style rules
 
-- Photo count is not an independent session choice. Each enabled product/layout combination defines the exact number of final capture slots.
+- Photo count is not an independent session choice. Each enabled product/layout combination defines the exact number of unique captures, currently three or four.
+- A layout may intentionally repeat one capture in several visible slots, such as the left and right copies on a double-strip sheet.
 - WanderBooth shows that required number before cash confirmation and capture.
 - A replacement chooses one existing slot, captures a new photo, and replaces only that slot after confirmation.
 - Every initial photo and replacement uses the same Host-controlled three-second countdown on all connected screens.
 - The live posing preview is mirrored; saved, printed, and downloadable photos are not mirrored.
 - The initial rule remains up to two retake/replacement actions per session; whether that limit is shared across all slots remains configurable until finalized.
-- Changing a compatible design or style re-renders existing accepted captures and does not consume a retake.
+- Changing a compatible frame or overlay re-renders existing accepted captures and does not consume a retake.
 - Before capture, changing the product/layout recalculates the required count automatically.
 - After capture, changing to a layout with the same count may reuse the accepted captures. A layout requiring a different count needs an explicit staff/customer confirmation and controlled recapture/restart flow; it can never discard paid-session work silently.
 - Once the result is finally approved, further changes require staff recovery.

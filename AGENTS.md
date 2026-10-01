@@ -29,7 +29,7 @@ iPad display ────┘                     │
                                       ├── Host-owned countdown/capture sequence
                                       ├── in-memory local preview relay
                                       ├── camera sources (simulator + Mac media device)
-                                      └── local deliverable renderer
+                                      └── data-driven layout/frame/overlay renderer
 ```
 
 - `src/app/` — responsive React operator and customer interfaces.
@@ -46,13 +46,14 @@ The Host is authoritative. Every screen sends a command, the Host applies role a
 
 ## Current Phase 0 boundaries
 
-- Product: one three-photo vertical 2×6 strip; its layout fixes the capture count at three.
+- Products/templates: two product families currently expose five layouts, five frame palettes, and four overlay choices. Layout geometry fixes the unique capture count at three or four.
 - Payments: staff-confirmed cash only; price is intentionally absent from the UI.
 - Camera: simulator and experimental MacBook camera work; Fujifilm X-M5 follows. Camera selection remains staff-only and idle-only.
 - Capture: one command starts the product-defined sequence. Countdown ticks and capture triggers are Host-owned and broadcast to every screen.
 - Preview: the Mac renderer sends reduced mirrored JPEG frames to an in-memory Host relay; full-resolution unmirrored captures use a separate persisted route.
 - Delivery: branded local files work; cloud upload, QR generation, and 30-day expiry are not implemented yet.
-- Printing: 2×6 artwork is rendered at 600×1800 pixels and 300 DPI. The first print is defined as two identical strips on one 4×6 sheet, but that renderer and Epson L8050 queue control are not implemented yet.
+- Rendering: layout slots can repeat capture indices and use rectangle, rounded, or heart masks. Frames and overlays stay separate so photos never need to be retaken for a style change.
+- Printing: the 2×6 and 4×6 composite files render at 300 DPI. The first double-strip file now exists, but Epson L8050 queue control is not implemented yet.
 - Authentication: local prototype roles are screen-based, not authenticated accounts.
 - Distribution: the current Mac build is unsigned and intended only for this development machine. Public downloads will require Apple Developer signing and notarization.
 

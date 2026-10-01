@@ -6,6 +6,11 @@ const acknowledgements = new Map();
 const stateWaiters = new Set();
 let currentState;
 
+const productId = process.env.WANDERBOOTH_SMOKE_PRODUCT_ID ?? "three-photo-strip";
+const layoutId = process.env.WANDERBOOTH_SMOKE_LAYOUT_ID ?? "double-strip-4x6";
+const designId = process.env.WANDERBOOTH_SMOKE_DESIGN_ID ?? "wander-splash";
+const overlayId = process.env.WANDERBOOTH_SMOKE_OVERLAY_ID ?? "film-edge";
+
 const waitForState = (predicate, label, timeoutMs = 15_000) => {
   if (currentState && predicate(currentState)) return Promise.resolve(currentState);
 
@@ -73,27 +78,35 @@ if (currentState.cameraSourceId !== "simulator") {
 }
 
 await command({ type: "BEGIN_SESSION", sessionId: `smoke-${Date.now()}` });
-await command({ type: "SELECT_PRODUCT", productId: "three-photo-strip" });
-await command({ type: "SELECT_LAYOUT", layoutId: "vertical-2x6" });
-await command({ type: "SELECT_DESIGN", designId: "wander-splash" });
+await command({ type: "SELECT_PRODUCT", productId });
+await command({ type: "SELECT_LAYOUT", layoutId });
+await command({ type: "SELECT_DESIGN", designId });
+await command({ type: "SELECT_OVERLAY", overlayId });
 await command({ type: "RECORD_CONSENT" });
 await command({ type: "SUBMIT_SELECTION" });
 await command({ type: "CONFIRM_CASH" });
 
+const requiredCaptureCount = currentState.requiredCaptureCount;
+
 await command({ type: "START_CAPTURE_SEQUENCE" });
 await waitForState(
-  (state) => state.phase === "reviewing" && state.captures.length === 3,
-  "automatic three-photo sequence",
-  30_000,
+  (state) => state.phase === "reviewing" && state.captures.length === requiredCaptureCount,
+  `automatic ${requiredCaptureCount}-photo sequence`,
+  40_000,
 );
 
 await command({ type: "APPROVE" });
 const completed = await waitForState((state) => state.phase === "complete", "deliverables", 30_000);
 
 const kinds = completed.deliverables.map((item) => item.kind);
-if (completed.captures.length !== 3) throw new Error("Expected three captures.");
-if (completed.deliverables.filter((item) => item.kind === "individual").length !== 3) {
-  throw new Error("Expected three branded individual files.");
+if (completed.captures.length !== requiredCaptureCount) {
+  throw new Error(`Expected ${requiredCaptureCount} captures.`);
+}
+if (
+  completed.deliverables.filter((item) => item.kind === "individual").length !==
+  requiredCaptureCount
+) {
+  throw new Error(`Expected ${requiredCaptureCount} branded individual files.`);
 }
 if (!kinds.includes("strip")) throw new Error("Expected a rendered strip.");
 if (!kinds.includes("slideshow")) throw new Error("Expected a rendered slideshow.");

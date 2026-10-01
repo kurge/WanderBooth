@@ -25,6 +25,30 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 0.9.0 — 2026-10-02
+
+### Added
+
+- Added a product menu for the existing three-photo strip and a new four-photo 4×6 card family.
+- Added five selectable layouts: Classic 2×6, Double strip 4×6, Feature portrait, Heart feature, and Party landscape.
+- Added five independent frame palettes and four optional foreground-overlay choices.
+- Added data-driven canvas sizes, photo-slot coordinates, capture-index reuse, multiple branding areas, portrait/landscape output, and rectangle/rounded/heart clipping.
+- Added compatibility filtering so only overlays designed for the selected layout appear.
+- Added review-time frame and overlay changes without requiring new captures.
+- Added a configurable smoke runner that can validate three- or four-photo catalog combinations.
+- Added template-authoring documentation and ADR 0009.
+
+### Verified
+
+- Rendered and visually inspected the 1200×1800 double-strip sheet with three captures repeated into two identical cut strips, duplicated branding, cut guide, and film overlay.
+- Rendered and visually inspected the four-photo Heart feature layout with a true heart-shaped fourth-photo mask and Love hearts overlay.
+- Verified the operator menu exposes both product families, filters their layouts, updates the automatic count, and enables only compatible overlays.
+- Confirmed all 13 workflow tests, formatting, type checks, Host build, and customer-app build pass.
+
+### Sample-template finding
+
+- Inspected all six supplied sample PNGs. They are flattened RGB reference images with no alpha channel and some contain baked-in example subjects, so they were not copied into the public repository or treated as production overlays. Their geometry informed the built-in catalog.
+
 ## 0.8.0 — 2026-10-02
 
 ### Confirmed

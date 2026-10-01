@@ -1,7 +1,17 @@
 import { useEffect, useMemo } from "react";
 
 import wanderPressSplashLogo from "../../assets/brand/source/wander-press-splash-shadow.png";
-import { designs, layouts, products } from "../shared/catalog";
+import {
+  designs,
+  getLayout,
+  getProduct,
+  type Layout,
+  layouts,
+  type Overlay,
+  overlaySupportsLayout,
+  overlays,
+  products,
+} from "../shared/catalog";
 import type { Actor, BoothState, Command, OperationMode } from "../shared/session";
 import { createId } from "./createId";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
@@ -19,7 +29,7 @@ const phaseLabels: Record<BoothState["phase"], string> = {
   ready: "Ready for the next photo",
   countdown: "Get ready…",
   capturing: "Capturing…",
-  reviewing: "Review the three photos",
+  reviewing: "Review your photos",
   processing: "Building your WanderBooth set",
   complete: "Your photos are ready",
   error: "The booth needs attention",
@@ -92,7 +102,11 @@ function ModeSelector({
 function CapturePreview({ state }: { state: BoothState }) {
   const slots = Array.from({ length: state.requiredCaptureCount || 3 }, (_, index) => index + 1);
   return (
-    <section className="photo-grid" aria-label="Session photos">
+    <section
+      className="photo-grid"
+      aria-label="Session photos"
+      style={{ gridTemplateColumns: `repeat(${Math.min(slots.length, 4)}, minmax(0, 1fr))` }}
+    >
       {slots.map((slot) => {
         const capture = state.captures.find((item) => item.slot === slot);
         return (
@@ -109,6 +123,41 @@ function CapturePreview({ state }: { state: BoothState }) {
         );
       })}
     </section>
+  );
+}
+
+function LayoutThumbnail({ layout }: { layout: Layout }) {
+  return (
+    <span
+      className="layout-thumbnail"
+      style={{ aspectRatio: `${layout.canvasWidth} / ${layout.canvasHeight}` }}
+      aria-hidden="true"
+    >
+      {layout.slots.map((slot) => (
+        <i
+          className={`layout-thumbnail__slot layout-thumbnail__slot--${slot.shape}`}
+          key={`${slot.captureIndex}-${slot.x}-${slot.y}`}
+          style={{
+            left: `${(slot.x / layout.canvasWidth) * 100}%`,
+            top: `${(slot.y / layout.canvasHeight) * 100}%`,
+            width: `${(slot.width / layout.canvasWidth) * 100}%`,
+            height: `${(slot.height / layout.canvasHeight) * 100}%`,
+          }}
+        />
+      ))}
+      <b>{layout.printSize.replace("x", "×")}</b>
+    </span>
+  );
+}
+
+function OverlayThumbnail({ overlay }: { overlay: Overlay }) {
+  return (
+    <span className={`overlay-thumbnail overlay-thumbnail--${overlay.kind}`} aria-hidden="true">
+      <i />
+      <i />
+      <i />
+      <i />
+    </span>
   );
 }
 
@@ -144,7 +193,11 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
       </span>
       {countdown && (
         <div className="countdown-overlay" role="status" aria-live="assertive">
-          <small>{isRetake ? `Retake photo ${activeSlot}` : `Photo ${activeSlot} of 3`}</small>
+          <small>
+            {isRetake
+              ? `Retake photo ${activeSlot}`
+              : `Photo ${activeSlot} of ${state.requiredCaptureCount}`}
+          </small>
           <strong key={`${activeSlot}-${countdown}`}>{countdown}</strong>
           <span>Look at the camera</span>
         </div>
@@ -167,8 +220,16 @@ function SelectionPanel({
   interactive: boolean;
   sendCommand: (command: Command) => void;
 }) {
-  const product = products[0];
-  const layout = layouts[0];
+  const selectedProduct = getProduct(state.productId);
+  const selectedLayout = getLayout(state.layoutId);
+  const availableLayouts = selectedProduct
+    ? selectedProduct.layoutIds
+        .map((layoutId) => layouts.find((layout) => layout.id === layoutId))
+        .filter((layout): layout is Layout => Boolean(layout))
+    : [];
+  const availableOverlays = selectedLayout
+    ? overlays.filter((overlay) => overlaySupportsLayout(overlay, selectedLayout.id))
+    : [];
   const canSubmit = Boolean(
     state.productId && state.layoutId && state.designId && state.consentRecorded,
   );
@@ -178,7 +239,9 @@ function SelectionPanel({
       <section className="customer-message">
         <span className="eyebrow">Attendant-operated session</span>
         <h1>We’ll set everything up for you.</h1>
-        <p>Your attendant is choosing the layout and design. You’ll see each photo here.</p>
+        <p>
+          Your attendant is choosing the layout, frame, and overlay. You’ll see each photo here.
+        </p>
         <div className="waiting-dots" role="status" aria-label="Waiting">
           <i />
           <i />
@@ -191,57 +254,81 @@ function SelectionPanel({
   return (
     <section className="selection-panel">
       <div className="section-heading">
-        <span className="eyebrow">One simple experience</span>
-        <h1>Make your three-photo strip.</h1>
-        <p>The layout sets the photo count automatically. No price is shown on this screen.</p>
+        <span className="eyebrow">Build your photo keepsake</span>
+        <h1>Choose a product, layout, frame, and overlay.</h1>
+        <p>
+          Every layout sets its own photo count automatically. Pricing remains on the physical menu
+          for now.
+        </p>
       </div>
 
-      <div className="selection-row">
-        <article
-          className={state.productId ? "choice-summary choice-summary--selected" : "choice-summary"}
-        >
+      <div className="catalog-section">
+        <div className="catalog-section__heading">
           <span className="choice-summary__number">01</span>
           <div>
             <small>Product</small>
-            <h2>{product.name}</h2>
-            <p>{product.description}</p>
+            <h2>Choose the photo experience</h2>
           </div>
-          <button
-            type="button"
-            className="button button--small"
-            disabled={Boolean(state.productId)}
-            onClick={() => sendCommand({ type: "SELECT_PRODUCT", productId: product.id })}
-          >
-            {state.productId ? "Selected" : "Choose"}
-          </button>
-        </article>
+        </div>
+        <div className="product-grid">
+          {products.map((product) => (
+            <button
+              className={
+                state.productId === product.id
+                  ? "catalog-card catalog-card--selected"
+                  : "catalog-card"
+              }
+              type="button"
+              key={product.id}
+              onClick={() => sendCommand({ type: "SELECT_PRODUCT", productId: product.id })}
+            >
+              <strong>{product.name}</strong>
+              <span>{product.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-        <article
-          className={state.layoutId ? "choice-summary choice-summary--selected" : "choice-summary"}
-        >
+      <div className="catalog-section">
+        <div className="catalog-section__heading">
           <span className="choice-summary__number">02</span>
           <div>
             <small>Layout</small>
-            <h2>{layout.name}</h2>
-            <p>{layout.requiredCaptureCount} photos, stacked vertically.</p>
+            <h2>Choose how the photos are arranged</h2>
           </div>
-          <button
-            type="button"
-            className="button button--small"
-            disabled={!state.productId || Boolean(state.layoutId)}
-            onClick={() => sendCommand({ type: "SELECT_LAYOUT", layoutId: layout.id })}
-          >
-            {state.layoutId ? "Selected" : "Choose"}
-          </button>
-        </article>
+        </div>
+        <div className="layout-grid">
+          {availableLayouts.map((layout) => (
+            <button
+              className={
+                state.layoutId === layout.id ? "layout-card layout-card--selected" : "layout-card"
+              }
+              type="button"
+              key={layout.id}
+              onClick={() => sendCommand({ type: "SELECT_LAYOUT", layoutId: layout.id })}
+            >
+              <LayoutThumbnail layout={layout} />
+              <span>
+                <strong>{layout.name}</strong>
+                <small>
+                  {layout.requiredCaptureCount} photos · {layout.description}
+                </small>
+              </span>
+            </button>
+          ))}
+          {!selectedProduct && <p className="catalog-empty">Choose a product first.</p>}
+        </div>
       </div>
 
-      <div className="design-section">
-        <div>
-          <span className="eyebrow">03 · Pick a look</span>
-          <h2>Choose your design</h2>
+      <div className="catalog-section">
+        <div className="catalog-section__heading">
+          <span className="choice-summary__number">03</span>
+          <div>
+            <small>Frame</small>
+            <h2>Choose the colors and frame style</h2>
+          </div>
         </div>
-        <div className="design-grid">
+        <div className="design-grid design-grid--frames">
           {designs.map((design) => (
             <button
               className={
@@ -267,6 +354,38 @@ function SelectionPanel({
               <small>{design.description}</small>
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="catalog-section">
+        <div className="catalog-section__heading">
+          <span className="choice-summary__number">04</span>
+          <div>
+            <small>Overlay</small>
+            <h2>Add an optional foreground design</h2>
+          </div>
+        </div>
+        <div className="overlay-grid">
+          {availableOverlays.map((overlay) => (
+            <button
+              className={
+                state.overlayId === overlay.id
+                  ? "overlay-card overlay-card--selected"
+                  : "overlay-card"
+              }
+              type="button"
+              key={overlay.id}
+              disabled={!state.designId}
+              onClick={() => sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })}
+            >
+              <OverlayThumbnail overlay={overlay} />
+              <span>
+                <strong>{overlay.name}</strong>
+                <small>{overlay.description}</small>
+              </span>
+            </button>
+          ))}
+          {!selectedLayout && <p className="catalog-empty">Choose a layout first.</p>}
         </div>
       </div>
 
@@ -341,7 +460,7 @@ function SessionPanel({
     const photosRemaining = Math.max(0, state.requiredCaptureCount - state.captures.length);
     const heading =
       state.phase === "ready"
-        ? "One tap takes all three photos."
+        ? `One tap takes all ${state.requiredCaptureCount} photos.`
         : state.phase === "countdown"
           ? "Get ready…"
           : "Hold that pose…";
@@ -349,7 +468,9 @@ function SessionPanel({
       <section className="capture-stage capture-stage--live">
         <div className="capture-stage__copy">
           <span className="eyebrow">
-            {isRetake ? `Retake photo ${nextPhoto}` : `Photo ${Math.min(nextPhoto, 3)} of 3`}
+            {isRetake
+              ? `Retake photo ${nextPhoto}`
+              : `Photo ${Math.min(nextPhoto, state.requiredCaptureCount)} of ${state.requiredCaptureCount}`}
           </span>
           <h1>{heading}</h1>
           <p>
@@ -382,14 +503,19 @@ function SessionPanel({
         <div className="section-heading section-heading--horizontal">
           <div>
             <span className="eyebrow">Review</span>
-            <h1>Keep these three?</h1>
+            <h1>Keep these {state.requiredCaptureCount} photos?</h1>
           </div>
           <p>{state.retakesRemaining} retakes remaining</p>
         </div>
         <CapturePreview state={state} />
         {interactive ? (
           <>
-            <div className="retake-row">
+            <div
+              className="retake-row"
+              style={{
+                gridTemplateColumns: `repeat(${Math.min(state.captures.length, 4)}, minmax(0, 1fr))`,
+              }}
+            >
               {state.captures.map((capture) => (
                 <button
                   className="button button--quiet"
@@ -404,7 +530,7 @@ function SessionPanel({
             </div>
             <div className="review-footer">
               <div className="mini-designs">
-                <span>Design</span>
+                <span>Frame</span>
                 {designs.map((design) => (
                   <button
                     type="button"
@@ -416,6 +542,27 @@ function SessionPanel({
                     onClick={() => sendCommand({ type: "SELECT_DESIGN", designId: design.id })}
                   />
                 ))}
+              </div>
+              <div className="mini-overlays">
+                <span>Overlay</span>
+                {overlays
+                  .filter(
+                    (overlay) =>
+                      Boolean(state.layoutId) &&
+                      overlaySupportsLayout(overlay, state.layoutId ?? ""),
+                  )
+                  .map((overlay) => (
+                    <button
+                      type="button"
+                      key={overlay.id}
+                      title={overlay.name}
+                      aria-label={`Use ${overlay.name}`}
+                      aria-pressed={state.overlayId === overlay.id}
+                      onClick={() => sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })}
+                    >
+                      <OverlayThumbnail overlay={overlay} />
+                    </button>
+                  ))}
               </div>
               <button
                 className="button button--primary button--large"
@@ -444,7 +591,7 @@ function SessionPanel({
           <i />
         </div>
         <span className="eyebrow">Nearly there</span>
-        <h1>Making the branded photos, strip, and slideshow.</h1>
+        <h1>Making the branded photos, keepsake, and slideshow.</h1>
         <p>Everything is rendered on this Mac for the offline-first prototype.</p>
       </section>
     );
@@ -536,6 +683,7 @@ function OperatorSidebar({
 }) {
   const isIdle = state.phase === "idle";
   const macBookSelected = state.cameraSourceId === "macbook_camera";
+  const selectedLayout = getLayout(state.layoutId);
 
   return (
     <aside className="operator-sidebar">
@@ -660,11 +808,17 @@ function OperatorSidebar({
           </div>
           <div>
             <dt>Layout</dt>
-            <dd>Vertical 2×6</dd>
+            <dd>{selectedLayout?.name ?? "Choose in session"}</dd>
+          </div>
+          <div>
+            <dt>Output</dt>
+            <dd>{selectedLayout?.printSize.replace("x", "×") ?? "—"}</dd>
           </div>
           <div>
             <dt>Photos</dt>
-            <dd>3 automatic</dd>
+            <dd>
+              {state.requiredCaptureCount ? `${state.requiredCaptureCount} automatic` : "3 or 4"}
+            </dd>
           </div>
           <div>
             <dt>Retakes</dt>
@@ -795,7 +949,7 @@ function App() {
                   src={wanderPressSplashLogo}
                   alt="Wander Press PH"
                 />
-                <span className="eyebrow">Three photos. One keepsake.</span>
+                <span className="eyebrow">Your photos. One keepsake.</span>
                 <h1>Ready to wander?</h1>
                 <p>Your attendant will start the next session.</p>
               </section>

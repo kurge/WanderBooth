@@ -22,19 +22,20 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - [Hardware baseline](docs/HARDWARE.md) — owned devices, known compatibility, risks, and the Phase 0 hardware test plan.
 - [Camera compatibility matrix](docs/CAMERA_COMPATIBILITY.md) — camera sources, adapter types, test status, and product-level approval.
 - [Operation modes](docs/OPERATION_MODES.md) — control ownership, screen behavior, permissions, and workflows for Attendant-Operated and Self-Service use.
+- [Layouts, frames, and overlays](docs/TEMPLATES_AND_OVERLAYS.md) — the template model, current catalog, supplied-sample findings, and production artwork rules.
 - [iPad setup](docs/IPAD_SETUP.md) — Safari touchscreen and Sidecar second-display instructions.
 - [Architecture decision records](docs/decisions/) — short records explaining why major technical and product choices were made.
 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **0.8.0 — Synchronized Capture Experience**
+- Product-plan version: **0.9.0 — Layout, Frame, and Overlay Catalog**
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
-- First prototype: **three-photo vertical 2×6 strip**, iPad customer screen, no on-screen price
+- Current catalog: **two product families, five layouts, five frame palettes, and four optional overlays**, iPad customer screen, no on-screen price
 - Current cameras: **prototype simulator and experimental MacBook camera**, now with a relayed customer-screen preview and automatic capture sequence; Fujifilm X-M5 is the first dedicated-camera target
-- First print decision: **one 4×6 sheet containing two identical three-photo 2×6 strips**
-- Immediate next step: verify the flow on the physical iPad, then implement and test the Epson L8050 4×6 double-strip print path. Private 30-day cloud QR delivery follows.
+- First print decision: **one 4×6 sheet containing two identical three-photo 2×6 strips**; the renderer now produces this file, but printer submission is not implemented
+- Immediate next step: refine the approved production artwork and transparent-overlay import workflow, verify the menu on the physical iPad, then test the Epson L8050 print path. Private 30-day cloud QR delivery follows.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**
 - Repository visibility: **Public**
 
@@ -45,7 +46,10 @@ WanderBooth is an offline-first photo booth application being developed for our 
 
 - One synchronized session shared by the laptop operator view and iPad/customer view.
 - Staff-selected Attendant-Operated or Self-Service control.
-- Fixed three-photo vertical 2×6 product with the photo count derived from the layout.
+- Product/layout menu with three-photo strips and four-photo cards; every layout supplies its own automatic photo count.
+- Five data-driven layouts: classic 2×6, repeated double strip 4×6, feature portrait, heart feature, and party landscape.
+- Five reusable frame palettes and optional no-overlay, film-edge, confetti, and heart foreground treatments.
+- Rectangle, rounded, heart-shaped, repeated-capture, portrait, and landscape rendering.
 - Cash confirmation before capture, with no price shown in the application.
 - Two retakes, design selection, customer preview, and final approval.
 - Local SQLite state and event history so the Host remains authoritative.
@@ -58,11 +62,11 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - A double-clickable Apple-silicon Mac application and local DMG build.
 - Supplied Wander Press PH artwork and exact blue, lime, yellow, cream, orange, and purple brand tokens.
 
-The prototype now controls the starting MacBook camera, but it does **not** yet control the X-M5, print to the Epson L8050, upload to cloud storage, or generate the private 30-day QR page. The built-in camera remains Experimental until the full reliability and print-quality test is complete.
+The prototype now controls the starting MacBook camera and renders a reusable template catalog, but it does **not** yet import arbitrary owner artwork, control the X-M5, submit jobs to the Epson L8050, upload to cloud storage, or generate the private 30-day QR page. The built-in camera remains Experimental until the full reliability and print-quality test is complete.
 
 ## Open the app on this Mac
 
-The current local installation image is generated at `release/WanderBooth-0.3.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
+The current local installation image is generated at `release/WanderBooth-0.4.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

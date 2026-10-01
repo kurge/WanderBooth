@@ -1,4 +1,4 @@
-import { getDesign, getLayout, getProduct } from "./catalog.js";
+import { getDesign, getLayout, getOverlay, getProduct, overlaySupportsLayout } from "./catalog.js";
 
 export type Actor = "owner" | "attendant" | "customer" | "system";
 export type OperationMode = "attendant" | "self_service";
@@ -40,7 +40,7 @@ export type Deliverable = {
 };
 
 export type BoothState = {
-  schemaVersion: 3;
+  schemaVersion: 4;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -49,6 +49,7 @@ export type BoothState = {
   productId: string | null;
   layoutId: string | null;
   designId: string | null;
+  overlayId: string;
   requiredCaptureCount: number;
   captures: Capture[];
   pendingCapture: PendingCapture | null;
@@ -68,6 +69,7 @@ export type Command =
   | { type: "SELECT_PRODUCT"; productId: string }
   | { type: "SELECT_LAYOUT"; layoutId: string }
   | { type: "SELECT_DESIGN"; designId: string }
+  | { type: "SELECT_OVERLAY"; overlayId: string }
   | { type: "RECORD_CONSENT" }
   | { type: "SUBMIT_SELECTION" }
   | { type: "CONFIRM_CASH" }
@@ -89,7 +91,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 3,
+  schemaVersion: 4,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -98,6 +100,7 @@ export const initialBoothState = (): BoothState => ({
   productId: null,
   layoutId: null,
   designId: null,
+  overlayId: "none",
   requiredCaptureCount: 0,
   captures: [],
   pendingCapture: null,
@@ -145,6 +148,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "SELECT_PRODUCT":
     case "SELECT_LAYOUT":
     case "SELECT_DESIGN":
+    case "SELECT_OVERLAY":
     case "RECORD_CONSENT":
     case "SUBMIT_SELECTION":
     case "START_CAPTURE_SEQUENCE":
@@ -191,6 +195,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         productId: null,
         layoutId: null,
         designId: null,
+        overlayId: "none",
         requiredCaptureCount: 0,
         captures: [],
         pendingCapture: null,
@@ -208,6 +213,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         productId: product.id,
         layoutId: null,
         designId: null,
+        overlayId: "none",
         requiredCaptureCount: 0,
       });
     }
@@ -221,6 +227,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       return revised(state, {
         layoutId: layout.id,
         requiredCaptureCount: layout.requiredCaptureCount,
+        overlayId: "none",
       });
     }
     case "SELECT_DESIGN": {
@@ -228,13 +235,30 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       if (!getDesign(command.designId)) throw new CommandError("That design is not available.");
       return revised(state, { designId: command.designId });
     }
+    case "SELECT_OVERLAY": {
+      requirePhase(state, ["selecting", "reviewing"]);
+      const layout = getLayout(state.layoutId);
+      const overlay = getOverlay(command.overlayId);
+      if (!layout || !overlay || !overlaySupportsLayout(overlay, layout.id)) {
+        throw new CommandError("That overlay is not compatible with the selected layout.");
+      }
+      return revised(state, { overlayId: overlay.id });
+    }
     case "RECORD_CONSENT":
       requirePhase(state, ["selecting"]);
       return revised(state, { consentRecorded: true });
     case "SUBMIT_SELECTION":
       requirePhase(state, ["selecting"]);
-      if (!state.productId || !state.layoutId || !state.designId || !state.consentRecorded) {
-        throw new CommandError("Complete the product, layout, design, and consent steps first.");
+      if (
+        !state.productId ||
+        !state.layoutId ||
+        !state.designId ||
+        !getOverlay(state.overlayId) ||
+        !state.consentRecorded
+      ) {
+        throw new CommandError(
+          "Complete the product, layout, frame, overlay, and consent steps first.",
+        );
       }
       return revised(state, { phase: "awaiting_cash" });
     case "CONFIRM_CASH":

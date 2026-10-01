@@ -5,7 +5,14 @@ import { dirname, join, relative, resolve } from "node:path";
 
 import sharp from "sharp";
 
-import { getDesign } from "../shared/catalog.js";
+import {
+  getDesign,
+  getLayout,
+  getOverlay,
+  type Layout,
+  type OverlayKind,
+  type PhotoSlot,
+} from "../shared/catalog.js";
 import type { BoothState, Deliverable } from "../shared/session.js";
 
 const publicMediaUrl = (dataDirectory: string, absolutePath: string) =>
@@ -58,34 +65,139 @@ async function createBrandedIndividual(input: {
     .toFile(input.outputPath);
 }
 
-async function createStrip(input: {
-  individualPaths: string[];
+const heartPath = "M50 94 C42 86 4 61 4 29 C4 5 34 -7 50 17 C66 -7 96 5 96 29 C96 61 58 86 50 94 Z";
+
+async function renderSlot(photoPath: string, slot: PhotoSlot) {
+  const photo = await sharp(photoPath)
+    .resize(slot.width, slot.height, { fit: "cover" })
+    .ensureAlpha()
+    .png()
+    .toBuffer();
+  if (slot.shape === "rectangle") return photo;
+
+  const mask =
+    slot.shape === "heart"
+      ? Buffer.from(`
+          <svg width="${slot.width}" height="${slot.height}" viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="${heartPath}" fill="white" />
+          </svg>
+        `)
+      : Buffer.from(`
+          <svg width="${slot.width}" height="${slot.height}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="${slot.width}" height="${slot.height}" rx="${Math.round(Math.min(slot.width, slot.height) * 0.055)}" fill="white" />
+          </svg>
+        `);
+
+  return sharp(photo)
+    .composite([{ input: mask, blend: "dest-in" }])
+    .png()
+    .toBuffer();
+}
+
+const slotOutline = (slot: PhotoSlot, accent: string, strokeWidth: number) => {
+  if (slot.shape === "heart") {
+    return `<svg x="${slot.x}" y="${slot.y}" width="${slot.width}" height="${slot.height}" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${heartPath}" fill="none" stroke="${accent}" stroke-width="${strokeWidth / 6}" /></svg>`;
+  }
+  const radius =
+    slot.shape === "rounded" ? Math.round(Math.min(slot.width, slot.height) * 0.055) : 0;
+  return `<rect x="${slot.x}" y="${slot.y}" width="${slot.width}" height="${slot.height}" rx="${radius}" fill="none" stroke="${accent}" stroke-width="${strokeWidth}" />`;
+};
+
+const overlayMarkup = (kind: OverlayKind, layout: Layout, accent: string) => {
+  const { canvasWidth: width, canvasHeight: height } = layout;
+  if (kind === "none") return "";
+  if (kind === "film") {
+    const holeWidth = Math.max(14, Math.round(Math.min(width, height) * 0.025));
+    const holeHeight = Math.round(holeWidth * 0.7);
+    const step = Math.round(holeHeight * 2.15);
+    const xPositions =
+      layout.id === "double-strip-4x6"
+        ? [
+            Math.round(holeWidth * 0.45),
+            Math.round(width / 2 - holeWidth * 1.45),
+            Math.round(width / 2 + holeWidth * 0.45),
+            width - Math.round(holeWidth * 1.45),
+          ]
+        : [Math.round(holeWidth * 0.45), width - Math.round(holeWidth * 1.45)];
+    return Array.from({ length: Math.ceil(height / step) }, (_, index) => {
+      const y = index * step + Math.round(holeHeight * 0.45);
+      return xPositions
+        .map(
+          (x) =>
+            `<rect x="${x}" y="${y}" width="${holeWidth}" height="${holeHeight}" rx="${Math.round(holeHeight * 0.2)}" fill="${accent}" opacity="0.92" />`,
+        )
+        .join("");
+    }).join("");
+  }
+  if (kind === "confetti") {
+    const palette = [accent, "#fffc02", "#da6319", "#3572c4", "#ddf426"];
+    const points = [
+      [0.05, 0.05, -18],
+      [0.16, 0.035, 24],
+      [0.29, 0.06, -35],
+      [0.73, 0.045, 18],
+      [0.86, 0.07, -28],
+      [0.95, 0.035, 32],
+      [0.035, 0.46, 18],
+      [0.965, 0.52, -22],
+      [0.07, 0.94, 30],
+      [0.9, 0.95, -30],
+    ];
+    const size = Math.max(13, Math.round(Math.min(width, height) * 0.018));
+    return points
+      .map(
+        ([x, y, rotation], index) =>
+          `<rect x="${Math.round(x * width)}" y="${Math.round(y * height)}" width="${size}" height="${Math.round(size * 0.42)}" rx="${Math.round(size * 0.2)}" fill="${palette[index % palette.length]}" transform="rotate(${rotation} ${Math.round(x * width)} ${Math.round(y * height)})" />`,
+      )
+      .join("");
+  }
+
+  const size = Math.round(Math.min(width, height) * 0.18);
+  return `<g fill="none" stroke="${accent}" opacity="0.28" stroke-width="${Math.max(6, Math.round(size * 0.045))}"><svg x="${Math.round(width * 0.72)}" y="${Math.round(height * 0.72)}" width="${size}" height="${size}" viewBox="0 0 100 100"><path d="${heartPath}" /></svg><svg x="${Math.round(width * 0.06)}" y="${Math.round(height * 0.76)}" width="${Math.round(size * 0.66)}" height="${Math.round(size * 0.66)}" viewBox="0 0 100 100"><path d="${heartPath}" /></svg></g>`;
+};
+
+async function createComposite(input: {
+  capturePaths: string[];
   outputPath: string;
   accent: string;
   background: string;
   designName: string;
+  layout: Layout;
+  overlayKind: OverlayKind;
+  overlayName: string;
 }) {
-  const width = 600;
-  const height = 1800;
-  const frameWidth = 540;
-  const frameHeight = 420;
-  const topPositions = [120, 570, 1020];
+  const { canvasWidth: width, canvasHeight: height } = input.layout;
+  const strokeWidth = Math.max(6, Math.round(Math.min(width, height) * 0.012));
   const photos = await Promise.all(
-    input.individualPaths
-      .slice(0, 3)
-      .map((photoPath) =>
-        sharp(photoPath).resize(frameWidth, frameHeight, { fit: "cover" }).png().toBuffer(),
-      ),
+    input.layout.slots.map((slot) => {
+      const photoPath = input.capturePaths[slot.captureIndex];
+      if (!photoPath)
+        throw new Error(`Layout references missing capture ${slot.captureIndex + 1}.`);
+      return renderSlot(photoPath, slot);
+    }),
   );
-  const brand = Buffer.from(`
+  const brandMarkup = input.layout.brandAreas
+    .map((brandArea) => {
+      const brandX = brandArea.align === "center" ? brandArea.x + brandArea.width / 2 : brandArea.x;
+      const anchor = brandArea.align === "center" ? "middle" : "start";
+      const titleSize = Math.max(
+        30,
+        Math.round(Math.min(brandArea.width, brandArea.height) * 0.14),
+      );
+      const detailSize = Math.max(19, Math.round(titleSize * 0.58));
+      return `
+        <text x="${brandX}" y="${brandArea.y + Math.round(brandArea.height * 0.36)}" text-anchor="${anchor}" font-family="Arial, Helvetica, sans-serif" font-size="${titleSize}" font-weight="800" fill="${input.accent}">WanderBooth</text>
+        <text x="${brandX}" y="${brandArea.y + Math.round(brandArea.height * 0.58)}" text-anchor="${anchor}" font-family="Arial, Helvetica, sans-serif" font-size="${detailSize}" font-weight="700" fill="${input.accent}">${escapeXml(input.designName)}</text>
+        <text x="${brandX}" y="${brandArea.y + Math.round(brandArea.height * 0.77)}" text-anchor="${anchor}" font-family="Arial, Helvetica, sans-serif" font-size="${Math.max(16, Math.round(detailSize * 0.74))}" fill="${input.accent}">Wander Press PH${input.overlayKind === "none" ? "" : ` · ${escapeXml(input.overlayName)}`}</text>
+      `;
+    })
+    .join("");
+  const frame = Buffer.from(`
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="${width}" height="${height}" rx="30" fill="${input.background}" />
-      <circle cx="66" cy="60" r="28" fill="${input.accent}" />
-      <text x="108" y="69" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="800" fill="${input.accent}">WanderBooth</text>
-      <path d="M40 1570 C160 1500 230 1650 350 1585 C455 1528 520 1585 570 1660 L570 1770 L30 1770 Z" fill="${input.accent}" opacity="0.16" />
-      <text x="300" y="1640" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="${input.accent}">${escapeXml(input.designName)}</text>
-      <text x="300" y="1690" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="${input.accent}">made for wanderers</text>
-      <text x="300" y="1740" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="${input.accent}">Wander Press PH</text>
+      ${input.layout.slots.map((slot) => slotOutline(slot, input.accent, strokeWidth)).join("")}
+      ${input.layout.id === "double-strip-4x6" ? `<path d="M600 28 V1772" stroke="${input.accent}" stroke-width="3" stroke-dasharray="14 14" opacity="0.55" />` : ""}
+      ${overlayMarkup(input.overlayKind, input.layout, input.accent)}
+      ${brandMarkup}
     </svg>
   `);
 
@@ -99,8 +211,12 @@ async function createStrip(input: {
     },
   })
     .composite([
-      { input: brand, top: 0, left: 0 },
-      ...photos.map((photo, index) => ({ input: photo, top: topPositions[index], left: 30 })),
+      ...photos.map((photo, index) => ({
+        input: photo,
+        top: input.layout.slots[index].y,
+        left: input.layout.slots[index].x,
+      })),
+      { input: frame, top: 0, left: 0 },
     ])
     .withMetadata({ density: 300 })
     .png()
@@ -156,7 +272,11 @@ export async function buildDeliverables(
 ): Promise<Deliverable[]> {
   if (!state.sessionId) throw new Error("A session is required to build deliverables.");
   const design = getDesign(state.designId);
-  if (!design) throw new Error("A valid design is required to build deliverables.");
+  const layout = getLayout(state.layoutId);
+  const overlay = getOverlay(state.overlayId);
+  if (!design || !layout || !overlay) {
+    throw new Error("A valid layout, frame, and overlay are required to build deliverables.");
+  }
 
   const outputDirectory = join(dataDirectory, "sessions", state.sessionId, "deliverables");
   await mkdir(outputDirectory, { recursive: true });
@@ -177,13 +297,16 @@ export async function buildDeliverables(
     individualPaths.push(outputPath);
   }
 
-  const stripPath = join(outputDirectory, "wanderbooth-strip-2x6.png");
-  await createStrip({
-    individualPaths: capturePaths,
-    outputPath: stripPath,
+  const compositePath = join(outputDirectory, `wanderbooth-${layout.id}.png`);
+  await createComposite({
+    capturePaths,
+    outputPath: compositePath,
     accent: design.accent,
     background: design.background,
     designName: design.name,
+    layout,
+    overlayKind: overlay.kind,
+    overlayName: overlay.name,
   });
 
   const deliverables: Deliverable[] = individualPaths.map((absolutePath, index) => ({
@@ -194,8 +317,8 @@ export async function buildDeliverables(
   }));
   deliverables.push({
     kind: "strip",
-    label: "Branded 2×6 strip",
-    mediaUrl: publicMediaUrl(dataDirectory, stripPath),
+    label: `Branded ${layout.name} (${layout.printSize.replace("x", "×")})`,
+    mediaUrl: publicMediaUrl(dataDirectory, compositePath),
     mimeType: "image/png",
   });
 

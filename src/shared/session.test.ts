@@ -26,6 +26,43 @@ describe("WanderBooth session rules", () => {
     expect(state.phase).toBe("awaiting_cash");
   });
 
+  it("derives four captures from a selected 4×6 card layout", () => {
+    let state = beginSelection();
+    state = reduceCommand(
+      state,
+      { type: "SELECT_PRODUCT", productId: "four-photo-card" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_LAYOUT", layoutId: "heart-portrait-4x6" },
+      "attendant",
+    );
+    expect(state.requiredCaptureCount).toBe(4);
+    expect(state.overlayId).toBe("none");
+  });
+
+  it("offers only overlays compatible with the selected layout", () => {
+    let state = beginSelection();
+    state = reduceCommand(
+      state,
+      { type: "SELECT_PRODUCT", productId: "four-photo-card" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_LAYOUT", layoutId: "heart-portrait-4x6" },
+      "attendant",
+    );
+    expect(() =>
+      reduceCommand(state, { type: "SELECT_OVERLAY", overlayId: "film-edge" }, "attendant"),
+    ).toThrow("not compatible");
+    expect(
+      reduceCommand(state, { type: "SELECT_OVERLAY", overlayId: "love-hearts" }, "attendant")
+        .overlayId,
+    ).toBe("love-hearts");
+  });
+
   it("keeps pricing out of the first product catalog", () => {
     expect(products[0].price).toBeNull();
   });

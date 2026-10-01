@@ -33,10 +33,11 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 3,
+      schemaVersion: 4,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
+      overlayId: savedState.overlayId ?? "none",
     }
   : defaultState;
 database.saveState(state);

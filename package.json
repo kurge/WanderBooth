@@ -1,0 +1,60 @@
+{
+  "name": "wanderbooth",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline-first photo booth host and customer experience for Wander Press PH.",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "packageManager": "pnpm@10.14.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "sharp"
+    ]
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n host,web -c blue,magenta \"pnpm dev:host\" \"pnpm dev:web\"",
+    "dev:host": "tsx watch src/host/server.ts",
+    "dev:web": "vite --host 0.0.0.0",
+    "dev:desktop": "concurrently -k -n host,web,desktop -c blue,magenta,yellow \"pnpm dev:host\" \"pnpm dev:web\" \"wait-on tcp:4174 http://127.0.0.1:5173 && cross-env WANDERBOOTH_DEV_URL=http://127.0.0.1:5173 electron electron/main.cjs\"",
+    "build": "pnpm build:host && pnpm build:web",
+    "build:host": "tsc -p tsconfig.host.json",
+    "build:web": "tsc -b tsconfig.web.json && vite build",
+    "start:host": "node dist-host/host/server.js",
+    "start:desktop": "electron electron/main.cjs",
+    "smoke": "node scripts/smoke-session.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "biome check . && pnpm test && pnpm build",
+    "format": "biome format --write ."
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "sharp": "^0.35.5",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/ws": "^8.18.2",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "cross-env": "^10.1.0",
+    "electron": "^44.5.1",
+    "jsdom": "^30.1.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3",
+    "wait-on": "^9.5.1"
+  }
+}

@@ -1,10 +1,13 @@
 # Dependencies and generated application output
 node_modules/
 dist/
+dist-host/
 out/
 release/
 coverage/
 .cache/
+.vite/
+*.tsbuildinfo
 
 # Environment variables and credentials
 .env
@@ -28,6 +31,7 @@ diagnostics/
 
 # Logs and temporary files
 *.log
+pnpm-debug.log*
 tmp/
 temp/
 

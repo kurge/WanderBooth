@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 
 import sharp from "sharp";
@@ -10,11 +10,14 @@ import {
   getDesign,
   getLayout,
   getOverlay,
+  identityMediaTransform,
   type Layout,
+  type MediaTransform,
   type OverlayKind,
   type PhotoSlot,
 } from "../shared/catalog.js";
-import type { BoothState, Deliverable } from "../shared/session.js";
+import type { BoothState, Deliverable, PhotoTransform } from "../shared/session.js";
+import { renderCustomOverlay } from "./customOverlay.js";
 
 const publicMediaUrl = (dataDirectory: string, absolutePath: string) =>
   `/media/${relative(dataDirectory, absolutePath).split("\\").join("/")}`;
@@ -68,12 +71,58 @@ async function createBrandedIndividual(input: {
 
 const heartPath = "M50 94 C42 86 4 61 4 29 C4 5 34 -7 50 17 C66 -7 96 5 96 29 C96 61 58 86 50 94 Z";
 
-async function renderSlot(photoPath: string, slot: PhotoSlot) {
-  const photo = await sharp(photoPath)
-    .resize(slot.width, slot.height, { fit: "cover" })
+async function renderSlot(photoPath: string, slot: PhotoSlot, transform: MediaTransform) {
+  const source = sharp(photoPath).rotate();
+  const metadata = await source.metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error("WanderBooth could not read a captured photo.");
+  }
+
+  const coverScale = Math.max(slot.width / metadata.width, slot.height / metadata.height);
+  const scaledWidth = Math.max(1, Math.round(metadata.width * coverScale * transform.scale));
+  const scaledHeight = Math.max(1, Math.round(metadata.height * coverScale * transform.scale));
+  const scaled = await source
+    .resize(scaledWidth, scaledHeight, { fit: "fill" })
     .ensureAlpha()
     .png()
     .toBuffer();
+  const desiredLeft = Math.round((slot.width - scaledWidth) / 2 + transform.offsetX * slot.width);
+  const desiredTop = Math.round((slot.height - scaledHeight) / 2 + transform.offsetY * slot.height);
+  const cropLeft = Math.max(0, -desiredLeft);
+  const cropTop = Math.max(0, -desiredTop);
+  const outputLeft = Math.max(0, desiredLeft);
+  const outputTop = Math.max(0, desiredTop);
+  const visibleWidth = Math.min(scaledWidth - cropLeft, slot.width - outputLeft);
+  const visibleHeight = Math.min(scaledHeight - cropTop, slot.height - outputTop);
+  const canvas = sharp({
+    create: {
+      width: slot.width,
+      height: slot.height,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  });
+  const photo =
+    visibleWidth > 0 && visibleHeight > 0
+      ? await canvas
+          .composite([
+            {
+              input: await sharp(scaled)
+                .extract({
+                  left: cropLeft,
+                  top: cropTop,
+                  width: visibleWidth,
+                  height: visibleHeight,
+                })
+                .png()
+                .toBuffer(),
+              left: outputLeft,
+              top: outputTop,
+            },
+          ])
+          .png()
+          .toBuffer()
+      : await canvas.png().toBuffer();
   if (slot.shape === "rectangle") return photo;
 
   const mask =
@@ -168,6 +217,8 @@ async function createComposite(input: {
   overlayName: string;
   customOverlayPath: string | null;
   customOverlayMode: CustomOverlayMode | null;
+  frameTransform: MediaTransform;
+  photoTransforms: PhotoTransform[];
 }) {
   const { canvasWidth: width, canvasHeight: height } = input.layout;
   const strokeWidth = Math.max(6, Math.round(Math.min(width, height) * 0.012));
@@ -176,10 +227,13 @@ async function createComposite(input: {
       const photoPath = input.capturePaths[slot.captureIndex];
       if (!photoPath)
         throw new Error(`Layout references missing capture ${slot.captureIndex + 1}.`);
-      return renderSlot(photoPath, slot);
+      const captureSlot = slot.captureIndex + 1;
+      const transform =
+        input.photoTransforms.find((item) => item.slot === captureSlot) ?? identityMediaTransform();
+      return renderSlot(photoPath, slot, transform);
     }),
   );
-  const replacesGeneratedFrame = input.customOverlayMode === "flat_template";
+  const replacesGeneratedFrame = Boolean(input.customOverlayPath);
   const brandMarkup = input.layout.brandAreas
     .map((brandArea) => {
       const brandX = brandArea.align === "center" ? brandArea.x + brandArea.width / 2 : brandArea.x;
@@ -205,9 +259,21 @@ async function createComposite(input: {
     </svg>
   `);
 
-  const customOverlayLayer = input.customOverlayPath
-    ? [{ input: input.customOverlayPath, top: 0, left: 0 }]
-    : [];
+  const customOverlayLayer =
+    input.customOverlayPath && input.customOverlayMode
+      ? [
+          {
+            input: await renderCustomOverlay(
+              await readFile(input.customOverlayPath),
+              input.layout,
+              input.customOverlayMode,
+              input.frameTransform,
+            ),
+            top: 0,
+            left: 0,
+          },
+        ]
+      : [];
 
   await mkdir(dirname(input.outputPath), { recursive: true });
   await sharp({
@@ -280,10 +346,15 @@ export async function buildDeliverables(
   dataDirectory: string,
 ): Promise<Deliverable[]> {
   if (!state.sessionId) throw new Error("A session is required to build deliverables.");
-  const design = getDesign(state.designId);
+  const design = getDesign(state.designId) ?? getDesign("wander-splash");
   const layout = getLayout(state.layoutId);
   const overlay = getOverlay(state.overlayId, state.customOverlays);
-  if (!design || !layout || !overlay) {
+  const validFrame =
+    (state.frameMode === "color" &&
+      Boolean(state.designId) &&
+      Boolean(overlay && overlay.kind !== "custom")) ||
+    (state.frameMode === "custom" && overlay?.kind === "custom");
+  if (!design || !layout || !overlay || !validFrame) {
     throw new Error("A valid layout, frame, and overlay are required to build deliverables.");
   }
 
@@ -311,14 +382,18 @@ export async function buildDeliverables(
     capturePaths,
     outputPath: compositePath,
     accent: design.accent,
-    background: design.background,
+    background: state.frameMode === "custom" ? "#fffaf2" : design.background,
     designName: design.name,
     layout,
     overlayKind: overlay.kind,
     overlayName: overlay.name,
     customOverlayPath:
-      overlay.kind === "custom" ? mediaUrlToPath(dataDirectory, overlay.mediaUrl) : null,
+      overlay.kind === "custom"
+        ? mediaUrlToPath(dataDirectory, overlay.sourceMediaUrl ?? overlay.mediaUrl)
+        : null,
     customOverlayMode: overlay.kind === "custom" ? overlay.importMode : null,
+    frameTransform: state.frameTransform,
+    photoTransforms: state.photoTransforms,
   });
 
   const deliverables: Deliverable[] = individualPaths.map((absolutePath, index) => ({

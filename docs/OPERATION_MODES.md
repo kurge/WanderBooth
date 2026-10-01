@@ -2,7 +2,7 @@
 
 **Status:** Confirmed product behavior
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 
 **Updated:** 2026-10-02
 
@@ -20,6 +20,7 @@ WanderBooth supports two staff-selected workflows. The difference is who control
 | Photo review | Shown on customer display; changes are submitted by operator | Interactive on customer touchscreen |
 | Replace photo / retake | Operator only | Customer within configured limits |
 | Change design/style before approval | Operator only | Customer from compatible allowed choices |
+| Align an imported frame or photo crop | Operator only | Attendant on operator console |
 | Final approval | Operator | Customer |
 | Cash confirmation | Attendant | Attendant |
 | Camera-source selection | Owner or attendant | Owner or attendant |
@@ -50,14 +51,14 @@ WanderBooth supports two staff-selected workflows. The difference is who control
 ### Control flow
 
 1. The operator chooses the product.
-2. The operator chooses a compatible layout, frame, and optional overlay.
+2. The operator chooses a compatible layout and either a fixed colored frame with an optional built-in decoration or one imported custom frame.
 3. WanderBooth loads and shows the photo count required by that product/layout.
 4. The operator explains the privacy notice and records the customer's consent.
 5. The operator confirms cash received.
 6. The operator starts one automatic three-photo sequence. The customer display shows the mirrored preview and the Host-controlled three-second countdown before every photo.
-7. WanderBooth shows the captured images to the customer and operator.
+7. WanderBooth shows the finished composed layout plus each full, uncropped source capture to the customer and operator.
 8. The customer may verbally request a replacement; the operator alone selects the photo slot and starts the replacement/retake.
-9. The operator may change to a compatible design/style and approves the final result.
+9. The operator may change to a compatible frame, then drag or zoom an imported design or individual photo until its crop fits the cutout before approving the final result.
 10. WanderBooth renders, prints, uploads, and shows the QR code.
 
 Even when the customer display shows captured images, only the operator can submit replacement, retake, design, or approval actions.
@@ -74,14 +75,14 @@ Even when the customer display shows captured images, only the operator can subm
 ### Control flow
 
 1. The customer chooses an enabled product.
-2. WanderBooth offers only layouts, frame palettes, and overlays compatible with that product/layout.
+2. WanderBooth offers compatible layouts and an exclusive choice between owner-approved fixed-color and imported custom frames.
 3. The selected product/layout automatically supplies and displays the required photo count.
 4. The customer accepts the privacy notice.
 5. The interface waits while the attendant confirms cash.
 6. The customer taps once to start all three photos. The Host shows the synchronized three-second countdown before every photo.
-7. The customer reviews captured images.
+7. The customer reviews the final composed layout and the full uncropped source captures.
 8. Within the configured limit, the customer may replace a selected photo or retake.
-9. Before final approval, the customer may change to another compatible enabled design/style.
+9. Before final approval, the customer may change to another compatible enabled frame. Detailed imported-frame and photo alignment remains an attendant control on the operator console.
 10. The customer approves the result.
 11. WanderBooth renders, prints, uploads, and shows the QR code.
 
@@ -98,7 +99,10 @@ See [iPad setup](IPAD_SETUP.md) for the exact Safari and Sidecar steps.
 - Every initial photo and replacement uses the same Host-controlled three-second countdown on all connected screens.
 - The live posing preview is mirrored; saved, printed, and downloadable photos are not mirrored.
 - The initial rule remains up to two retake/replacement actions per session; whether that limit is shared across all slots remains configurable until finalized.
-- Changing a compatible frame or overlay re-renders existing accepted captures and does not consume a retake.
+- Choosing a custom frame clears the fixed color and built-in decoration; choosing a fixed color clears the custom frame. The two frame sources cannot be combined accidentally.
+- Changing a compatible frame or built-in decoration re-renders existing accepted captures and does not consume a retake.
+- Source-photo cards use the capture's full aspect ratio rather than cropping it into a decorative review card. Cropping happens only inside the visible final-layout slots, where the operator can inspect it directly.
+- Custom alignment stores one transform for the imported frame and one transform per unique capture. Repeated slots reuse the same capture transform.
 - Before capture, changing the product/layout recalculates the required count automatically.
 - After capture, changing to a layout with the same count may reuse the accepted captures. A layout requiring a different count needs an explicit staff/customer confirmation and controlled recapture/restart flow; it can never discard paid-session work silently.
 - Once the result is finally approved, further changes require staff recovery.

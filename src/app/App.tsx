@@ -5,16 +5,20 @@ import {
   type CustomOverlay,
   type CustomOverlayMode,
   designs,
+  getDesign,
   getLayout,
+  getOverlay,
   getProduct,
+  identityMediaTransform,
   type Layout,
   layouts,
+  type MediaTransform,
   type Overlay,
   overlaySupportsLayout,
   overlays,
   products,
 } from "../shared/catalog";
-import type { Actor, BoothState, Command, OperationMode } from "../shared/session";
+import type { Actor, BoothState, Command, OperationMode, PhotoTransform } from "../shared/session";
 import { createId } from "./createId";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
 import { type CameraStatus, useMacBookCamera } from "./useMacBookCamera";
@@ -101,13 +105,15 @@ function ModeSelector({
   );
 }
 
-function CapturePreview({ state }: { state: BoothState }) {
+function CapturePreview({ state, compact = false }: { state: BoothState; compact?: boolean }) {
   const slots = Array.from({ length: state.requiredCaptureCount || 3 }, (_, index) => index + 1);
   return (
     <section
       className="photo-grid"
       aria-label="Session photos"
-      style={{ gridTemplateColumns: `repeat(${Math.min(slots.length, 4)}, minmax(0, 1fr))` }}
+      style={{
+        gridTemplateColumns: `repeat(${compact ? Math.min(slots.length, 2) : Math.min(slots.length, 4)}, minmax(0, 1fr))`,
+      }}
     >
       {slots.map((slot) => {
         const capture = state.captures.find((item) => item.slot === slot);
@@ -306,6 +312,271 @@ function OverlayImporter({
   );
 }
 
+const clampTransform = (value: MediaTransform): MediaTransform => ({
+  offsetX: Math.max(-1, Math.min(1, value.offsetX)),
+  offsetY: Math.max(-1, Math.min(1, value.offsetY)),
+  scale: Math.max(0.5, Math.min(3, value.scale)),
+});
+
+const photoTransformMap = (transforms: PhotoTransform[]) =>
+  Object.fromEntries(
+    transforms.map(({ slot, offsetX, offsetY, scale }) => [slot, { offsetX, offsetY, scale }]),
+  ) as Record<number, MediaTransform>;
+
+function LayoutPreview({
+  state,
+  editable,
+  sendCommand,
+}: {
+  state: BoothState;
+  editable: boolean;
+  sendCommand: (command: Command) => void;
+}) {
+  const layout = getLayout(state.layoutId);
+  const design = getDesign(state.designId) ?? getDesign("wander-splash");
+  const overlay = getOverlay(state.overlayId, state.customOverlays);
+  const customOverlay = overlay?.kind === "custom" ? overlay : null;
+  const [activeTarget, setActiveTarget] = useState<"frame" | number>("frame");
+  const [frameDraft, setFrameDraft] = useState(state.frameTransform);
+  const [photoDrafts, setPhotoDrafts] = useState<Record<number, MediaTransform>>(
+    photoTransformMap(state.photoTransforms),
+  );
+  const dragRef = useRef<{
+    initial: MediaTransform;
+    latest: MediaTransform;
+    startX: number;
+    startY: number;
+    target: "frame" | number;
+  } | null>(null);
+
+  useEffect(() => setFrameDraft(state.frameTransform), [state.frameTransform]);
+  useEffect(
+    () => setPhotoDrafts(photoTransformMap(state.photoTransforms)),
+    [state.photoTransforms],
+  );
+
+  if (!layout || !design || !overlay) return null;
+
+  const transformFor = (target: "frame" | number) =>
+    target === "frame" ? frameDraft : (photoDrafts[target] ?? identityMediaTransform());
+  const updateDraft = (target: "frame" | number, transform: MediaTransform) => {
+    if (target === "frame") setFrameDraft(transform);
+    else setPhotoDrafts((current) => ({ ...current, [target]: transform }));
+  };
+  const commitTransform = (target: "frame" | number, transform: MediaTransform) => {
+    if (target === "frame") sendCommand({ type: "UPDATE_FRAME_TRANSFORM", transform });
+    else sendCommand({ type: "UPDATE_PHOTO_TRANSFORM", slot: target, transform });
+  };
+  const activeTransform = transformFor(activeTarget);
+  const customSource = customOverlay
+    ? mediaSource(customOverlay.sourceMediaUrl ?? customOverlay.mediaUrl)
+    : null;
+  const customTransformStyle = {
+    transform: `translate(${frameDraft.offsetX * 100}%, ${frameDraft.offsetY * 100}%) scale(${frameDraft.scale})`,
+  };
+
+  const beginDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!editable || !customOverlay) return;
+    const initial = transformFor(activeTarget);
+    dragRef.current = {
+      initial,
+      latest: initial,
+      startX: event.clientX,
+      startY: event.clientY,
+      target: activeTarget,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const continueDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const targetSlot =
+      drag.target === "frame"
+        ? null
+        : layout.slots.find((slot) => slot.captureIndex + 1 === drag.target);
+    const displayWidth = targetSlot
+      ? bounds.width * (targetSlot.width / layout.canvasWidth)
+      : bounds.width;
+    const displayHeight = targetSlot
+      ? bounds.height * (targetSlot.height / layout.canvasHeight)
+      : bounds.height;
+    const next = clampTransform({
+      ...drag.initial,
+      offsetX: drag.initial.offsetX + (event.clientX - drag.startX) / displayWidth,
+      offsetY: drag.initial.offsetY + (event.clientY - drag.startY) / displayHeight,
+    });
+    drag.latest = next;
+    updateDraft(drag.target, next);
+  };
+  const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    commitTransform(drag.target, drag.latest);
+  };
+  const updateZoom = (scale: number) => {
+    const next = clampTransform({ ...activeTransform, scale });
+    updateDraft(activeTarget, next);
+    commitTransform(activeTarget, next);
+  };
+  const resetActive = () => {
+    const reset = identityMediaTransform();
+    updateDraft(activeTarget, reset);
+    commitTransform(activeTarget, reset);
+  };
+
+  return (
+    <section className="layout-preview-card" aria-label="Final layout preview">
+      <div className="layout-preview-card__heading">
+        <div>
+          <span>Final layout preview</span>
+          <strong>{layout.name}</strong>
+        </div>
+        <small>{layout.printSize.replace("x", "×")} output</small>
+      </div>
+      <div
+        className={`layout-composer ${editable ? "layout-composer--editable" : ""}`}
+        style={{
+          aspectRatio: `${layout.canvasWidth} / ${layout.canvasHeight}`,
+          background: state.frameMode === "color" ? design.background : "#fffaf2",
+          maxWidth: layout.canvasWidth > layout.canvasHeight ? "680px" : "420px",
+        }}
+        onPointerDown={beginDrag}
+        onPointerMove={continueDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        {customOverlay?.importMode === "flat_template" && customSource && (
+          <img
+            className="layout-composer__custom layout-composer__custom--background"
+            src={customSource}
+            style={customTransformStyle}
+            alt=""
+          />
+        )}
+        {layout.slots.map((slot) => {
+          const captureSlot = slot.captureIndex + 1;
+          const capture = state.captures.find((item) => item.slot === captureSlot);
+          const transform = photoDrafts[captureSlot] ?? identityMediaTransform();
+          return (
+            <div
+              className={`layout-composer__slot layout-composer__slot--${slot.shape} ${
+                activeTarget === captureSlot && editable ? "layout-composer__slot--active" : ""
+              }`}
+              key={`${captureSlot}-${slot.x}-${slot.y}`}
+              style={{
+                left: `${(slot.x / layout.canvasWidth) * 100}%`,
+                top: `${(slot.y / layout.canvasHeight) * 100}%`,
+                width: `${(slot.width / layout.canvasWidth) * 100}%`,
+                height: `${(slot.height / layout.canvasHeight) * 100}%`,
+              }}
+            >
+              {capture ? (
+                <img
+                  src={mediaSource(capture.mediaUrl)}
+                  style={{
+                    transform: `translate(${transform.offsetX * 100}%, ${transform.offsetY * 100}%) scale(${transform.scale})`,
+                  }}
+                  alt=""
+                />
+              ) : (
+                <span>{captureSlot}</span>
+              )}
+            </div>
+          );
+        })}
+        {state.frameMode === "color" && (
+          <div className={`layout-composer__generated layout-composer__generated--${overlay.kind}`}>
+            {layout.brandAreas.map((area) => (
+              <div
+                className="layout-composer__brand"
+                key={`${area.x}-${area.y}-${area.width}-${area.height}`}
+                style={{
+                  left: `${(area.x / layout.canvasWidth) * 100}%`,
+                  top: `${(area.y / layout.canvasHeight) * 100}%`,
+                  width: `${(area.width / layout.canvasWidth) * 100}%`,
+                  height: `${(area.height / layout.canvasHeight) * 100}%`,
+                  color: design.accent,
+                }}
+              >
+                <strong>WanderBooth</strong>
+                <small>by Wander Press PH</small>
+              </div>
+            ))}
+          </div>
+        )}
+        {customOverlay?.importMode === "transparent_artwork" && customSource && (
+          <img
+            className="layout-composer__custom layout-composer__custom--foreground"
+            src={customSource}
+            style={customTransformStyle}
+            alt=""
+          />
+        )}
+        {editable && (
+          <span className="layout-composer__drag-hint">
+            Drag to move {activeTarget === "frame" ? "frame" : `photo ${activeTarget}`}
+          </span>
+        )}
+      </div>
+      {editable && customOverlay && (
+        <div className="composition-editor">
+          <div className="composition-editor__targets">
+            <span>Adjust</span>
+            <button
+              type="button"
+              aria-pressed={activeTarget === "frame"}
+              onClick={() => setActiveTarget("frame")}
+            >
+              Frame
+            </button>
+            {state.captures.map((capture) => (
+              <button
+                type="button"
+                aria-pressed={activeTarget === capture.slot}
+                key={capture.slot}
+                onClick={() => setActiveTarget(capture.slot)}
+              >
+                Photo {capture.slot}
+              </button>
+            ))}
+          </div>
+          <div className="composition-editor__zoom">
+            <label className="composition-editor__zoom-label" htmlFor="composition-zoom">
+              Zoom
+            </label>
+            <input
+              className="composition-editor__zoom-input"
+              id="composition-zoom"
+              type="range"
+              min="0.5"
+              max="3"
+              step="0.05"
+              value={activeTransform.scale}
+              onChange={(event) => updateZoom(Number(event.target.value))}
+            />
+            <output>{Math.round(activeTransform.scale * 100)}%</output>
+            <button
+              className="button button--quiet button--tiny"
+              type="button"
+              onClick={resetActive}
+            >
+              Reset
+            </button>
+          </div>
+          <p>
+            Choose the frame or a photo, drag it in the preview, then use Zoom to fit the cutout.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function LiveCameraPreview({ state }: { state: BoothState }) {
   const countdown = state.phase === "countdown" ? state.captureSequence?.remaining : null;
   const isRetake = state.captureSequence?.kind === "retake";
@@ -374,12 +645,20 @@ function SelectionPanel({
         .map((layoutId) => layouts.find((layout) => layout.id === layoutId))
         .filter((layout): layout is Layout => Boolean(layout))
     : [];
-  const allOverlays: Overlay[] = [...overlays, ...state.customOverlays];
-  const availableOverlays = selectedLayout
-    ? allOverlays.filter((overlay) => overlaySupportsLayout(overlay, selectedLayout.id))
+  const availableBuiltInOverlays = selectedLayout
+    ? overlays.filter((overlay) => overlaySupportsLayout(overlay, selectedLayout.id))
     : [];
+  const availableCustomOverlays = selectedLayout
+    ? state.customOverlays.filter((overlay) => overlaySupportsLayout(overlay, selectedLayout.id))
+    : [];
+  const selectedOverlay = getOverlay(state.overlayId, state.customOverlays);
+  const validFrame =
+    (state.frameMode === "color" &&
+      Boolean(state.designId) &&
+      Boolean(selectedOverlay && selectedOverlay.kind !== "custom")) ||
+    (state.frameMode === "custom" && selectedOverlay?.kind === "custom");
   const canSubmit = Boolean(
-    state.productId && state.layoutId && state.designId && state.consentRecorded,
+    state.productId && state.layoutId && validFrame && state.consentRecorded,
   );
 
   if (!interactive) {
@@ -403,7 +682,7 @@ function SelectionPanel({
     <section className="selection-panel">
       <div className="section-heading">
         <span className="eyebrow">Build your photo keepsake</span>
-        <h1>Choose a product, layout, frame, and overlay.</h1>
+        <h1>Choose a product, layout, and frame.</h1>
         <p>
           Every layout sets its own photo count automatically. Pricing remains on the physical menu
           for now.
@@ -473,74 +752,143 @@ function SelectionPanel({
           <span className="choice-summary__number">03</span>
           <div>
             <small>Frame</small>
-            <h2>Choose the colors and frame style</h2>
+            <h2>Choose one frame type</h2>
           </div>
         </div>
-        <div className="design-grid design-grid--frames">
-          {designs.map((design) => (
-            <button
-              className={
-                state.designId === design.id ? "design-card design-card--selected" : "design-card"
-              }
-              style={
-                {
-                  "--accent": design.accent,
-                  "--background": design.background,
-                } as React.CSSProperties
-              }
-              type="button"
-              key={design.id}
-              disabled={!state.layoutId}
-              onClick={() => sendCommand({ type: "SELECT_DESIGN", designId: design.id })}
-            >
-              <span className="design-card__preview">
-                <i />
-                <i />
-                <i />
-              </span>
-              <strong>{design.name}</strong>
-              <small>{design.description}</small>
-            </button>
-          ))}
+        <div className="frame-mode-grid">
+          <button
+            className={
+              state.frameMode === "color" ? "frame-mode frame-mode--selected" : "frame-mode"
+            }
+            type="button"
+            disabled={!state.layoutId}
+            onClick={() => sendCommand({ type: "SELECT_FRAME_MODE", frameMode: "color" })}
+          >
+            <span className="frame-mode__swatches" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+            <strong>Fixed colored frame</strong>
+            <small>Choose a WanderBooth color and an optional built-in decoration.</small>
+          </button>
+          <button
+            className={
+              state.frameMode === "custom" ? "frame-mode frame-mode--selected" : "frame-mode"
+            }
+            type="button"
+            disabled={!state.layoutId}
+            onClick={() => sendCommand({ type: "SELECT_FRAME_MODE", frameMode: "custom" })}
+          >
+            <span className="frame-mode__import" aria-hidden="true">
+              ↑
+            </span>
+            <strong>Imported custom frame</strong>
+            <small>Use event artwork instead of a WanderBooth frame color.</small>
+          </button>
         </div>
-      </div>
 
-      <div className="catalog-section">
-        <div className="catalog-section__heading">
-          <span className="choice-summary__number">04</span>
-          <div>
-            <small>Overlay</small>
-            <h2>Add an optional foreground design</h2>
+        {state.frameMode === "color" && (
+          <div className="frame-options">
+            <div className="catalog-section__subheading">
+              <small>Color</small>
+              <h3>Choose a fixed color</h3>
+            </div>
+            <div className="design-grid design-grid--frames">
+              {designs.map((design) => (
+                <button
+                  className={
+                    state.designId === design.id
+                      ? "design-card design-card--selected"
+                      : "design-card"
+                  }
+                  style={
+                    {
+                      "--accent": design.accent,
+                      "--background": design.background,
+                    } as React.CSSProperties
+                  }
+                  type="button"
+                  key={design.id}
+                  onClick={() => sendCommand({ type: "SELECT_DESIGN", designId: design.id })}
+                >
+                  <span className="design-card__preview">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <strong>{design.name}</strong>
+                  <small>{design.description}</small>
+                </button>
+              ))}
+            </div>
+            <div className="catalog-section__subheading">
+              <small>Decoration</small>
+              <h3>Add an optional built-in detail</h3>
+            </div>
+            <div className="overlay-grid">
+              {availableBuiltInOverlays.map((overlay) => (
+                <button
+                  className={
+                    state.overlayId === overlay.id
+                      ? "overlay-card overlay-card--selected"
+                      : "overlay-card"
+                  }
+                  type="button"
+                  key={overlay.id}
+                  disabled={!state.designId}
+                  onClick={() => sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })}
+                >
+                  <OverlayThumbnail overlay={overlay} />
+                  <span>
+                    <strong>{overlay.name}</strong>
+                    <small>{overlay.description}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="overlay-grid">
-          {availableOverlays.map((overlay) => (
-            <button
-              className={
-                state.overlayId === overlay.id
-                  ? "overlay-card overlay-card--selected"
-                  : "overlay-card"
-              }
-              type="button"
-              key={overlay.id}
-              disabled={!state.designId}
-              onClick={() => sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })}
-            >
-              <OverlayThumbnail overlay={overlay} />
-              <span>
-                <strong>{overlay.name}</strong>
-                <small>{overlay.description}</small>
-              </span>
-            </button>
-          ))}
-          {!selectedLayout && <p className="catalog-empty">Choose a layout first.</p>}
-        </div>
-        {isOperator && selectedLayout && (
-          <OverlayImporter
-            key={selectedLayout.id}
-            layout={selectedLayout}
-            onImported={(overlayId) => sendCommand({ type: "SELECT_OVERLAY", overlayId })}
-          />
+        )}
+
+        {state.frameMode === "custom" && selectedLayout && (
+          <div className="frame-options">
+            <div className="catalog-section__subheading">
+              <small>Custom frame</small>
+              <h3>Choose imported artwork</h3>
+            </div>
+            <div className="overlay-grid">
+              {availableCustomOverlays.map((overlay) => (
+                <button
+                  className={
+                    state.overlayId === overlay.id
+                      ? "overlay-card overlay-card--selected"
+                      : "overlay-card"
+                  }
+                  type="button"
+                  key={overlay.id}
+                  onClick={() => sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })}
+                >
+                  <OverlayThumbnail overlay={overlay} />
+                  <span>
+                    <strong>{overlay.name}</strong>
+                    <small>{overlay.description}</small>
+                  </span>
+                </button>
+              ))}
+              {availableCustomOverlays.length === 0 && (
+                <p className="catalog-empty">
+                  No custom frames have been imported for this layout yet.
+                </p>
+              )}
+            </div>
+            {isOperator && (
+              <OverlayImporter
+                key={selectedLayout.id}
+                layout={selectedLayout}
+                onImported={(overlayId) => sendCommand({ type: "SELECT_OVERLAY", overlayId })}
+              />
+            )}
+          </div>
         )}
       </div>
 
@@ -548,7 +896,7 @@ function SelectionPanel({
         <button
           className={state.consentRecorded ? "consent consent--checked" : "consent"}
           type="button"
-          disabled={!state.designId}
+          disabled={!validFrame}
           onClick={() => sendCommand({ type: "RECORD_CONSENT" })}
         >
           <span aria-hidden="true">{state.consentRecorded ? "✓" : ""}</span>I agree to have these
@@ -660,60 +1008,128 @@ function SessionPanel({
   }
 
   if (state.phase === "reviewing") {
+    const reviewOverlay = getOverlay(state.overlayId, state.customOverlays);
+    const reviewFrameValid =
+      (state.frameMode === "color" &&
+        Boolean(state.designId) &&
+        Boolean(reviewOverlay && reviewOverlay.kind !== "custom")) ||
+      (state.frameMode === "custom" && reviewOverlay?.kind === "custom");
+    const compatibleBuiltIns = overlays.filter(
+      (overlay) => Boolean(state.layoutId) && overlaySupportsLayout(overlay, state.layoutId ?? ""),
+    );
+    const compatibleCustomFrames = state.customOverlays.filter(
+      (overlay) => Boolean(state.layoutId) && overlaySupportsLayout(overlay, state.layoutId ?? ""),
+    );
     return (
       <section className="review-stage">
         <div className="section-heading section-heading--horizontal">
           <div>
             <span className="eyebrow">Review</span>
-            <h1>Keep these {state.requiredCaptureCount} photos?</h1>
+            <h1>Review the finished layout.</h1>
           </div>
           <p>{state.retakesRemaining} retakes remaining</p>
         </div>
-        <CapturePreview state={state} />
-        {interactive ? (
-          <>
-            <div
-              className="retake-row"
-              style={{
-                gridTemplateColumns: `repeat(${Math.min(state.captures.length, 4)}, minmax(0, 1fr))`,
-              }}
-            >
-              {state.captures.map((capture) => (
-                <button
-                  className="button button--quiet"
-                  type="button"
-                  disabled={state.retakesRemaining === 0}
-                  key={capture.slot}
-                  onClick={() => sendCommand({ type: "RETAKE", slot: capture.slot })}
-                >
-                  Retake photo {capture.slot}
-                </button>
-              ))}
+        <div className="review-workspace">
+          <LayoutPreview
+            state={state}
+            editable={isOperator && state.frameMode === "custom"}
+            sendCommand={sendCommand}
+          />
+          <section className="source-review">
+            <div className="source-review__heading">
+              <span>Captured photos</span>
+              <small>Full images · not cropped</small>
             </div>
-            <div className="review-footer">
-              <div className="mini-designs">
-                <span>Frame</span>
-                {designs.map((design) => (
+            <CapturePreview state={state} compact />
+            {interactive && (
+              <div
+                className="retake-row"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.min(state.captures.length, 4)}, minmax(0, 1fr))`,
+                }}
+              >
+                {state.captures.map((capture) => (
                   <button
+                    className="button button--quiet"
                     type="button"
-                    key={design.id}
-                    title={design.name}
-                    aria-label={`Use ${design.name}`}
-                    aria-pressed={state.designId === design.id}
-                    style={{ background: design.background, borderColor: design.accent }}
-                    onClick={() => sendCommand({ type: "SELECT_DESIGN", designId: design.id })}
-                  />
+                    disabled={state.retakesRemaining === 0}
+                    key={capture.slot}
+                    onClick={() => sendCommand({ type: "RETAKE", slot: capture.slot })}
+                  >
+                    Retake photo {capture.slot}
+                  </button>
                 ))}
               </div>
-              <div className="mini-overlays">
-                <span>Overlay</span>
-                {[...overlays, ...state.customOverlays]
-                  .filter(
-                    (overlay) =>
-                      Boolean(state.layoutId) &&
-                      overlaySupportsLayout(overlay, state.layoutId ?? ""),
-                  )
-                  .map((overlay) => (
+            )}
+            {!interactive && (
+              <div className="customer-message customer-message--compact">
+                <p>Tell your attendant if you’d like to replace a photo.</p>
+              </div>
+            )}
+          </section>
+        </div>
+        {interactive ? (
+          <>
+            <section className="review-frame-settings">
+              <div className="review-frame-settings__heading">
+                <span>Frame choice</span>
+                <small>Color and imported frames cannot be combined.</small>
+              </div>
+              <div className="review-frame-settings__modes">
+                <button
+                  type="button"
+                  aria-pressed={state.frameMode === "color"}
+                  onClick={() => sendCommand({ type: "SELECT_FRAME_MODE", frameMode: "color" })}
+                >
+                  Fixed color
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={state.frameMode === "custom"}
+                  onClick={() => sendCommand({ type: "SELECT_FRAME_MODE", frameMode: "custom" })}
+                >
+                  Imported frame
+                </button>
+              </div>
+              {state.frameMode === "color" && (
+                <div className="review-frame-settings__choices">
+                  <div className="mini-designs">
+                    <span>Color</span>
+                    {designs.map((design) => (
+                      <button
+                        type="button"
+                        key={design.id}
+                        title={design.name}
+                        aria-label={`Use ${design.name}`}
+                        aria-pressed={state.designId === design.id}
+                        style={{ background: design.background, borderColor: design.accent }}
+                        onClick={() => sendCommand({ type: "SELECT_DESIGN", designId: design.id })}
+                      />
+                    ))}
+                  </div>
+                  <div className="mini-overlays">
+                    <span>Detail</span>
+                    {compatibleBuiltIns.map((overlay) => (
+                      <button
+                        type="button"
+                        key={overlay.id}
+                        title={overlay.name}
+                        aria-label={`Use ${overlay.name}`}
+                        aria-pressed={state.overlayId === overlay.id}
+                        onClick={() =>
+                          sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })
+                        }
+                      >
+                        <OverlayThumbnail overlay={overlay} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {state.frameMode === "custom" && (
+                <div className="mini-overlays mini-overlays--custom">
+                  <span>Imported</span>
+                  {compatibleCustomFrames.map((overlay) => (
                     <button
                       type="button"
                       key={overlay.id}
@@ -725,10 +1141,18 @@ function SessionPanel({
                       <OverlayThumbnail overlay={overlay} />
                     </button>
                   ))}
-              </div>
+                  {compatibleCustomFrames.length === 0 && (
+                    <small>No imported frames for this layout.</small>
+                  )}
+                </div>
+              )}
+            </section>
+            <div className="review-footer">
+              <p>The final download and print use this exact layout and alignment.</p>
               <button
                 className="button button--primary button--large"
                 type="button"
+                disabled={!reviewFrameValid}
                 onClick={() => sendCommand({ type: "APPROVE" })}
               >
                 Approve and make my set
@@ -736,9 +1160,9 @@ function SessionPanel({
             </div>
           </>
         ) : (
-          <div className="customer-message customer-message--compact">
-            <p>Tell your attendant if you’d like to replace a photo.</p>
-          </div>
+          <p className="review-readonly-note">
+            Your attendant can adjust the frame and photo positions before approval.
+          </p>
         )}
       </section>
     );

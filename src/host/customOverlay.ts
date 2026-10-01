@@ -4,7 +4,14 @@ import { join } from "node:path";
 
 import sharp from "sharp";
 
-import type { CustomOverlay, CustomOverlayMode, Layout, PhotoSlot } from "../shared/catalog.js";
+import {
+  type CustomOverlay,
+  type CustomOverlayMode,
+  identityMediaTransform,
+  type Layout,
+  type MediaTransform,
+  type PhotoSlot,
+} from "../shared/catalog.js";
 
 const heartPath = "M50 94 C42 86 4 61 4 29 C4 5 34 -7 50 17 C66 -7 96 5 96 29 C96 61 58 86 50 94 Z";
 
@@ -35,11 +42,7 @@ const assertCompatibleAspectRatio = (inputWidth: number, inputHeight: number, la
   }
 };
 
-export async function prepareCustomOverlay(
-  source: Buffer,
-  layout: Layout,
-  importMode: CustomOverlayMode,
-) {
+const normalizeSource = async (source: Buffer, layout: Layout, importMode: CustomOverlayMode) => {
   const image = sharp(source, { failOn: "warning" }).rotate();
   const metadata = await image.metadata();
   if (!metadata.width || !metadata.height) {
@@ -61,13 +64,74 @@ export async function prepareCustomOverlay(
         "Transparent artwork needs clear pixels where the guest photos should remain visible. Try Flat template instead.",
       );
     }
-    return normalized;
   }
 
-  return sharp(normalized)
+  return normalized;
+};
+
+const transformToCanvas = async (
+  source: Buffer,
+  width: number,
+  height: number,
+  transform: MediaTransform,
+) => {
+  const scaledWidth = Math.max(1, Math.round(width * transform.scale));
+  const scaledHeight = Math.max(1, Math.round(height * transform.scale));
+  const scaled = await sharp(source)
+    .resize(scaledWidth, scaledHeight, { fit: "fill" })
+    .ensureAlpha()
+    .png()
+    .toBuffer();
+  const desiredLeft = Math.round((width - scaledWidth) / 2 + transform.offsetX * width);
+  const desiredTop = Math.round((height - scaledHeight) / 2 + transform.offsetY * height);
+  const cropLeft = Math.max(0, -desiredLeft);
+  const cropTop = Math.max(0, -desiredTop);
+  const outputLeft = Math.max(0, desiredLeft);
+  const outputTop = Math.max(0, desiredTop);
+  const visibleWidth = Math.min(scaledWidth - cropLeft, width - outputLeft);
+  const visibleHeight = Math.min(scaledHeight - cropTop, height - outputTop);
+  const canvas = sharp({
+    create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  });
+
+  if (visibleWidth <= 0 || visibleHeight <= 0) return canvas.png().toBuffer();
+  const visible = await sharp(scaled)
+    .extract({ left: cropLeft, top: cropTop, width: visibleWidth, height: visibleHeight })
+    .png()
+    .toBuffer();
+  return canvas
+    .composite([{ input: visible, left: outputLeft, top: outputTop }])
+    .png()
+    .toBuffer();
+};
+
+export async function renderCustomOverlay(
+  normalizedSource: Buffer,
+  layout: Layout,
+  importMode: CustomOverlayMode,
+  transform: MediaTransform,
+) {
+  const transformed = await transformToCanvas(
+    normalizedSource,
+    layout.canvasWidth,
+    layout.canvasHeight,
+    transform,
+  );
+  if (importMode === "transparent_artwork") return transformed;
+
+  return sharp(transformed)
     .composite([{ input: cutoutMask(layout), blend: "dest-out" }])
     .png()
     .toBuffer();
+}
+
+export async function prepareCustomOverlay(
+  source: Buffer,
+  layout: Layout,
+  importMode: CustomOverlayMode,
+) {
+  const normalized = await normalizeSource(source, layout, importMode);
+  return renderCustomOverlay(normalized, layout, importMode, identityMediaTransform());
 }
 
 export async function importCustomOverlay(input: {
@@ -82,12 +146,20 @@ export async function importCustomOverlay(input: {
     throw new Error("Give the imported design a name between 1 and 80 characters.");
   }
 
-  const output = await prepareCustomOverlay(input.source, input.layout, input.importMode);
+  const normalizedSource = await normalizeSource(input.source, input.layout, input.importMode);
+  const output = await renderCustomOverlay(
+    normalizedSource,
+    input.layout,
+    input.importMode,
+    identityMediaTransform(),
+  );
   const id = `custom-${randomUUID()}`;
   const overlayDirectory = join(input.dataDirectory, "overlays");
   const filename = `${id}.png`;
+  const sourceFilename = `${id}-source.png`;
   await mkdir(overlayDirectory, { recursive: true });
   await writeFile(join(overlayDirectory, filename), output);
+  await writeFile(join(overlayDirectory, sourceFilename), normalizedSource);
 
   return {
     id,
@@ -99,6 +171,7 @@ export async function importCustomOverlay(input: {
     kind: "custom",
     layoutIds: [input.layout.id],
     mediaUrl: `/media/overlays/${filename}`,
+    sourceMediaUrl: `/media/overlays/${sourceFilename}`,
     importMode: input.importMode,
     pixelWidth: input.layout.canvasWidth,
     pixelHeight: input.layout.canvasHeight,

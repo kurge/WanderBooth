@@ -5,8 +5,10 @@ import type { Actor, BoothState, Command } from "../shared/session";
 import { createId } from "./createId";
 
 const hostName = window.location.hostname || "127.0.0.1";
-export const hostHttpUrl = `http://${hostName}:4174`;
-const hostSocketUrl = `ws://${hostName}:4174/ws`;
+const hostPort =
+  window.location.port && window.location.port !== "5173" ? window.location.port : "4174";
+export const hostHttpUrl = `http://${hostName}:${hostPort}`;
+const hostSocketUrl = `ws://${hostName}:${hostPort}/ws`;
 
 const clientId = (() => {
   const stored = window.sessionStorage.getItem("wanderbooth-client-id");

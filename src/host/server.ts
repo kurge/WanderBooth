@@ -7,7 +7,12 @@ import { extname, resolve } from "node:path";
 import WebSocket, { WebSocketServer } from "ws";
 
 import { takeSimulatedPhoto } from "../camera/simulator.js";
-import { type CustomOverlayMode, getLayout } from "../shared/catalog.js";
+import {
+  type CustomOverlayMode,
+  getLayout,
+  getOverlay,
+  identityMediaTransform,
+} from "../shared/catalog.js";
 import type { ClientMessage, ServerMessage } from "../shared/protocol.js";
 import {
   type Actor,
@@ -31,16 +36,27 @@ await mkdir(dataDirectory, { recursive: true });
 const database = new BoothDatabase(dataDirectory);
 const defaultState = initialBoothState();
 const savedState = database.loadState();
+const savedCustomOverlays = savedState?.customOverlays ?? [];
+const savedOverlay = savedState
+  ? getOverlay(savedState.overlayId ?? "none", savedCustomOverlays)
+  : null;
+const savedFrameMode =
+  savedState?.frameMode ??
+  (savedOverlay?.kind === "custom" ? "custom" : savedState?.designId ? "color" : null);
 let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 5,
+      schemaVersion: 6,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
       overlayId: savedState.overlayId ?? "none",
-      customOverlays: savedState.customOverlays ?? [],
+      customOverlays: savedCustomOverlays,
+      frameMode: savedFrameMode,
+      designId: savedFrameMode === "custom" ? null : savedState.designId,
+      frameTransform: savedState.frameTransform ?? identityMediaTransform(),
+      photoTransforms: savedState.photoTransforms ?? [],
     }
   : defaultState;
 database.saveState(state);

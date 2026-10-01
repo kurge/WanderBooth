@@ -3,6 +3,19 @@ import { describe, expect, it } from "vitest";
 import { type CustomOverlay, products } from "./catalog";
 import { type BoothState, CommandError, initialBoothState, reduceCommand } from "./session";
 
+const customOverlay: CustomOverlay = {
+  id: "custom-test-overlay",
+  name: "Test Event",
+  description: "Imported test frame.",
+  kind: "custom",
+  layoutIds: ["double-strip-4x6"],
+  mediaUrl: "/media/overlays/custom-test-overlay.png",
+  sourceMediaUrl: "/media/overlays/custom-test-overlay-source.png",
+  importMode: "flat_template",
+  pixelWidth: 1200,
+  pixelHeight: 1800,
+};
+
 const beginSelection = (mode: "attendant" | "self_service" = "attendant") => {
   const initial = { ...initialBoothState(), operationMode: mode };
   const actor = mode === "attendant" ? "attendant" : "customer";
@@ -64,17 +77,6 @@ describe("WanderBooth session rules", () => {
   });
 
   it("registers an imported overlay and limits it to its chosen layout", () => {
-    const customOverlay: CustomOverlay = {
-      id: "custom-test-overlay",
-      name: "Test Event",
-      description: "Imported test frame.",
-      kind: "custom",
-      layoutIds: ["double-strip-4x6"],
-      mediaUrl: "/media/overlays/custom-test-overlay.png",
-      importMode: "flat_template",
-      pixelWidth: 1200,
-      pixelHeight: 1800,
-    };
     let state = reduceCommand(
       initialBoothState(),
       { type: "REGISTER_CUSTOM_OVERLAY", overlay: customOverlay },
@@ -102,6 +104,113 @@ describe("WanderBooth session rules", () => {
     );
     expect(state.overlayId).toBe(customOverlay.id);
     expect(state.customOverlays).toEqual([customOverlay]);
+    expect(state.frameMode).toBe("custom");
+    expect(state.designId).toBeNull();
+  });
+
+  it("keeps fixed color and imported frames mutually exclusive", () => {
+    let state = reduceCommand(
+      initialBoothState(),
+      { type: "REGISTER_CUSTOM_OVERLAY", overlay: customOverlay },
+      "system",
+    );
+    state = reduceCommand(
+      state,
+      { type: "BEGIN_SESSION", sessionId: "test-frame-modes" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_PRODUCT", productId: "three-photo-strip" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_LAYOUT", layoutId: "double-strip-4x6" },
+      "attendant",
+    );
+    state = reduceCommand(state, { type: "SELECT_DESIGN", designId: "blue-hour" }, "attendant");
+    expect(state.frameMode).toBe("color");
+    state = reduceCommand(
+      state,
+      { type: "SELECT_OVERLAY", overlayId: customOverlay.id },
+      "attendant",
+    );
+    expect(state.frameMode).toBe("custom");
+    expect(state.designId).toBeNull();
+    state = reduceCommand(state, { type: "SELECT_DESIGN", designId: "ruby-cream" }, "attendant");
+    expect(state.frameMode).toBe("color");
+    expect(state.overlayId).toBe("none");
+  });
+
+  it("submits an imported frame without requiring a color", () => {
+    let state = reduceCommand(
+      initialBoothState(),
+      { type: "REGISTER_CUSTOM_OVERLAY", overlay: customOverlay },
+      "system",
+    );
+    state = reduceCommand(state, { type: "BEGIN_SESSION", sessionId: "test-custom" }, "attendant");
+    state = reduceCommand(
+      state,
+      { type: "SELECT_PRODUCT", productId: "three-photo-strip" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_LAYOUT", layoutId: "double-strip-4x6" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_OVERLAY", overlayId: customOverlay.id },
+      "attendant",
+    );
+    state = reduceCommand(state, { type: "RECORD_CONSENT" }, "attendant");
+    state = reduceCommand(state, { type: "SUBMIT_SELECTION" }, "attendant");
+    expect(state.phase).toBe("awaiting_cash");
+    expect(state.designId).toBeNull();
+  });
+
+  it("lets staff align a custom frame and its photos during review", () => {
+    const capture = {
+      capturedAt: "2026-10-02T00:00:00.000Z",
+      mediaUrl: "/media/test.jpg",
+      revision: 1,
+      slot: 1,
+    };
+    let state: BoothState = {
+      ...initialBoothState(),
+      phase: "reviewing",
+      layoutId: "double-strip-4x6",
+      frameMode: "custom",
+      overlayId: customOverlay.id,
+      customOverlays: [customOverlay],
+      captures: [capture],
+      requiredCaptureCount: 1,
+    };
+    state = reduceCommand(
+      state,
+      { type: "UPDATE_FRAME_TRANSFORM", transform: { offsetX: 0.15, offsetY: -0.1, scale: 1.2 } },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      {
+        type: "UPDATE_PHOTO_TRANSFORM",
+        slot: 1,
+        transform: { offsetX: -0.2, offsetY: 0.25, scale: 1.35 },
+      },
+      "attendant",
+    );
+    expect(state.frameTransform).toEqual({ offsetX: 0.15, offsetY: -0.1, scale: 1.2 });
+    expect(state.photoTransforms).toEqual([{ slot: 1, offsetX: -0.2, offsetY: 0.25, scale: 1.35 }]);
+    expect(() =>
+      reduceCommand(
+        state,
+        { type: "UPDATE_FRAME_TRANSFORM", transform: { offsetX: 0, offsetY: 0, scale: 1 } },
+        "customer",
+      ),
+    ).toThrow("staff-only");
   });
 
   it("keeps pricing out of the first product catalog", () => {

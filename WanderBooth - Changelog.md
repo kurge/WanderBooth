@@ -25,6 +25,32 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.1.0 — 2026-10-02
+
+### Changed
+
+- Replaced the combined color-plus-custom-overlay choice with two explicit, mutually exclusive frame modes: **Fixed colored frame** or **Imported custom frame**.
+- Fixed-color mode exposes the color palette and optional compatible built-in decorations. Custom mode hides colors and shows only imported frames for the selected layout.
+- Made the finished composite the primary review preview and moved full-aspect, uncropped source captures into a separate retake panel.
+
+### Added
+
+- Added an operator-only composition editor for imported frames. Staff can select the frame or an individual photo, drag it, zoom from 50–300%, and reset it.
+- Added authoritative normalized frame and per-capture transforms that persist in SQLite and are applied again by the full-resolution Host renderer.
+- Stored normalized custom-frame source artwork beside its derived preview so repeated alignment does not degrade or compound earlier cutouts.
+- Added ADR 0011 documenting the composition model, permissions, data flow, bounds, and trade-offs.
+
+### Verified
+
+- Confirmed all 22 automated tests, formatting, type checks, Host build, and customer-app build pass.
+- Imported the supplied Sample Template 1 into an isolated runtime, completed a three-photo session, verified the side-by-side final-layout and uncropped-source review, changed Photo 1 zoom, and confirmed the transform persisted.
+- Rendered and visually inspected the resulting 1200×1800 custom double-strip PNG and generated the three branded individual photos plus looping MP4 slideshow.
+
+### Fixed
+
+- Removed the forced 3:4 `cover` crop from captured-photo review cards so the review accurately shows the full saved camera image.
+- Made a production client connect back to the port that served it, while retaining port 4174 for the Vite development client.
+
 ## 1.0.0 — 2026-10-02
 
 ### Added

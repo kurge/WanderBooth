@@ -29,7 +29,7 @@ iPad display ────┘                     │
                                       ├── Host-owned countdown/capture sequence
                                       ├── in-memory local preview relay
                                       ├── camera sources (simulator + Mac media device)
-                                      └── data-driven layout/frame/overlay renderer
+                                      └── data-driven layout/frame/composition renderer
 ```
 
 - `src/app/` — responsive React operator and customer interfaces.
@@ -52,7 +52,8 @@ The Host is authoritative. Every screen sends a command, the Host applies role a
 - Capture: one command starts the product-defined sequence. Countdown ticks and capture triggers are Host-owned and broadcast to every screen.
 - Preview: the Mac renderer sends reduced mirrored JPEG frames to an in-memory Host relay; full-resolution unmirrored captures use a separate persisted route.
 - Delivery: branded local files work; cloud upload, QR generation, and 30-day expiry are not implemented yet.
-- Rendering: layout slots can repeat capture indices and use rectangle, rounded, or heart masks. Frames and overlays stay separate so photos never need to be retaken for a style change. The Host normalizes imported PNG/JPEG/WebP artwork into local transparent PNG assets; opaque templates receive layout-derived photo cutouts.
+- Rendering: layout slots can repeat capture indices and use rectangle, rounded, or heart masks. A session uses either a generated fixed-color frame (with an optional built-in treatment) or one imported custom frame. The Host retains normalized source artwork, derives flat-template cutouts, and applies persisted per-frame and per-photo transforms identically in preview and export.
+- Review: the final composed layout is the primary preview. Full source captures remain visible without CSS cropping for retake decisions. Imported-frame drag/zoom commands are staff-only and stored as normalized offsets plus scale in authoritative Host state.
 - Printing: the 2×6 and 4×6 composite files render at 300 DPI. The first double-strip file now exists, but Epson L8050 queue control is not implemented yet.
 - Authentication: local prototype roles are screen-based, not authenticated accounts.
 - Distribution: the current Mac build is unsigned and intended only for this development machine. Public downloads will require Apple Developer signing and notarization.

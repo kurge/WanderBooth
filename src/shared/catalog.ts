@@ -49,6 +49,18 @@ export type OverlayKind = "none" | "film" | "confetti" | "hearts" | "custom";
 
 export type CustomOverlayMode = "transparent_artwork" | "flat_template";
 
+export type MediaTransform = {
+  offsetX: number;
+  offsetY: number;
+  scale: number;
+};
+
+export const identityMediaTransform = (): MediaTransform => ({
+  offsetX: 0,
+  offsetY: 0,
+  scale: 1,
+});
+
 type OverlayBase = {
   id: string;
   name: string;
@@ -60,6 +72,7 @@ export type CustomOverlay = OverlayBase & {
   kind: "custom";
   layoutIds: [string];
   mediaUrl: string;
+  sourceMediaUrl?: string;
   importMode: CustomOverlayMode;
   pixelWidth: number;
   pixelHeight: number;

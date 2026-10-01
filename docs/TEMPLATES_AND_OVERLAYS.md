@@ -2,17 +2,17 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 
 **Updated:** 2026-10-02
 
 WanderBooth separates three ideas that are often combined into one flattened “template” image:
 
 1. **Layout:** where each captured photo appears, how many unique photos are required, the canvas orientation, and whether a capture is repeated.
-2. **Frame:** the background and accent color treatment surrounding the photos.
-3. **Overlay:** optional foreground decoration drawn above the photos and frame, such as film perforations, confetti, or hearts.
+2. **Frame:** either a generated fixed-color WanderBooth treatment or one imported custom event design. These are mutually exclusive choices.
+3. **Built-in decoration:** an optional film, confetti, or heart treatment available only with a fixed-color frame.
 
-This separation lets one layout work with many colors and event themes without duplicating the photo-placement logic.
+This separation lets one layout work with many colors and event themes without duplicating photo-placement logic. A custom frame never stacks on top of a selected color frame.
 
 ## Current menu
 
@@ -26,7 +26,7 @@ This separation lets one layout work with many colors and event themes without d
 | Four-photo card | Heart feature | 1200×1800 | 4 | Three rectangles and one heart-shaped photo |
 | Four-photo card | Party landscape | 1800×1200 | 4 | Three photos across the top and one larger photo below |
 
-### Frames
+### Fixed-color frames
 
 - Wander Splash
 - Blue Pop
@@ -34,14 +34,14 @@ This separation lets one layout work with many colors and event themes without d
 - Midnight Film
 - Ruby Cream
 
-### Overlays
+### Built-in decorations
 
 - No overlay
 - Film edge
 - Party confetti
 - Love hearts
 
-The application shows only overlays compatible with the selected layout. A frame or overlay can be changed during review without retaking successful photos.
+The selection screen first asks for **Fixed colored frame** or **Imported custom frame**. Fixed color exposes the color and compatible decoration menus. Imported custom hides the colors and shows only approved custom frames for that layout. Changing one mode clears the incompatible choice, so the final renderer always has one unambiguous frame source.
 
 The Mac operator can also import a PNG, JPEG, or WebP event design after choosing a layout. Imported designs are stored only in WanderBooth's private local runtime data, survive application restarts, and are not committed to GitHub.
 
@@ -54,7 +54,7 @@ The six PNGs in `/Users/kurgegarcia/Downloads/Sample Templates` were inspected a
 - they demonstrate repeated double strips, four-photo collages, a large feature photo, and a heart-shaped slot; and
 - all six are flattened RGB PNGs with no alpha channel.
 
-Because the white, black, pink, or red photo placeholders and example subjects are baked into the pixels, these files cannot be used unchanged as transparent overlays. WanderBooth now offers **Flat template** import: it scales a compatible file to the selected canvas and automatically removes the layout's photo-slot shapes before saving the resulting transparent PNG. Sample Template 1 was verified end to end with the Double strip 4×6 layout. Source sample files remain outside the public repository.
+Because the white, black, pink, or red photo placeholders and example subjects are baked into the pixels, these files cannot be used unchanged as transparent overlays. WanderBooth offers **Flat template** import: it scales a compatible file to the selected canvas and automatically removes the layout's photo-slot shapes for its rendered preview. The normalized source is also retained locally so the operator can reposition or scale the design later without repeatedly editing an already-cut image. Sample Template 1 was verified end to end with the Double strip 4×6 layout. Source sample files remain outside the public repository.
 
 Automatic cutouts remove everything inside a photo slot, including any decoration that overlaps that slot. For exact control over overlapping borders, names, dates, or illustrations, export proper transparent artwork instead.
 
@@ -62,12 +62,25 @@ Automatic cutouts remove everything inside a photo slot, including any decoratio
 
 1. Start a session from the Mac operator screen.
 2. Choose the product and layout first.
-3. In **Overlay**, open **Import an event frame** and choose a PNG, JPEG, or WebP file up to 25 MB.
+3. Choose **Imported custom frame**, then open **Import an event frame** and choose a PNG, JPEG, or WebP file up to 25 MB.
 4. Give the design a recognizable event name.
 5. Choose **Flat template** for an opaque or flattened design like the supplied samples, or **Transparent artwork** for a file that already has clear photo openings.
-6. Select **Import and select**. WanderBooth validates the aspect ratio, converts the design to the exact layout dimensions, stores it locally, and adds it to that layout's overlay menu.
+6. Select **Import and select**. WanderBooth validates the aspect ratio, stores a normalized source and rendered preview at the exact layout dimensions, and adds it to that layout's custom-frame menu.
 
 Only the operator screen exposes the import control. In Self-Service mode, a guest may select a frame that the operator already imported, but cannot add files.
+
+## Aligning a custom frame after capture
+
+The review screen places the final composed layout beside the full uncropped capture images. On the operator screen:
+
+1. choose **Frame**, **Photo 1**, **Photo 2**, and so on;
+2. drag the selected item directly inside the final-layout preview;
+3. use **Zoom** to scale it between 50% and 300%; and
+4. use **Reset** to return that item to its centered 100% position.
+
+Frame movement adjusts the imported design while keeping the layout's photo openings fixed. Photo movement adjusts the crop inside every layout slot that uses that capture; on a double strip, changing Photo 1 updates both copies. These normalized offsets and scales are stored in the Host's session state and used by the final full-resolution renderer, so the preview is not a cosmetic-only adjustment.
+
+Only staff can reposition the frame or photos. A Self-Service guest may select an owner-approved imported frame and review the result, but the attendant performs detailed alignment.
 
 ## Production-ready transparent artwork
 

@@ -2,7 +2,7 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
 import type { Layout } from "../shared/catalog";
-import { prepareCustomOverlay } from "./customOverlay";
+import { prepareCustomOverlay, renderCustomOverlay } from "./customOverlay";
 
 const testLayout: Layout = {
   id: "test-layout",
@@ -62,6 +62,22 @@ describe("custom overlay preparation", () => {
       .toBuffer();
     const output = await prepareCustomOverlay(source, testLayout, "transparent_artwork");
     expect(await alphaAt(output, 10, 5)).toBe(255);
+    expect(await alphaAt(output, 60, 60)).toBe(0);
+  });
+
+  it("moves imported artwork while keeping flat-template photo openings fixed", async () => {
+    const source = await sharp({
+      create: { width: 120, height: 180, channels: 4, background: "#d7263d" },
+    })
+      .png()
+      .toBuffer();
+    const output = await renderCustomOverlay(source, testLayout, "flat_template", {
+      offsetX: 0.25,
+      offsetY: 0,
+      scale: 1,
+    });
+    expect(await alphaAt(output, 5, 5)).toBe(0);
+    expect(await alphaAt(output, 40, 5)).toBe(255);
     expect(await alphaAt(output, 60, 60)).toBe(0);
   });
 

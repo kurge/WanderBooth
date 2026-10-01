@@ -1,6 +1,6 @@
 # ADR 0010: Import custom event frames into the local Host
 
-**Status:** Accepted
+**Status:** Accepted; rendering-mode details partially superseded by [ADR 0011](0011-review-composition-editor.md)
 
 **Date:** 2026-10-02
 
@@ -35,7 +35,7 @@ Photos → generated frame when applicable → imported artwork
 
 An imported frame is compatible with exactly one layout. It receives a unique identifier and is broadcast in shared booth state so both the operator and Self-Service customer menu see the same approved catalog. The import control itself appears only on the operator screen.
 
-For **Transparent artwork**, WanderBooth keeps the built-in frame/branding layer and adds the imported pixels last. For **Flat template**, WanderBooth treats the imported image as the complete frame, clears photo slots automatically, and replaces the generated frame/branding layer.
+ADR 0011 now treats both imported modes as the complete custom-frame path rather than combining transparent artwork with a selected generated color frame. Flat templates still receive layout-derived cutouts, while transparent artwork keeps its authored alpha.
 
 ## Validation and failure behavior
 

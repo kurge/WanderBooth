@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.0.0
+document_version: 1.1.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -98,12 +98,13 @@ The business should be able to keep serving customers during internet interrupti
 - Initial print formats are **4×6** and **2×6 photo strips**.
 - The first implemented product is a **three-photo vertical 2×6 strip**. The 4×6 product follows after the first workflow is proven.
 - The first physical print for that product is **one 4×6 sheet containing two identical 2×6 strips**, ready to cut into two copies.
-- Layout, frame, and overlay are separate choices: the layout controls photo placement/count, the frame controls the background/accent treatment, and an optional compatible overlay adds foreground decoration.
+- Layout and frame are separate choices: the layout controls photo placement/count, while the frame is either a fixed WanderBooth color with an optional built-in decoration or one imported custom design. Fixed-color and custom-frame modes are mutually exclusive.
 - The first catalog includes **two product families, five layouts, five frame palettes, and four overlay choices**.
 - Layouts may repeat a capture in more than one visible slot; the double-strip layout therefore needs three unique captures, not six.
 - Initial slot shapes include rectangles, rounded rectangles, and a heart-shaped feature photo.
 - The owner or attendant can import a PNG, JPEG, or WebP event frame from the Mac operator screen after selecting a layout. Transparent artwork is layered directly; a flattened template can be converted by automatically clearing the selected layout's photo slots.
 - Imported frames are stored locally, persist across application restarts, are limited to their selected layout, and are not added to the public repository.
+- During review, the finished composed layout is shown beside full-aspect, uncropped source captures. Only the owner or attendant can drag or zoom an imported frame or individual photo to align it with a cutout; those adjustments are stored and applied to the final render.
 - One tap starts the complete three-photo sequence, with a **three-second countdown before each photo**.
 - The customer preview is mirrored for natural posing, while saved and delivered photos are not mirrored.
 - The first pilot will include approximately **5–10 layouts/designs**.
@@ -151,6 +152,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - The renderer now reads data-driven canvas, slot, shape, repeated-capture, branding-area, frame, and overlay definitions instead of one hard-coded strip.
 - Synthetic rendering checks passed for the repeated 4×6 double strip with film overlay and the four-photo heart layout with heart overlay.
 - The operator can import transparent artwork or a flat template without editing code. The Host validates, normalizes, stores, and registers the frame locally; Sample Template 1 passed an end-to-end double-strip session using automatic photo cutouts.
+- Fixed colored and imported custom frames now use separate selection modes. The review screen previews the actual composition, preserves full source images for retake decisions, and gives staff persistent frame/photo drag and zoom controls whose values are reused by final rendering.
 - The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
@@ -342,7 +344,9 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - No camera-source, cash, reprint, refund, recovery, or administrative controls on the customer-facing screen in either mode
 - Product/layout-defined capture count shown clearly before payment and capture
 - Menu of compatible 2×6 and 4×6 portrait/landscape layouts
-- Separate reusable frame palette and optional compatible overlay menu
+- Mutually exclusive fixed-color and imported-custom frame modes, with compatible built-in decorations available only for fixed colors
+- Final composed-layout review beside full-aspect, uncropped source captures
+- Staff-only drag, zoom, and reset controls for custom-frame and per-photo cutout alignment
 - Repeated-capture layouts, including two identical 2×6 strips on one 4×6 sheet
 - Rectangle, rounded-rectangle, and heart-shaped photo slots
 - Up to two configured retake or photo-replacement actions
@@ -968,6 +972,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.1.0 | 2026-10-02 | Separated fixed-color and imported-custom frame modes, added the final composition preview, removed source-review cropping, and added persistent staff-only drag/zoom alignment for the custom frame and each unique photo. |
 | 1.0.0 | 2026-10-02 | Added the staff-only local event-frame importer for PNG, JPEG, and WebP artwork, including automatic photo cutouts for flattened templates, persistent layout compatibility, validation, previews, and final rendering above captured photos. |
 | 0.9.0 | 2026-10-02 | Replaced the fixed template assumption with a product-compatible catalog of five layouts, five frame palettes, and four optional overlays, including repeated double strips, four-photo portrait/landscape cards, and a heart-shaped slot. |
 | 0.8.0 | 2026-10-02 | Added the synchronized one-tap three-photo sequence, three-second countdowns, relayed mirrored customer preview, unmirrored saved captures, staff cancellation, and the first 4×6 double-strip print decision. |

@@ -4,12 +4,15 @@ import {
   getLayout,
   getOverlay,
   getProduct,
+  identityMediaTransform,
+  type MediaTransform,
   overlaySupportsLayout,
 } from "./catalog.js";
 
 export type Actor = "owner" | "attendant" | "customer" | "system";
 export type OperationMode = "attendant" | "self_service";
 export type CameraSourceId = "simulator" | "macbook_camera";
+export type FrameMode = "color" | "custom";
 export type Phase =
   | "idle"
   | "selecting"
@@ -46,8 +49,10 @@ export type Deliverable = {
   mimeType: string;
 };
 
+export type PhotoTransform = MediaTransform & { slot: number };
+
 export type BoothState = {
-  schemaVersion: 5;
+  schemaVersion: 6;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -55,9 +60,12 @@ export type BoothState = {
   sessionId: string | null;
   productId: string | null;
   layoutId: string | null;
+  frameMode: FrameMode | null;
   designId: string | null;
   overlayId: string;
   customOverlays: CustomOverlay[];
+  frameTransform: MediaTransform;
+  photoTransforms: PhotoTransform[];
   requiredCaptureCount: number;
   captures: Capture[];
   pendingCapture: PendingCapture | null;
@@ -76,8 +84,11 @@ export type Command =
   | { type: "BEGIN_SESSION"; sessionId: string }
   | { type: "SELECT_PRODUCT"; productId: string }
   | { type: "SELECT_LAYOUT"; layoutId: string }
+  | { type: "SELECT_FRAME_MODE"; frameMode: FrameMode }
   | { type: "SELECT_DESIGN"; designId: string }
   | { type: "SELECT_OVERLAY"; overlayId: string }
+  | { type: "UPDATE_FRAME_TRANSFORM"; transform: MediaTransform }
+  | { type: "UPDATE_PHOTO_TRANSFORM"; slot: number; transform: MediaTransform }
   | { type: "REGISTER_CUSTOM_OVERLAY"; overlay: CustomOverlay }
   | { type: "RECORD_CONSENT" }
   | { type: "SUBMIT_SELECTION" }
@@ -100,7 +111,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 5,
+  schemaVersion: 6,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -108,9 +119,12 @@ export const initialBoothState = (): BoothState => ({
   sessionId: null,
   productId: null,
   layoutId: null,
+  frameMode: null,
   designId: null,
   overlayId: "none",
   customOverlays: [],
+  frameTransform: identityMediaTransform(),
+  photoTransforms: [],
   requiredCaptureCount: 0,
   captures: [],
   pendingCapture: null,
@@ -139,6 +153,18 @@ const requirePhase = (state: BoothState, phases: Phase[]) => {
   }
 };
 
+const assertMediaTransform = (transform: MediaTransform) => {
+  if (
+    ![transform.offsetX, transform.offsetY, transform.scale].every(Number.isFinite) ||
+    Math.abs(transform.offsetX) > 1 ||
+    Math.abs(transform.offsetY) > 1 ||
+    transform.scale < 0.5 ||
+    transform.scale > 3
+  ) {
+    throw new CommandError("That frame or photo adjustment is outside the supported range.");
+  }
+};
+
 export function assertCommandAllowed(state: BoothState, command: Command, actor: Actor) {
   switch (command.type) {
     case "SET_MODE":
@@ -152,11 +178,14 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "RESET":
     case "CONFIRM_CASH":
     case "CAMERA_CAPTURE_FAILED":
+    case "UPDATE_FRAME_TRANSFORM":
+    case "UPDATE_PHOTO_TRANSFORM":
       if (!isStaff(actor)) throw new CommandError("This action is staff-only.");
       return;
     case "BEGIN_SESSION":
     case "SELECT_PRODUCT":
     case "SELECT_LAYOUT":
+    case "SELECT_FRAME_MODE":
     case "SELECT_DESIGN":
     case "SELECT_OVERLAY":
     case "RECORD_CONSENT":
@@ -205,8 +234,11 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         sessionId: command.sessionId,
         productId: null,
         layoutId: null,
+        frameMode: null,
         designId: null,
         overlayId: "none",
+        frameTransform: identityMediaTransform(),
+        photoTransforms: [],
         requiredCaptureCount: 0,
         captures: [],
         pendingCapture: null,
@@ -223,8 +255,11 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       return revised(state, {
         productId: product.id,
         layoutId: null,
+        frameMode: null,
         designId: null,
         overlayId: "none",
+        frameTransform: identityMediaTransform(),
+        photoTransforms: [],
         requiredCaptureCount: 0,
       });
     }
@@ -237,14 +272,42 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       }
       return revised(state, {
         layoutId: layout.id,
+        frameMode: null,
+        designId: null,
         requiredCaptureCount: layout.requiredCaptureCount,
         overlayId: "none",
+        frameTransform: identityMediaTransform(),
+        photoTransforms: [],
+      });
+    }
+    case "SELECT_FRAME_MODE": {
+      requirePhase(state, ["selecting", "reviewing"]);
+      if (!state.layoutId) throw new CommandError("Choose a layout before choosing a frame.");
+      const currentOverlay = getOverlay(state.overlayId, state.customOverlays);
+      return revised(state, {
+        frameMode: command.frameMode,
+        designId: command.frameMode === "custom" ? null : state.designId,
+        overlayId:
+          command.frameMode === "custom"
+            ? currentOverlay?.kind === "custom"
+              ? currentOverlay.id
+              : "none"
+            : currentOverlay?.kind === "custom"
+              ? "none"
+              : state.overlayId,
+        frameTransform: identityMediaTransform(),
       });
     }
     case "SELECT_DESIGN": {
       requirePhase(state, ["selecting", "reviewing"]);
       if (!getDesign(command.designId)) throw new CommandError("That design is not available.");
-      return revised(state, { designId: command.designId });
+      const currentOverlay = getOverlay(state.overlayId, state.customOverlays);
+      return revised(state, {
+        frameMode: "color",
+        designId: command.designId,
+        overlayId: currentOverlay?.kind === "custom" ? "none" : state.overlayId,
+        frameTransform: identityMediaTransform(),
+      });
     }
     case "SELECT_OVERLAY": {
       requirePhase(state, ["selecting", "reviewing"]);
@@ -253,25 +316,62 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       if (!layout || !overlay || !overlaySupportsLayout(overlay, layout.id)) {
         throw new CommandError("That overlay is not compatible with the selected layout.");
       }
-      return revised(state, { overlayId: overlay.id });
+      return revised(state, {
+        frameMode: overlay.kind === "custom" ? "custom" : "color",
+        designId: overlay.kind === "custom" ? null : state.designId,
+        overlayId: overlay.id,
+        frameTransform: overlay.kind === "custom" ? identityMediaTransform() : state.frameTransform,
+      });
     }
+    case "UPDATE_FRAME_TRANSFORM":
+      requirePhase(state, ["reviewing"]);
+      if (
+        state.frameMode !== "custom" ||
+        getOverlay(state.overlayId, state.customOverlays)?.kind !== "custom"
+      ) {
+        throw new CommandError("Only a custom frame can be repositioned.");
+      }
+      assertMediaTransform(command.transform);
+      return revised(state, { frameTransform: command.transform });
+    case "UPDATE_PHOTO_TRANSFORM":
+      requirePhase(state, ["reviewing"]);
+      if (
+        state.frameMode !== "custom" ||
+        getOverlay(state.overlayId, state.customOverlays)?.kind !== "custom"
+      ) {
+        throw new CommandError("Photo positioning is available with a custom frame.");
+      }
+      if (!state.captures.some((capture) => capture.slot === command.slot)) {
+        throw new CommandError("Choose an existing photo to reposition.");
+      }
+      assertMediaTransform(command.transform);
+      return revised(state, {
+        photoTransforms: [
+          ...state.photoTransforms.filter((item) => item.slot !== command.slot),
+          { slot: command.slot, ...command.transform },
+        ].sort((a, b) => a.slot - b.slot),
+      });
     case "RECORD_CONSENT":
       requirePhase(state, ["selecting"]);
       return revised(state, { consentRecorded: true });
-    case "SUBMIT_SELECTION":
+    case "SUBMIT_SELECTION": {
       requirePhase(state, ["selecting"]);
+      const selectedOverlay = getOverlay(state.overlayId, state.customOverlays);
+      const validColorFrame =
+        state.frameMode === "color" &&
+        Boolean(state.designId) &&
+        Boolean(selectedOverlay && selectedOverlay.kind !== "custom");
+      const validCustomFrame = state.frameMode === "custom" && selectedOverlay?.kind === "custom";
       if (
         !state.productId ||
         !state.layoutId ||
-        !state.designId ||
-        !getOverlay(state.overlayId, state.customOverlays) ||
+        (!validColorFrame && !validCustomFrame) ||
         !state.consentRecorded
       ) {
-        throw new CommandError(
-          "Complete the product, layout, frame, overlay, and consent steps first.",
-        );
+        throw new CommandError("Complete the product, layout, frame, and consent steps first.");
       }
       return revised(state, { phase: "awaiting_cash" });
+    }
     case "CONFIRM_CASH":
       requirePhase(state, ["awaiting_cash"]);
       return revised(state, { phase: "ready", cashConfirmed: true });
@@ -404,6 +504,17 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       requirePhase(state, ["reviewing"]);
       if (state.captures.length !== state.requiredCaptureCount) {
         throw new CommandError("The session does not have every required photo.");
+      }
+      {
+        const selectedOverlay = getOverlay(state.overlayId, state.customOverlays);
+        const validColorFrame =
+          state.frameMode === "color" &&
+          Boolean(state.designId) &&
+          Boolean(selectedOverlay && selectedOverlay.kind !== "custom");
+        const validCustomFrame = state.frameMode === "custom" && selectedOverlay?.kind === "custom";
+        if (!validColorFrame && !validCustomFrame) {
+          throw new CommandError("Choose a complete frame before approving the layout.");
+        }
       }
       return revised(state, { phase: "processing" });
     case "PROCESSING_STARTED":

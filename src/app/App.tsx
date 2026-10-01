@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 
+import wanderPressSplashLogo from "../../assets/brand/source/wander-press-splash-shadow.png";
 import { designs, layouts, products } from "../shared/catalog";
 import type { Actor, BoothState, Command, OperationMode } from "../shared/session";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
@@ -30,7 +31,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`brand-mark ${compact ? "brand-mark--compact" : ""}`}>
       <span className="brand-mark__splat" aria-hidden="true">
-        ✦
+        <img src={wanderPressSplashLogo} alt="" />
       </span>
       <span>
         <strong>WanderBooth</strong>
@@ -595,6 +596,11 @@ function App() {
             ) : (
               <section className="customer-hero">
                 <div className="customer-hero__splat" aria-hidden="true" />
+                <img
+                  className="customer-hero__brand"
+                  src={wanderPressSplashLogo}
+                  alt="Wander Press PH"
+                />
                 <span className="eyebrow">Three photos. One keepsake.</span>
                 <h1>Ready to wander?</h1>
                 <p>Your attendant will start the next session.</p>

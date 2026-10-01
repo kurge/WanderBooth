@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { products } from "./catalog";
-import { CommandError, initialBoothState, reduceCommand } from "./session";
+import { type BoothState, CommandError, initialBoothState, reduceCommand } from "./session";
 
 const beginSelection = (mode: "attendant" | "self_service" = "attendant") => {
   const initial = { ...initialBoothState(), operationMode: mode };
@@ -99,6 +99,58 @@ describe("WanderBooth session rules", () => {
     expect(state.phase).toBe("ready");
   });
 
+  it("runs an authoritative three-second automatic capture sequence", () => {
+    let state = completeSelection();
+    state = reduceCommand(state, { type: "CONFIRM_CASH" }, "attendant");
+    state = reduceCommand(state, { type: "START_CAPTURE_SEQUENCE" }, "attendant");
+    expect(state.phase).toBe("countdown");
+    expect(state.captureSequence).toEqual({ kind: "initial", remaining: 3 });
+
+    state = reduceCommand(state, { type: "COUNTDOWN_TICK", remaining: 2 }, "system");
+    state = reduceCommand(state, { type: "COUNTDOWN_TICK", remaining: 1 }, "system");
+    state = reduceCommand(state, { type: "COUNTDOWN_TRIGGER" }, "system");
+    expect(state.pendingCapture).toEqual({ kind: "capture", slot: 1, revision: 1 });
+
+    state = reduceCommand(
+      state,
+      {
+        type: "CAPTURE_COMPLETED",
+        capture: {
+          capturedAt: "2026-10-02T00:00:00.000Z",
+          mediaUrl: "/media/sequence-1.jpg",
+          revision: 1,
+          slot: 1,
+        },
+      },
+      "system",
+    );
+    expect(state.phase).toBe("countdown");
+    expect(state.captureSequence).toEqual({ kind: "initial", remaining: 3 });
+  });
+
+  it("counts down before replacing a selected photo", () => {
+    const existing = {
+      capturedAt: "2026-10-02T00:00:00.000Z",
+      mediaUrl: "/media/original.jpg",
+      revision: 1,
+      slot: 2,
+    };
+    let state: BoothState = {
+      ...initialBoothState(),
+      phase: "reviewing" as const,
+      requiredCaptureCount: 3,
+      captures: [{ ...existing, slot: 1 }, existing, { ...existing, slot: 3 }],
+    };
+
+    state = reduceCommand(state, { type: "RETAKE", slot: 2 }, "attendant");
+    expect(state.phase).toBe("countdown");
+    expect(state.captureSequence).toEqual({ kind: "retake", remaining: 3, slot: 2 });
+    state = reduceCommand(state, { type: "COUNTDOWN_TICK", remaining: 2 }, "system");
+    state = reduceCommand(state, { type: "COUNTDOWN_TICK", remaining: 1 }, "system");
+    state = reduceCommand(state, { type: "COUNTDOWN_TRIGGER" }, "system");
+    expect(state.pendingCapture).toEqual({ kind: "retake", slot: 2, revision: 2 });
+  });
+
   it("rejects unknown designs", () => {
     const state = beginSelection();
     expect(() =>
@@ -106,12 +158,23 @@ describe("WanderBooth session rules", () => {
     ).toThrow("not available");
   });
 
-  it("preserves the selected mode and increments once when reset", () => {
-    const state = { ...initialBoothState(), operationMode: "self_service" as const, revision: 9 };
+  it("cancels an active countdown and preserves staff setup when reset", () => {
+    const state: BoothState = {
+      ...initialBoothState(),
+      operationMode: "self_service",
+      cameraSourceId: "macbook_camera",
+      phase: "countdown",
+      sessionId: "test-session-001",
+      captureSequence: { kind: "initial", remaining: 2 },
+      revision: 9,
+    };
     const reset = reduceCommand(state, { type: "RESET" }, "owner");
     expect(reset.operationMode).toBe("self_service");
-    expect(reset.cameraSourceId).toBe("simulator");
+    expect(reset.cameraSourceId).toBe("macbook_camera");
     expect(reset.revision).toBe(10);
     expect(reset.phase).toBe("idle");
+    expect(reset.sessionId).toBeNull();
+    expect(reset.captureSequence).toBeNull();
+    expect(reset.pendingCapture).toBeNull();
   });
 });

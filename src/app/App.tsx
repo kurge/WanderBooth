@@ -17,6 +17,7 @@ const phaseLabels: Record<BoothState["phase"], string> = {
   selecting: "Choose the experience",
   awaiting_cash: "Waiting for cash confirmation",
   ready: "Ready for the next photo",
+  countdown: "Get ready…",
   capturing: "Capturing…",
   reviewing: "Review the three photos",
   processing: "Building your WanderBooth set",
@@ -107,6 +108,52 @@ function CapturePreview({ state }: { state: BoothState }) {
           </figure>
         );
       })}
+    </section>
+  );
+}
+
+function LiveCameraPreview({ state }: { state: BoothState }) {
+  const countdown = state.phase === "countdown" ? state.captureSequence?.remaining : null;
+  const isRetake = state.captureSequence?.kind === "retake";
+  const activeSlot =
+    state.captureSequence?.kind === "retake"
+      ? state.captureSequence.slot
+      : state.captures.length + 1;
+
+  return (
+    <section
+      className={`live-camera ${state.cameraSourceId === "simulator" ? "live-camera--simulator" : ""}`}
+      aria-label="Live camera preview"
+    >
+      {state.cameraSourceId === "macbook_camera" ? (
+        <img src={`${hostHttpUrl}/api/camera-preview`} alt="Mirrored live camera preview" />
+      ) : (
+        <div className="live-camera__simulator">
+          <span>TEST</span>
+          <strong>Camera simulator</strong>
+        </div>
+      )}
+      <div className="live-camera__guide" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+      </div>
+      <span className="live-camera__badge">
+        {state.cameraSourceId === "macbook_camera" ? "Mirrored preview" : "Synthetic preview"}
+      </span>
+      {countdown && (
+        <div className="countdown-overlay" role="status" aria-live="assertive">
+          <small>{isRetake ? `Retake photo ${activeSlot}` : `Photo ${activeSlot} of 3`}</small>
+          <strong key={`${activeSlot}-${countdown}`}>{countdown}</strong>
+          <span>Look at the camera</span>
+        </div>
+      )}
+      {state.phase === "capturing" && (
+        <div className="capture-flash" role="status">
+          <strong>Smile!</strong>
+        </div>
+      )}
     </section>
   );
 }
@@ -285,30 +332,46 @@ function SessionPanel({
     );
   }
 
-  if (["ready", "capturing"].includes(state.phase)) {
-    const nextPhoto = state.captures.length + 1;
+  if (["ready", "countdown", "capturing"].includes(state.phase)) {
+    const isRetake = state.captureSequence?.kind === "retake";
+    const nextPhoto =
+      state.captureSequence?.kind === "retake"
+        ? state.captureSequence.slot
+        : state.captures.length + 1;
+    const photosRemaining = Math.max(0, state.requiredCaptureCount - state.captures.length);
+    const heading =
+      state.phase === "ready"
+        ? "One tap takes all three photos."
+        : state.phase === "countdown"
+          ? "Get ready…"
+          : "Hold that pose…";
     return (
-      <section className="capture-stage">
+      <section className="capture-stage capture-stage--live">
         <div className="capture-stage__copy">
-          <span className="eyebrow">Photo {Math.min(nextPhoto, 3)} of 3</span>
-          <h1>{state.phase === "capturing" ? "Hold that pose…" : "Ready when you are."}</h1>
+          <span className="eyebrow">
+            {isRetake ? `Retake photo ${nextPhoto}` : `Photo ${Math.min(nextPhoto, 3)} of 3`}
+          </span>
+          <h1>{heading}</h1>
           <p>
-            {state.cameraSourceId === "macbook_camera"
-              ? "The Mac camera takes the photo even when the shutter is pressed from the iPad."
-              : "The simulator is active, so this run uses generated test photos."}
+            {state.phase === "ready"
+              ? "There is a three-second countdown before each photo, with a short pause between shots."
+              : "Stay inside the guide. The saved photo is not mirrored."}
           </p>
           {interactive && state.phase === "ready" && (
             <button
               className="shutter"
               type="button"
-              onClick={() => sendCommand({ type: "CAPTURE" })}
+              onClick={() => sendCommand({ type: "START_CAPTURE_SEQUENCE" })}
             >
               <span aria-hidden="true" />
-              Take photo {nextPhoto}
+              Start {photosRemaining}-photo sequence
             </button>
           )}
         </div>
-        <CapturePreview state={state} />
+        <div className="capture-stage__visual">
+          <LiveCameraPreview state={state} />
+          {state.captures.length > 0 && <CapturePreview state={state} />}
+        </div>
       </section>
     );
   }
@@ -674,6 +737,19 @@ function App() {
               onClick={openCustomerDisplay}
             >
               Open customer screen
+            </button>
+          )}
+          {isOperator && !["idle", "complete", "error"].includes(state.phase) && (
+            <button
+              className="button button--danger button--tiny"
+              type="button"
+              onClick={() => {
+                if (window.confirm("Cancel this session and clear its current selections?")) {
+                  sendCommand({ type: "RESET" });
+                }
+              }}
+            >
+              Cancel session
             </button>
           )}
         </div>

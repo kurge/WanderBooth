@@ -250,6 +250,12 @@ p {
   background: var(--blue-dark);
 }
 
+.button--danger {
+  color: #a53e2a;
+  border-color: rgba(165, 62, 42, 0.24);
+  background: #fff0eb;
+}
+
 .button--quiet {
   border-color: var(--line);
   background: rgba(255, 255, 255, 0.72);
@@ -804,6 +810,14 @@ p {
   gap: clamp(30px, 6vw, 80px);
 }
 
+.capture-stage--live {
+  grid-template-columns: minmax(250px, 0.55fr) minmax(540px, 1.45fr);
+}
+
+.capture-stage__visual {
+  min-width: 0;
+}
+
 .capture-stage__copy h1 {
   margin-top: 13px;
 }
@@ -831,6 +845,159 @@ p {
   border: 8px solid white;
   border-radius: 50%;
   background: var(--yellow);
+}
+
+.live-camera {
+  position: relative;
+  width: 100%;
+  border: 10px solid white;
+  border-radius: 28px;
+  aspect-ratio: 16 / 9;
+  background: #191524;
+  box-shadow: 0 22px 70px rgba(23, 32, 80, 0.18);
+  overflow: hidden;
+}
+
+.live-camera > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.live-camera__simulator {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: white;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(221, 244, 38, 0.35), transparent 22%),
+    linear-gradient(135deg, var(--blue), var(--blue-dark));
+}
+
+.live-camera__simulator span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--blue-dark);
+  background: var(--yellow);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+
+.live-camera__simulator strong {
+  font-size: clamp(1.4rem, 3vw, 2.5rem);
+}
+
+.live-camera__guide {
+  position: absolute;
+  inset: 11%;
+  border: 2px solid rgba(255, 255, 255, 0.58);
+  border-radius: 22px;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+
+.live-camera__guide::before,
+.live-camera__guide::after {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.42);
+  content: "";
+}
+
+.live-camera__guide::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.live-camera__guide::after {
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+}
+
+.live-camera__guide i {
+  display: none;
+}
+
+.live-camera__badge {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: white;
+  background: rgba(25, 21, 36, 0.68);
+  font-size: 0.66rem;
+  font-weight: 800;
+  backdrop-filter: blur(8px);
+}
+
+.countdown-overlay,
+.capture-flash {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: rgba(41, 9, 66, 0.34);
+  text-align: center;
+  text-shadow: 0 3px 22px rgba(0, 0, 0, 0.35);
+}
+
+.countdown-overlay small {
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.countdown-overlay strong {
+  font-size: clamp(7rem, 20vw, 14rem);
+  line-height: 0.9;
+  animation: countdown-pop 650ms ease-out;
+}
+
+.countdown-overlay span {
+  font-weight: 850;
+}
+
+.capture-flash {
+  background: rgba(255, 255, 255, 0.72);
+  animation: camera-flash 450ms ease-out forwards;
+}
+
+.capture-flash strong {
+  color: var(--blue-dark);
+  font-size: clamp(2.4rem, 7vw, 5.5rem);
+}
+
+@keyframes countdown-pop {
+  from {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes camera-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.18;
+  }
 }
 
 .photo-grid {
@@ -888,6 +1055,16 @@ p {
 
 .photo-card__empty small {
   font-weight: 750;
+}
+
+.capture-stage__visual .photo-grid {
+  max-width: 680px;
+  margin: 20px auto 0;
+}
+
+.capture-stage__visual .photo-card {
+  border-width: 5px;
+  border-radius: 13px;
 }
 
 .review-stage {

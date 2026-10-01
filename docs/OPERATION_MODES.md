@@ -2,7 +2,7 @@
 
 **Status:** Confirmed product behavior
 
-**Version:** 0.1.1
+**Version:** 0.2.0
 
 **Updated:** 2026-10-02
 
@@ -54,7 +54,7 @@ WanderBooth supports two staff-selected workflows. The difference is who control
 3. WanderBooth loads and shows the photo count required by that product/layout.
 4. The operator explains the privacy notice and records the customer's consent.
 5. The operator confirms cash received.
-6. The operator starts capture; the customer display shows preview and countdown.
+6. The operator starts one automatic three-photo sequence. The customer display shows the mirrored preview and the Host-controlled three-second countdown before every photo.
 7. WanderBooth shows the captured images to the customer and operator.
 8. The customer may verbally request a replacement; the operator alone selects the photo slot and starts the replacement/retake.
 9. The operator may change to a compatible design/style and approves the final result.
@@ -78,7 +78,7 @@ Even when the customer display shows captured images, only the operator can subm
 3. The selected product/layout automatically supplies and displays the required photo count.
 4. The customer accepts the privacy notice.
 5. The interface waits while the attendant confirms cash.
-6. The customer starts the countdown and capture flow.
+6. The customer taps once to start all three photos. The Host shows the synchronized three-second countdown before every photo.
 7. The customer reviews captured images.
 8. Within the configured limit, the customer may replace a selected photo or retake.
 9. Before final approval, the customer may change to another compatible enabled design/style.
@@ -94,12 +94,15 @@ See [iPad setup](IPAD_SETUP.md) for the exact Safari and Sidecar steps.
 - Photo count is not an independent session choice. Each enabled product/layout combination defines the exact number of final capture slots.
 - WanderBooth shows that required number before cash confirmation and capture.
 - A replacement chooses one existing slot, captures a new photo, and replaces only that slot after confirmation.
+- Every initial photo and replacement uses the same Host-controlled three-second countdown on all connected screens.
+- The live posing preview is mirrored; saved, printed, and downloadable photos are not mirrored.
 - The initial rule remains up to two retake/replacement actions per session; whether that limit is shared across all slots remains configurable until finalized.
 - Changing a compatible design or style re-renders existing accepted captures and does not consume a retake.
 - Before capture, changing the product/layout recalculates the required count automatically.
 - After capture, changing to a layout with the same count may reuse the accepted captures. A layout requiring a different count needs an explicit staff/customer confirmation and controlled recapture/restart flow; it can never discard paid-session work silently.
 - Once the result is finally approved, further changes require staff recovery.
 - Once printed, a changed result is a staff-authorized reprint and must be audited to prevent accidental duplicates.
+- Staff can cancel an active session from the operator console. Cancellation clears any countdown or pending capture and returns the booth to idle without changing the configured mode or camera source.
 
 ## Permission enforcement
 

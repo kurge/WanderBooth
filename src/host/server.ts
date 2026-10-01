@@ -33,9 +33,10 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 2,
+      schemaVersion: 3,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
+      captureSequence: savedState.captureSequence ?? null,
     }
   : defaultState;
 database.saveState(state);
@@ -88,8 +89,7 @@ const serveFile = (response: ServerResponse, absolutePath: string) => {
   createReadStream(absolutePath).pipe(response);
 };
 
-const readImageBody = async (request: IncomingMessage) => {
-  const maximumBytes = 15 * 1024 * 1024;
+const readImageBody = async (request: IncomingMessage, maximumBytes = 15 * 1024 * 1024) => {
   const chunks: Buffer[] = [];
   let totalBytes = 0;
 
@@ -107,6 +107,52 @@ const readImageBody = async (request: IncomingMessage) => {
 };
 
 let commandQueue = Promise.resolve();
+let countdownTimer: ReturnType<typeof setTimeout> | null = null;
+const previewClients = new Set<ServerResponse>();
+
+const broadcastPreviewFrame = (frame: Buffer) => {
+  const header = Buffer.from(
+    `--wanderbooth-frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.length}\r\n\r\n`,
+  );
+  for (const client of previewClients) {
+    if (client.writableEnded || client.destroyed) {
+      previewClients.delete(client);
+      continue;
+    }
+    client.write(header);
+    client.write(frame);
+    client.write("\r\n");
+  }
+};
+
+const receiveCameraPreview = async (request: IncomingMessage, response: ServerResponse) => {
+  if (state.cameraSourceId !== "macbook_camera") {
+    throw new CommandError("The MacBook camera is not the selected source.");
+  }
+  if (request.headers["content-type"]?.split(";")[0] !== "image/jpeg") {
+    throw new CommandError("Camera preview frames must be JPEG images.");
+  }
+
+  const frame = await readImageBody(request, 1024 * 1024);
+  broadcastPreviewFrame(frame);
+  response.writeHead(204, {
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-store",
+  });
+  response.end();
+};
+
+const streamCameraPreview = (response: ServerResponse) => {
+  response.writeHead(200, {
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+    Connection: "keep-alive",
+    "Content-Type": "multipart/x-mixed-replace; boundary=wanderbooth-frame",
+  });
+  previewClients.add(response);
+  response.on("close", () => previewClients.delete(response));
+  response.on("error", () => previewClients.delete(response));
+};
 
 const receiveCameraCapture = async (request: IncomingMessage, response: ServerResponse) => {
   if (state.cameraSourceId !== "macbook_camera") {
@@ -139,6 +185,7 @@ const receiveCameraCapture = async (request: IncomingMessage, response: ServerRe
       capturedAt: new Date().toISOString(),
     },
   });
+  scheduleCountdownStep(1_200);
   sendJson(response, 201, { ok: true });
 };
 
@@ -162,6 +209,19 @@ const httpServer = createServer((request, response) => {
         const message = error instanceof Error ? error.message : "The photo could not be saved.";
         sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
       });
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/api/camera-preview") {
+    void receiveCameraPreview(request, response).catch((error) => {
+      const message = error instanceof Error ? error.message : "The preview frame was rejected.";
+      sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
+    });
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/api/camera-preview") {
+    streamCameraPreview(response);
     return;
   }
 
@@ -239,6 +299,10 @@ const broadcastState = () => {
 
 const commit = (nextState: BoothState, actor: Actor, command: Command, commandId?: string) => {
   state = nextState;
+  if (state.phase !== "countdown" && countdownTimer) {
+    clearTimeout(countdownTimer);
+    countdownTimer = null;
+  }
   database.saveState(state);
   database.recordEvent({
     sessionId: state.sessionId,
@@ -260,15 +324,7 @@ const safeSessionId = (sessionId: string) => {
   return sessionId;
 };
 
-const runCapture = async (
-  command: Extract<Command, { type: "CAPTURE" }>,
-  actor: Actor,
-  id: string,
-) => {
-  const sessionId = safeSessionId(state.sessionId ?? "");
-  commit(reduceCommand(state, command, actor), actor, command, id);
-  if (state.cameraSourceId === "macbook_camera") return;
-
+const runSimulatorPendingCapture = async (sessionId: string) => {
   const pending = state.pendingCapture;
   if (!pending) throw new CommandError("The simulator capture was not scheduled.");
   const result = await takeSimulatedPhoto({
@@ -278,7 +334,7 @@ const runCapture = async (
     revision: pending.revision,
   });
   systemCommit({
-    type: "CAPTURE_COMPLETED",
+    type: pending.kind === "retake" ? "RETAKE_COMPLETED" : "CAPTURE_COMPLETED",
     capture: {
       slot: pending.slot,
       revision: pending.revision,
@@ -286,34 +342,56 @@ const runCapture = async (
       capturedAt: result.capturedAt,
     },
   });
+  scheduleCountdownStep(1_200);
 };
 
-const runRetake = async (
-  command: Extract<Command, { type: "RETAKE" }>,
+const runCountdownStep = async () => {
+  if (state.phase !== "countdown" || !state.captureSequence) return;
+
+  if (state.captureSequence.remaining > 1) {
+    systemCommit({
+      type: "COUNTDOWN_TICK",
+      remaining: state.captureSequence.remaining - 1,
+    });
+    scheduleCountdownStep(1_000);
+    return;
+  }
+
+  const sessionId = safeSessionId(state.sessionId ?? "");
+  systemCommit({ type: "COUNTDOWN_TRIGGER" });
+  if (state.cameraSourceId === "simulator") {
+    await runSimulatorPendingCapture(sessionId);
+  }
+};
+
+const scheduleCountdownStep = (delayMilliseconds = 1_000) => {
+  if (countdownTimer) clearTimeout(countdownTimer);
+  if (state.phase !== "countdown" || !state.captureSequence) {
+    countdownTimer = null;
+    return;
+  }
+
+  countdownTimer = setTimeout(() => {
+    countdownTimer = null;
+    commandQueue = commandQueue.then(runCountdownStep).catch((error) => {
+      const message = error instanceof Error ? error.message : "The countdown failed.";
+      console.error("Countdown failed:", error);
+      if (["countdown", "capturing"].includes(state.phase)) {
+        systemCommit({ type: "FAIL", message });
+      }
+    });
+  }, delayMilliseconds);
+};
+
+const runCapture = async (
+  command: Extract<Command, { type: "CAPTURE" }>,
   actor: Actor,
   id: string,
 ) => {
   const sessionId = safeSessionId(state.sessionId ?? "");
   commit(reduceCommand(state, command, actor), actor, command, id);
   if (state.cameraSourceId === "macbook_camera") return;
-
-  const pending = state.pendingCapture;
-  if (!pending) throw new CommandError("The simulator retake was not scheduled.");
-  const result = await takeSimulatedPhoto({
-    dataDirectory,
-    sessionId,
-    slot: pending.slot,
-    revision: pending.revision,
-  });
-  systemCommit({
-    type: "RETAKE_COMPLETED",
-    capture: {
-      slot: pending.slot,
-      revision: pending.revision,
-      mediaUrl: result.mediaUrl,
-      capturedAt: result.capturedAt,
-    },
-  });
+  await runSimulatorPendingCapture(sessionId);
 };
 
 const runApproval = async (
@@ -359,8 +437,17 @@ const processMessage = async (socket: WebSocket, rawData: WebSocket.RawData) => 
   try {
     if (message.command.type === "CAPTURE") {
       await runCapture(message.command, message.actor, message.commandId);
-    } else if (message.command.type === "RETAKE") {
-      await runRetake(message.command, message.actor, message.commandId);
+    } else if (
+      message.command.type === "START_CAPTURE_SEQUENCE" ||
+      message.command.type === "RETAKE"
+    ) {
+      commit(
+        reduceCommand(state, message.command, message.actor),
+        message.actor,
+        message.command,
+        message.commandId,
+      );
+      scheduleCountdownStep();
     } else if (message.command.type === "APPROVE") {
       await runApproval(message.command, message.actor, message.commandId);
     } else {
@@ -394,4 +481,5 @@ socketServer.on("connection", (socket) => {
 httpServer.listen(port, "0.0.0.0", () => {
   console.log(`WanderBooth Host is ready on http://0.0.0.0:${port}`);
   console.log(`Runtime data stays local in ${dataDirectory}`);
+  if (state.phase === "countdown") scheduleCountdownStep();
 });

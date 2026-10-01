@@ -16,6 +16,8 @@ Use this for **Self-Service** and whenever customers need to tap the interface t
 4. Type the displayed address into Safari on the iPad. On the current network it will look like `http://192.168.x.x:4174/?surface=customer`.
 5. Keep WanderBooth open on the Mac. The iPad reconnects to the Host if Safari briefly loses the connection.
 
+When the MacBook camera is enabled, Safari shows the relayed mirrored preview. One tap starts all three photos, and the three-second countdown is controlled by the Host so the Mac and iPad stay on the same number. The files saved for review, printing, and delivery are not mirrored.
+
 The address can change when the Mac joins a different network, so use the address currently shown inside WanderBooth. Internet is not required for this local screen, although future cloud QR delivery will require internet when uploading.
 
 ## Optional: Sidecar second display

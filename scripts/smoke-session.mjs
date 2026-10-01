@@ -80,10 +80,12 @@ await command({ type: "RECORD_CONSENT" });
 await command({ type: "SUBMIT_SELECTION" });
 await command({ type: "CONFIRM_CASH" });
 
-for (let slot = 1; slot <= 3; slot += 1) {
-  await command({ type: "CAPTURE" });
-  await waitForState((state) => state.captures.length === slot, `capture ${slot}`);
-}
+await command({ type: "START_CAPTURE_SEQUENCE" });
+await waitForState(
+  (state) => state.phase === "reviewing" && state.captures.length === 3,
+  "automatic three-photo sequence",
+  30_000,
+);
 
 await command({ type: "APPROVE" });
 const completed = await waitForState((state) => state.phase === "complete", "deliverables", 30_000);

@@ -2,7 +2,7 @@
 
 **Status:** Phase 0 testing
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 
 **Updated:** 2026-10-02
 
@@ -18,7 +18,7 @@ This document records the hardware already available for WanderBooth, the suppor
 | Future Self-Service touchscreen | Dedicated touchscreen model not yet selected | Must run the same responsive customer client; evaluate when purchased |
 | Dedicated camera | Canon EOS 60D | Owned secondary integration target |
 | Recommended first dedicated camera | Fujifilm X-M5 | Run the first brand/model-specific Phase 0 control test |
-| Host built-in camera | FaceTime HD Camera on the starting MacBook Pro | Implemented as an Experimental source; one packaged three-photo session passed at 1920×1080 |
+| Host built-in camera | FaceTime HD Camera on the starting MacBook Pro | Implemented as an Experimental source; automatic three-photo capture, synchronized customer countdown, relayed preview, and 1920×1080 saved frames passed once |
 | External webcam | Any standard USB/UVC device supplied later | Detect generically, then certify individual models as needed |
 | Printer | Epson EcoTank L8050 | First-pilot printer |
 | Host/iPad network | Venue Wi-Fi, mobile hotspot, or phone hotspot | Exact first-pilot setup not selected; dedicated travel router is optional |
@@ -58,7 +58,7 @@ The current source-by-source status is maintained in [CAMERA_COMPATIBILITY.md](C
 
 ### Starting MacBook camera
 
-WanderBooth 0.2.0 can request macOS camera permission, show a mirrored operator preview, list detected standard video devices, capture an unmirrored 1920×1080 JPEG, and transfer the exact pending slot to the local Host. The packaged app completed one three-photo session and rendered all five deliverable entries. The Host rejects a late capture from an expired session and does not silently fall back to the simulator.
+WanderBooth 0.3.0 can request macOS camera permission, list detected standard video devices, relay a reduced mirrored preview from the Mac to the customer screen, and capture a separate unmirrored 1920×1080 JPEG for the exact pending slot. One tap starts all three photos; the Host controls and broadcasts the three-second countdown before each one. The packaged app completed this automatic sequence and rendered all five deliverable entries. The Host rejects a late capture from an expired session and does not silently fall back to the simulator.
 
 This source remains **Experimental**. One successful session is not enough to approve it for paying customers or physical prints. The next certification work is retake testing, loss/recovery behavior, 50 consecutive sessions, crop and orientation checks, low-light review, and Epson L8050 output comparison. See the [test record](test-records/2026-10-02-macbook-camera.md).
 
@@ -106,6 +106,8 @@ Official references:
 - [Epson L8050 macOS support downloads](https://www.epson.com.hk/Support/Printers/Inkjet-Printer/EcoTank-Series/L8050/s/SPT_C11CK37506)
 
 The L8050 is an ink-tank photo printer rather than a dye-sublimation event printer. The first pilot must measure real print speed, borderless margins, color consistency, ink use, paper-feed reliability, drying/smudging, and recovery after a jam or offline state.
+
+The confirmed first print artifact is one 4×6 sheet containing two identical 2×6 vertical strips. This is the next implementation target: render the double-strip sheet, submit exactly one job, and verify the cut line, margins, color, and actual L8050 output before adding automatic printing.
 
 ## Phase 0 hardware test matrix
 
@@ -158,7 +160,8 @@ The L8050 is an ink-tank photo printer rather than a dye-sublimation event print
 ### Epson L8050 test
 
 - Install the official driver for the selected pilot OS.
-- Print 4×6 and 2×6 strip layouts.
+- Print the first 4×6 artifact containing two identical 2×6 strips and verify both cut copies.
+- Print later standalone 4×6 and other 2×6 layouts as they enter the product catalog.
 - Test normal and borderless output.
 - Measure 20 consecutive print times.
 - Compare screen color to print color.

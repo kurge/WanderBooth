@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 0.7.0
+document_version: 0.8.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -97,6 +97,9 @@ The business should be able to keep serving customers during internet interrupti
 - Customers receive up to **two retakes**.
 - Initial print formats are **4×6** and **2×6 photo strips**.
 - The first implemented product is a **three-photo vertical 2×6 strip**. The 4×6 product follows after the first workflow is proven.
+- The first physical print for that product is **one 4×6 sheet containing two identical 2×6 strips**, ready to cut into two copies.
+- One tap starts the complete three-photo sequence, with a **three-second countdown before each photo**.
+- The customer preview is mirrored for natural posing, while saved and delivered photos are not mirrored.
 - The first pilot will include approximately **5–10 layouts/designs**.
 - Available camera hardware: **Canon EOS 60D** and **Fujifilm X-M5**.
 - WanderBooth must offer a camera-source selector that is available only to the owner or attendant. Customers cannot change the active camera source.
@@ -133,7 +136,9 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - Cash confirmation is staff-only and occurs before capture; no price appears on screen.
 - Session state and command history persist in a local SQLite database.
 - A development-only camera simulator exercises capture and two-retake behavior safely.
-- Staff can select the simulator or MacBook camera only while the booth is idle. The Mac path includes permission handling, live preview, physical device choice, synchronized remote trigger, and local JPEG transfer.
+- Staff can select the simulator or MacBook camera only while the booth is idle. The Mac path includes permission handling, physical device choice, a reduced mirrored preview relayed to the customer screen, and separate full-resolution unmirrored JPEG transfer.
+- One action starts all three product-defined photos. The Host advances and broadcasts the three-second countdown before each capture so the Mac and customer screen cannot drift apart.
+- Retakes use the same synchronized countdown, and staff can cancel an active session safely back to idle.
 - The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
@@ -185,9 +190,11 @@ Operator explains privacy notice and records customer consent
      ↓
 Operator confirms cash received
      ↓
-Customer display shows live preview and countdown
+Customer display shows a mirrored live preview
      ↓
-Operator starts capture
+Operator starts the automatic three-photo sequence
+     ↓
+Host shows a synchronized three-second countdown before each photo
      ↓
 Operator reviews the photos with the customer
      ↓
@@ -214,9 +221,11 @@ Customer reads the privacy notice and continues
      ↓
 Attendant confirms cash received
      ↓
-Live preview and countdown
+Mirrored live preview
      ↓
-Capture photo(s), with up to two retakes
+Customer starts one automatic three-photo sequence
+     ↓
+Host shows a synchronized three-second countdown before each photo
      ↓
 Customer reviews, replaces a selected photo, changes style/design,
 or uses an allowed retake before final approval
@@ -246,6 +255,7 @@ IDLE
   → CONSENTED
   → CASH_PENDING
   → CASH_CONFIRMED
+  → COUNTDOWN
   → CAPTURING
   → REVIEWING
   → FINAL_APPROVED
@@ -315,6 +325,8 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - Mode cannot change during an active session
 - Full-screen customer display with WanderBooth branding
 - Live preview, countdown, captured-photo review, processing, print status, QR delivery, and thank-you presentation
+- One-tap product-defined capture sequence with a Host-controlled three-second countdown before every photo
+- Mirrored posing preview with unmirrored saved and delivered files
 - No camera-source, cash, reprint, refund, recovery, or administrative controls on the customer-facing screen in either mode
 - Product/layout-defined capture count shown clearly before payment and capture
 - Three-photo vertical-strip session, with other configurable layouts
@@ -421,6 +433,7 @@ The iPad still needs a local connection to the Host for booth controls. This may
 #### Printing for the first pilot
 
 - Support the Epson EcoTank L8050 through the operating system's official Epson printer driver
+- Render the first three-photo product as one 4×6 sheet containing two identical vertical 2×6 strips
 - Test print
 - Automatic print after fulfillment
 - Persistent print queue
@@ -727,6 +740,7 @@ Tasks:
 - Prototype camera selection, readiness checks, preview, capture, and source switching before a session starts.
 - Prototype operation-mode selection, the laptop operator console, the read-only customer display, and the interactive Self-Service touch flow.
 - Refine the working prototype for three individual branded photos, a 2×6 composite strip, and an MP4 slideshow.
+- Render a print-ready 4×6 sheet containing two identical copies of the current 2×6 strip.
 - Test the working browser-to-Host control connection from the physical iPad.
 - Prototype queued upload to private cloud storage and a 30-day mobile download page.
 - Verify that capture and printing continue with internet disconnected and that the upload completes after reconnection.
@@ -896,13 +910,12 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 ### Products and design
 
-2. What print quantity will be included with the first 2×6 product? PHP prices may remain blank until the business decides them.
-3. What arrangement should the first 4×6 product use?
-4. Who will design the final 5–10 production layouts using the supplied Wander Press PH identity?
+2. What PHP price will the first double-strip print use? Price may remain blank until the business decides it.
+3. Who will design the final 5–10 production layouts using the supplied Wander Press PH identity?
 
 ### Pilot timing
 
-5. Replace “a few months from now” with a target month or event once it is known.
+4. Replace “a few months from now” with a target month or event once it is known.
 
 ## 17. Plain-language glossary
 
@@ -936,6 +949,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 0.8.0 | 2026-10-02 | Added the synchronized one-tap three-photo sequence, three-second countdowns, relayed mirrored customer preview, unmirrored saved captures, staff cancellation, and the first 4×6 double-strip print decision. |
 | 0.7.0 | 2026-10-02 | Implemented the Experimental MacBook camera source, verified a packaged three-photo session, served the customer screen from the packaged Host, and documented Safari versus Sidecar iPad setup. |
 | 0.6.1 | 2026-10-02 | Imported the owner-supplied Wander Press PH source artwork, documented exact brand tokens, replaced placeholder colors, and added a verified double-clickable Mac application and DMG build. |
 | 0.6.0 | 2026-10-02 | Confirmed the starting MacBook Host, X-M5 and built-in-camera order, first three-photo 2×6 product, iPad screen, no on-screen price, placeholder brand direction, and the first working local prototype checkpoint. |

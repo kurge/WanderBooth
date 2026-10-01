@@ -56,6 +56,51 @@ const videoFrameToJpeg = async (video: HTMLVideoElement) => {
   });
 };
 
+const previewFrameToJpeg = async (video: HTMLVideoElement) => {
+  await waitForVideo(video);
+  const canvas = document.createElement("canvas");
+  canvas.width = 960;
+  canvas.height = 540;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("The preview frame could not be prepared.");
+
+  const targetAspect = canvas.width / canvas.height;
+  const sourceAspect = video.videoWidth / video.videoHeight;
+  let sourceX = 0;
+  let sourceY = 0;
+  let sourceWidth = video.videoWidth;
+  let sourceHeight = video.videoHeight;
+  if (sourceAspect > targetAspect) {
+    sourceWidth = video.videoHeight * targetAspect;
+    sourceX = (video.videoWidth - sourceWidth) / 2;
+  } else if (sourceAspect < targetAspect) {
+    sourceHeight = video.videoWidth / targetAspect;
+    sourceY = (video.videoHeight - sourceHeight) / 2;
+  }
+
+  context.translate(canvas.width, 0);
+  context.scale(-1, 1);
+  context.drawImage(
+    video,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("The preview frame failed."))),
+      "image/jpeg",
+      0.66,
+    );
+  });
+};
+
 export function useMacBookCamera({
   active,
   state,
@@ -159,6 +204,34 @@ export function useMacBookCamera({
   useEffect(() => () => stopCamera(), [stopCamera]);
 
   useEffect(() => {
+    if (!active || status !== "ready" || !videoRef.current) return;
+
+    let cancelled = false;
+    let timer: number | undefined;
+    const publishPreview = async () => {
+      try {
+        if (!videoRef.current || cancelled) return;
+        const frame = await previewFrameToJpeg(videoRef.current);
+        await fetch(`${hostHttpUrl}/api/camera-preview`, {
+          method: "POST",
+          headers: { "Content-Type": "image/jpeg" },
+          body: frame,
+        });
+      } catch {
+        // A preview interruption must not fail or duplicate the full-resolution capture workflow.
+      } finally {
+        if (!cancelled) timer = window.setTimeout(publishPreview, 200);
+      }
+    };
+
+    void publishPreview();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [active, status]);
+
+  useEffect(() => {
     const pending = state?.pendingCapture;
     if (!active || state?.phase !== "capturing" || !pending || !state.sessionId) return;
 
@@ -178,7 +251,7 @@ export function useMacBookCamera({
     handledCaptureRef.current = captureKey;
     const capture = async () => {
       try {
-        await new Promise((resolve) => window.setTimeout(resolve, 850));
+        await new Promise((resolve) => window.setTimeout(resolve, 180));
         if (!videoRef.current) throw new Error("The camera preview closed before capture.");
         const jpeg = await videoFrameToJpeg(videoRef.current);
         const response = await fetch(`${hostHttpUrl}/api/camera-captures`, {

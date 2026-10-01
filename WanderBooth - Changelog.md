@@ -21,10 +21,33 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 ### Pending decisions
 
 - Normal Host/iPad connection: venue Wi-Fi, mobile hotspot, or phone hotspot
-- First 2×6 print quantity and PHP price
-- Exact first 4×6 layout
+- PHP price for the first double-strip print
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
+
+## 0.8.0 — 2026-10-02
+
+### Confirmed
+
+- One tap starts all three photos for the current product.
+- A three-second countdown runs before every initial photo and retake.
+- The customer preview is mirrored, while saved and delivered photos remain unmirrored.
+- The first physical print is one 4×6 sheet containing two identical vertical 2×6 strips.
+
+### Added
+
+- Added a Host-authoritative countdown and automatic sequence so every connected screen shows the same photo number and timer.
+- Added an in-memory 960×540 MacBook-camera preview relay for the customer screen without saving preview frames to disk.
+- Added automatic progression from one successful capture to the next and countdown-based selected-slot retakes.
+- Added a staff-only **Cancel session** control that safely clears an active countdown or capture and returns the booth to idle.
+- Added ADR 0008 documenting the preview, capture, synchronization, and failure boundaries.
+
+### Verified
+
+- Completed an automatic three-photo sequence with the packaged Mac app and starting FaceTime HD Camera.
+- Confirmed the customer client received the mirrored live preview and synchronized countdown over the local network.
+- Confirmed the Host stored all three 1920×1080 captures in the correct slots and generated the existing five deliverables.
+- Confirmed the simulator smoke test completes the same one-tap three-photo sequence.
 
 ## 0.7.0 — 2026-10-02
 

@@ -8,6 +8,7 @@ export type Phase =
   | "selecting"
   | "awaiting_cash"
   | "ready"
+  | "countdown"
   | "capturing"
   | "reviewing"
   | "processing"
@@ -27,6 +28,10 @@ export type PendingCapture = {
   revision: number;
 };
 
+export type CaptureSequence =
+  | { kind: "initial"; remaining: number }
+  | { kind: "retake"; remaining: number; slot: number };
+
 export type Deliverable = {
   kind: "individual" | "strip" | "slideshow";
   label: string;
@@ -35,7 +40,7 @@ export type Deliverable = {
 };
 
 export type BoothState = {
-  schemaVersion: 2;
+  schemaVersion: 3;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -47,6 +52,7 @@ export type BoothState = {
   requiredCaptureCount: number;
   captures: Capture[];
   pendingCapture: PendingCapture | null;
+  captureSequence: CaptureSequence | null;
   retakesRemaining: number;
   cashConfirmed: boolean;
   consentRecorded: boolean;
@@ -65,10 +71,13 @@ export type Command =
   | { type: "RECORD_CONSENT" }
   | { type: "SUBMIT_SELECTION" }
   | { type: "CONFIRM_CASH" }
+  | { type: "START_CAPTURE_SEQUENCE" }
   | { type: "CAPTURE" }
   | { type: "CAPTURE_COMPLETED"; capture: Capture }
   | { type: "RETAKE"; slot: number }
   | { type: "RETAKE_COMPLETED"; capture: Capture }
+  | { type: "COUNTDOWN_TICK"; remaining: number }
+  | { type: "COUNTDOWN_TRIGGER" }
   | { type: "CAMERA_CAPTURE_FAILED"; message: string }
   | { type: "APPROVE" }
   | { type: "PROCESSING_STARTED" }
@@ -80,7 +89,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 2,
+  schemaVersion: 3,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -92,6 +101,7 @@ export const initialBoothState = (): BoothState => ({
   requiredCaptureCount: 0,
   captures: [],
   pendingCapture: null,
+  captureSequence: null,
   retakesRemaining: 2,
   cashConfirmed: false,
   consentRecorded: false,
@@ -137,6 +147,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "SELECT_DESIGN":
     case "RECORD_CONSENT":
     case "SUBMIT_SELECTION":
+    case "START_CAPTURE_SEQUENCE":
     case "CAPTURE":
     case "RETAKE":
     case "APPROVE":
@@ -146,6 +157,8 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
       return;
     case "CAPTURE_COMPLETED":
     case "RETAKE_COMPLETED":
+    case "COUNTDOWN_TICK":
+    case "COUNTDOWN_TRIGGER":
     case "PROCESSING_STARTED":
     case "PROCESSING_COMPLETED":
     case "FAIL":
@@ -181,6 +194,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         requiredCaptureCount: 0,
         captures: [],
         pendingCapture: null,
+        captureSequence: null,
         retakesRemaining: 2,
         cashConfirmed: false,
         consentRecorded: false,
@@ -226,8 +240,17 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
     case "CONFIRM_CASH":
       requirePhase(state, ["awaiting_cash"]);
       return revised(state, { phase: "ready", cashConfirmed: true });
+    case "START_CAPTURE_SEQUENCE":
+      requirePhase(state, ["ready"]);
+      if (state.captures.length >= state.requiredCaptureCount) {
+        throw new CommandError("All required photos have already been captured.");
+      }
+      return revised(state, {
+        phase: "countdown",
+        captureSequence: { kind: "initial", remaining: 3 },
+      });
     case "CAPTURE":
-      requirePhase(state, ["ready", "capturing"]);
+      requirePhase(state, ["ready"]);
       if (state.captures.length >= state.requiredCaptureCount) {
         throw new CommandError("All required photos have already been captured.");
       }
@@ -256,7 +279,16 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       return revised(state, {
         captures,
         pendingCapture: null,
-        phase: captures.length >= state.requiredCaptureCount ? "reviewing" : "ready",
+        captureSequence:
+          state.captureSequence?.kind === "initial" && captures.length < state.requiredCaptureCount
+            ? { kind: "initial", remaining: 3 }
+            : null,
+        phase:
+          captures.length >= state.requiredCaptureCount
+            ? "reviewing"
+            : state.captureSequence?.kind === "initial"
+              ? "countdown"
+              : "ready",
       });
     }
     case "RETAKE": {
@@ -265,13 +297,12 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       if (!state.captures.some((capture) => capture.slot === command.slot)) {
         throw new CommandError("Choose an existing photo to replace.");
       }
-      const original = state.captures.find((capture) => capture.slot === command.slot);
       return revised(state, {
-        phase: "capturing",
-        pendingCapture: {
+        phase: "countdown",
+        captureSequence: {
           kind: "retake",
+          remaining: 3,
           slot: command.slot,
-          revision: (original?.revision ?? 0) + 1,
         },
       });
     }
@@ -291,8 +322,39 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       return revised(state, {
         captures,
         pendingCapture: null,
+        captureSequence: null,
         retakesRemaining: state.retakesRemaining - 1,
         phase: "reviewing",
+      });
+    }
+    case "COUNTDOWN_TICK":
+      requirePhase(state, ["countdown"]);
+      if (!state.captureSequence || command.remaining !== state.captureSequence.remaining - 1) {
+        throw new CommandError("The countdown update is out of sequence.");
+      }
+      if (command.remaining < 1) throw new CommandError("The countdown cannot go below one.");
+      return revised(state, {
+        captureSequence: { ...state.captureSequence, remaining: command.remaining },
+      });
+    case "COUNTDOWN_TRIGGER": {
+      requirePhase(state, ["countdown"]);
+      if (state.captureSequence?.remaining !== 1) {
+        throw new CommandError("The countdown is not ready to capture.");
+      }
+
+      const isRetake = state.captureSequence.kind === "retake";
+      const slot =
+        state.captureSequence.kind === "retake"
+          ? state.captureSequence.slot
+          : state.captures.length + 1;
+      const original = state.captures.find((capture) => capture.slot === slot);
+      return revised(state, {
+        phase: "capturing",
+        pendingCapture: {
+          kind: isRetake ? "retake" : "capture",
+          slot,
+          revision: isRetake ? (original?.revision ?? 0) + 1 : 1,
+        },
       });
     }
     case "CAMERA_CAPTURE_FAILED":
@@ -300,6 +362,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       return revised(state, {
         phase: "error",
         pendingCapture: null,
+        captureSequence: null,
         lastError: command.message,
       });
     case "APPROVE":
@@ -315,7 +378,12 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       requirePhase(state, ["processing"]);
       return revised(state, { phase: "complete", deliverables: command.deliverables });
     case "FAIL":
-      return revised(state, { phase: "error", lastError: command.message });
+      return revised(state, {
+        phase: "error",
+        pendingCapture: null,
+        captureSequence: null,
+        lastError: command.message,
+      });
     case "RESET":
       return {
         ...initialBoothState(),

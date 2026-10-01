@@ -76,18 +76,26 @@ async function createBrandedIndividual(input: {
 
 const heartPath = "M50 94 C42 86 4 61 4 29 C4 5 34 -7 50 17 C66 -7 96 5 96 29 C96 61 58 86 50 94 Z";
 
-async function renderSlot(photoPath: string, slot: PhotoSlot, transform: MediaTransform) {
+async function renderSlot(
+  photoPath: string,
+  slot: PhotoSlot,
+  holderTransform: MediaTransform,
+  photoTransform: MediaTransform,
+) {
+  const holderWidth = Math.max(1, Math.round(slot.width * holderTransform.scaleX));
+  const holderHeight = Math.max(1, Math.round(slot.height * holderTransform.scaleY));
   const basePhoto = await sharp(photoPath)
     .rotate()
-    .resize(slot.width, slot.height, { fit: "cover" })
+    .resize(holderWidth, holderHeight, { fit: "cover" })
     .ensureAlpha()
     .png()
     .toBuffer();
-  const scaledWidth = Math.max(1, Math.round(slot.width * transform.scaleX));
-  const scaledHeight = Math.max(1, Math.round(slot.height * transform.scaleY));
+  const photoScale = Math.max(photoTransform.scaleX, photoTransform.scaleY);
+  const scaledWidth = Math.max(1, Math.round(holderWidth * photoScale));
+  const scaledHeight = Math.max(1, Math.round(holderHeight * photoScale));
   const transformed = await sharp(basePhoto)
     .resize(scaledWidth, scaledHeight, { fit: "fill" })
-    .rotate(transform.rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .rotate(photoTransform.rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .ensureAlpha()
     .png()
     .toBuffer();
@@ -95,21 +103,21 @@ async function renderSlot(photoPath: string, slot: PhotoSlot, transform: MediaTr
   const transformedWidth = transformedMetadata.width ?? scaledWidth;
   const transformedHeight = transformedMetadata.height ?? scaledHeight;
   const desiredLeft = Math.round(
-    (slot.width - transformedWidth) / 2 + transform.offsetX * slot.width,
+    (holderWidth - transformedWidth) / 2 + photoTransform.offsetX * holderWidth,
   );
   const desiredTop = Math.round(
-    (slot.height - transformedHeight) / 2 + transform.offsetY * slot.height,
+    (holderHeight - transformedHeight) / 2 + photoTransform.offsetY * holderHeight,
   );
   const cropLeft = Math.max(0, -desiredLeft);
   const cropTop = Math.max(0, -desiredTop);
   const outputLeft = Math.max(0, desiredLeft);
   const outputTop = Math.max(0, desiredTop);
-  const visibleWidth = Math.min(transformedWidth - cropLeft, slot.width - outputLeft);
-  const visibleHeight = Math.min(transformedHeight - cropTop, slot.height - outputTop);
+  const visibleWidth = Math.min(transformedWidth - cropLeft, holderWidth - outputLeft);
+  const visibleHeight = Math.min(transformedHeight - cropTop, holderHeight - outputTop);
   const canvas = sharp({
     create: {
-      width: slot.width,
-      height: slot.height,
+      width: holderWidth,
+      height: holderHeight,
       channels: 4,
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     },
@@ -140,13 +148,13 @@ async function renderSlot(photoPath: string, slot: PhotoSlot, transform: MediaTr
   const mask =
     slot.shape === "heart"
       ? Buffer.from(`
-          <svg width="${slot.width}" height="${slot.height}" viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="${holderWidth}" height="${holderHeight}" viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
             <path d="${heartPath}" fill="white" />
           </svg>
         `)
       : Buffer.from(`
-          <svg width="${slot.width}" height="${slot.height}" xmlns="http://www.w3.org/2000/svg">
-            <rect width="${slot.width}" height="${slot.height}" rx="${Math.round(Math.min(slot.width, slot.height) * 0.055)}" fill="white" />
+          <svg width="${holderWidth}" height="${holderHeight}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="${holderWidth}" height="${holderHeight}" rx="${Math.round(Math.min(holderWidth, holderHeight) * 0.055)}" fill="white" />
           </svg>
         `);
 
@@ -165,22 +173,18 @@ async function positionHolder(
   canvasWidth: number,
   canvasHeight: number,
 ): Promise<PositionedLayer | null> {
-  const scaledWidth = Math.max(1, Math.round(slot.width * transform.scaleX));
-  const scaledHeight = Math.max(1, Math.round(slot.height * transform.scaleY));
   const transformed = await sharp(input)
-    .resize(scaledWidth, scaledHeight, { fit: "fill" })
     .rotate(transform.rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();
   const transformedMetadata = await sharp(transformed).metadata();
-  const transformedWidth = transformedMetadata.width ?? scaledWidth;
-  const transformedHeight = transformedMetadata.height ?? scaledHeight;
-  const desiredLeft = Math.round(
-    slot.x + (slot.width - transformedWidth) / 2 + transform.offsetX * slot.width,
-  );
-  const desiredTop = Math.round(
-    slot.y + (slot.height - transformedHeight) / 2 + transform.offsetY * slot.height,
-  );
+  const transformedWidth = transformedMetadata.width ?? Math.round(slot.width * transform.scaleX);
+  const transformedHeight =
+    transformedMetadata.height ?? Math.round(slot.height * transform.scaleY);
+  const holderCenterX = slot.x + slot.width / 2 + transform.offsetX * slot.width;
+  const holderCenterY = slot.y + slot.height / 2 + transform.offsetY * slot.height;
+  const desiredLeft = Math.round(holderCenterX - transformedWidth / 2);
+  const desiredTop = Math.round(holderCenterY - transformedHeight / 2);
   const cropLeft = Math.max(0, -desiredLeft);
   const cropTop = Math.max(0, -desiredTop);
   const outputLeft = Math.max(0, desiredLeft);
@@ -294,7 +298,7 @@ async function createComposite(input: {
         const holderTransform =
           input.holderTransforms.find((item) => item.slot === captureSlot) ??
           identityMediaTransform();
-        const photo = await renderSlot(photoPath, slot, photoTransform);
+        const photo = await renderSlot(photoPath, slot, holderTransform, photoTransform);
         return positionHolder(photo, slot, holderTransform, width, height);
       }),
     )

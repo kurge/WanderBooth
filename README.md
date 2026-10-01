@@ -29,7 +29,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **1.4.0 — Six-Shot Strip and Full Object Controls**
+- Product-plan version: **1.4.1 — Proportional Resizing and Non-Distorting Crop Frames**
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
 - Current catalog: **two product families and five layouts, with a mutually exclusive choice of a fixed colored frame or locally imported event frame**, iPad customer screen, no on-screen price
@@ -54,7 +54,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Rectangle, rounded, heart-shaped, portrait, and landscape rendering.
 - Cash confirmation before capture, with no price shown in the application.
 - Two retakes, full uncropped source-photo review, a final composed-layout preview, and final approval.
-- Operator-only direct composition canvas for imported frames: click the artwork or a photo frame, drag it in place, resize width and height from edge/corner handles, rotate it from the round handle, enter Crop image mode to adjust the capture inside the frame, and lock finished objects. There is no zoom slider. The precise stored adjustment is rendered into the final file.
+- Operator-only direct composition canvas for imported frames: click the artwork or a photo frame, drag it in place, use corners for proportional scaling, use middle edge handles to reshape the crop frame without stretching the photo, rotate it from the round handle, enter Crop image mode to reposition or proportionally scale the capture, and lock finished objects. There is no zoom slider. The precise stored adjustment is rendered into the final file.
 - Operator-confirmed deletion for imported templates, including removal of their private local artwork files.
 - Captured and waiting review cards share the same 16:9 footprint while preserving the full source image with `contain` fitting.
 - Local SQLite state and event history so the Host remains authoritative.
@@ -71,7 +71,7 @@ The prototype now controls the starting MacBook camera, renders a reusable templ
 
 ## Open the app on this Mac
 
-The current local installation image is generated at `release/WanderBooth-0.9.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
+The current local installation image is generated at `release/WanderBooth-0.9.1-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

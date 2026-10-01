@@ -26,6 +26,7 @@ import type {
   PhotoTransform,
 } from "../shared/session";
 import { createId } from "./createId";
+import { type ResizeHandle, resizeTransform } from "./resizeTransform";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
 import { type CameraStatus, useMacBookCamera } from "./useMacBookCamera";
 
@@ -352,7 +353,6 @@ const slotTransformMap = (transforms: Array<HolderTransform | PhotoTransform>) =
   >;
 
 type CompositionTarget = "frame" | `holder:${number}` | `image:${number}`;
-type ResizeHandle = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
 type InteractionKind = "move" | "resize" | "rotate";
 type TargetGeometry = {
   baseWidth: number;
@@ -382,6 +382,14 @@ const normalizeRotation = (degrees: number) => {
 
 const transformStyle = (transform: MediaTransform) => ({
   transform: `translate(${transform.offsetX * 100}%, ${transform.offsetY * 100}%) rotate(${transform.rotation}deg) scale(${transform.scaleX}, ${transform.scaleY})`,
+});
+
+const holderStyle = (slot: Layout["slots"][number], layout: Layout, transform: MediaTransform) => ({
+  left: `${((slot.x + slot.width * transform.offsetX + (slot.width * (1 - transform.scaleX)) / 2) / layout.canvasWidth) * 100}%`,
+  top: `${((slot.y + slot.height * transform.offsetY + (slot.height * (1 - transform.scaleY)) / 2) / layout.canvasHeight) * 100}%`,
+  width: `${((slot.width * transform.scaleX) / layout.canvasWidth) * 100}%`,
+  height: `${((slot.height * transform.scaleY) / layout.canvasHeight) * 100}%`,
+  transform: `rotate(${transform.rotation}deg)`,
 });
 
 const describeCompositionTarget = (target: CompositionTarget) => {
@@ -634,33 +642,24 @@ function LayoutPreview({
     } else {
       const localDelta = rotateVector(parentDelta.x, parentDelta.y, -initial.rotation);
       const handle = interaction.handle ?? "se";
-      const changesX = handle.includes("e") || handle.includes("w");
-      const changesY = handle.includes("n") || handle.includes("s");
-      const signX = handle.includes("w") ? -1 : 1;
-      const signY = handle.includes("n") ? -1 : 1;
-      const initialWidth = geometry.baseWidth * initial.scaleX;
-      const initialHeight = geometry.baseHeight * initial.scaleY;
-      const requestedWidth = changesX ? initialWidth + signX * localDelta.x : initialWidth;
-      const requestedHeight = changesY ? initialHeight + signY * localDelta.y : initialHeight;
-      const nextScaleX = Math.max(0.2, Math.min(4, requestedWidth / geometry.baseWidth));
-      const nextScaleY = Math.max(0.2, Math.min(4, requestedHeight / geometry.baseHeight));
-      const widthChange = geometry.baseWidth * (nextScaleX - initial.scaleX);
-      const heightChange = geometry.baseHeight * (nextScaleY - initial.scaleY);
-      const localCenterShift = {
-        x: changesX ? (signX * widthChange) / 2 : 0,
-        y: changesY ? (signY * heightChange) / 2 : 0,
-      };
+      const resized = resizeTransform({
+        baseWidth: geometry.baseWidth,
+        baseHeight: geometry.baseHeight,
+        handle,
+        initial,
+        localDelta,
+      });
       const parentCenterShift = rotateVector(
-        localCenterShift.x,
-        localCenterShift.y,
+        resized.localCenterShift.x,
+        resized.localCenterShift.y,
         initial.rotation,
       );
       next = clampTransform({
         ...initial,
         offsetX: initial.offsetX + parentCenterShift.x / geometry.baseWidth,
         offsetY: initial.offsetY + parentCenterShift.y / geometry.baseHeight,
-        scaleX: nextScaleX,
-        scaleY: nextScaleY,
+        scaleX: resized.scaleX,
+        scaleY: resized.scaleY,
       });
     }
     interaction.latest = next;
@@ -703,7 +702,10 @@ function LayoutPreview({
         </i>
       ) : (
         <>
-          {resizeHandles.map((handle) => (
+          {(describeCompositionTarget(target).kind === "image"
+            ? resizeHandles.filter((handle) => handle.length === 2)
+            : resizeHandles
+          ).map((handle) => (
             <i
               className={`layout-composer__handle layout-composer__handle--${handle}`}
               data-interaction-kind="resize"
@@ -772,11 +774,7 @@ function LayoutPreview({
               data-capture-slot={captureSlot}
               key={`${captureSlot}-${slot.x}-${slot.y}`}
               style={{
-                left: `${(slot.x / layout.canvasWidth) * 100}%`,
-                top: `${(slot.y / layout.canvasHeight) * 100}%`,
-                width: `${(slot.width / layout.canvasWidth) * 100}%`,
-                height: `${(slot.height / layout.canvasHeight) * 100}%`,
-                ...transformStyle(holderTransform),
+                ...holderStyle(slot, layout, holderTransform),
               }}
             >
               {capture ? (
@@ -842,10 +840,7 @@ function LayoutPreview({
               const photoTransform = photoDrafts[captureSlot] ?? identityMediaTransform();
               const mode = describeCompositionTarget(activeTarget).kind;
               const slotPosition = {
-                left: `${(slot.x / layout.canvasWidth) * 100}%`,
-                top: `${(slot.y / layout.canvasHeight) * 100}%`,
-                width: `${(slot.width / layout.canvasWidth) * 100}%`,
-                height: `${(slot.height / layout.canvasHeight) * 100}%`,
+                ...holderStyle(slot, layout, holderTransform),
               };
               return mode === "holder" ? (
                 <div
@@ -853,7 +848,6 @@ function LayoutPreview({
                   key={`selection-${captureSlot}-${slot.x}-${slot.y}`}
                   style={{
                     ...slotPosition,
-                    ...transformStyle(holderTransform),
                   }}
                   aria-hidden="true"
                 >
@@ -866,7 +860,6 @@ function LayoutPreview({
                   key={`selection-${captureSlot}-${slot.x}-${slot.y}`}
                   style={{
                     ...slotPosition,
-                    ...transformStyle(holderTransform),
                   }}
                   aria-hidden="true"
                 >
@@ -942,9 +935,10 @@ function LayoutPreview({
             </button>
           </div>
           <p>
-            Click a photo to select its frame. Drag to move, use edge or corner handles to resize,
-            and drag the round handle to rotate. Double-click—or choose Crop image—to adjust the
-            photo inside. Lock an object when its placement is finished.
+            Click a photo to select its frame. Drag a corner to resize proportionally, or a middle
+            edge handle to reshape the crop area without stretching the photo. Drag the round handle
+            to rotate. Double-click—or choose Crop image—to reposition or scale the photo inside.
+            Lock an object when its placement is finished.
           </p>
         </div>
       )}

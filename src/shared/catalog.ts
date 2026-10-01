@@ -81,6 +81,14 @@ export const normalizeMediaTransform = (
   };
 };
 
+export const normalizePhotoTransform = (
+  transform?: Partial<MediaTransform> & { scale?: number },
+): MediaTransform => {
+  const normalized = normalizeMediaTransform(transform);
+  const uniformScale = Math.max(normalized.scaleX, normalized.scaleY);
+  return { ...normalized, scaleX: uniformScale, scaleY: uniformScale };
+};
+
 type OverlayBase = {
   id: string;
   name: string;

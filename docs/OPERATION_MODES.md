@@ -2,7 +2,7 @@
 
 **Status:** Confirmed product behavior
 
-**Version:** 0.7.0
+**Version:** 0.7.1
 
 **Updated:** 2026-10-02
 
@@ -102,7 +102,7 @@ See [iPad setup](IPAD_SETUP.md) for the exact Safari and Sidecar steps.
 - Choosing a custom frame clears the fixed color and built-in decoration; choosing a fixed color clears the custom frame. The two frame sources cannot be combined accidentally.
 - Changing a compatible frame or built-in decoration re-renders existing accepted captures and does not consume a retake.
 - Source-photo cards use the capture's full aspect ratio rather than cropping it into a decorative review card. Cropping happens only inside the visible final-layout slots, where the operator can inspect it directly.
-- Custom alignment stores one transform for the imported artwork, one photo-frame transform per capture, and one image-crop transform per capture. Each records position, independent width/height scaling, rotation, and a lock flag. The operator manipulates these objects directly on the preview; editor guides never appear in the output.
+- Custom alignment stores one transform for the imported artwork, one photo-frame transform per capture, and one image-crop transform per capture. Each records position, scale, rotation, and a lock flag. Frame holders may store independent width/height crop geometry, while image-crop scale is normalized to one proportional value so the photograph cannot be stretched. The operator manipulates these objects directly on the preview; editor guides never appear in the output.
 - Before capture, changing the product/layout recalculates the required count automatically.
 - After capture, changing to a layout with the same count may reuse the accepted captures. A layout requiring a different count needs an explicit staff/customer confirmation and controlled recapture/restart flow; it can never discard paid-session work silently.
 - Once the result is finally approved, further changes require staff recovery.

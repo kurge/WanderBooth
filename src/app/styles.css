@@ -1899,7 +1899,7 @@ p {
   width: clamp(11px, 3vw, 18px);
   aspect-ratio: 1;
   border: 2px solid var(--blue);
-  border-radius: 4px;
+  border-radius: 50%;
   background: white;
   box-shadow: 0 2px 7px rgba(41, 9, 66, 0.32);
   pointer-events: auto;
@@ -1933,6 +1933,10 @@ p {
 .layout-composer__handle--n {
   top: 4px;
   left: 50%;
+  width: clamp(18px, 5vw, 30px);
+  height: clamp(7px, 1.8vw, 10px);
+  aspect-ratio: auto;
+  border-radius: 999px;
   cursor: ns-resize;
   transform: translateX(-50%);
 }
@@ -1940,6 +1944,10 @@ p {
 .layout-composer__handle--e {
   top: 50%;
   right: 4px;
+  width: clamp(7px, 1.8vw, 10px);
+  height: clamp(18px, 5vw, 30px);
+  aspect-ratio: auto;
+  border-radius: 999px;
   cursor: ew-resize;
   transform: translateY(-50%);
 }
@@ -1947,6 +1955,10 @@ p {
 .layout-composer__handle--s {
   bottom: 4px;
   left: 50%;
+  width: clamp(18px, 5vw, 30px);
+  height: clamp(7px, 1.8vw, 10px);
+  aspect-ratio: auto;
+  border-radius: 999px;
   cursor: ns-resize;
   transform: translateX(-50%);
 }
@@ -1954,6 +1966,10 @@ p {
 .layout-composer__handle--w {
   top: 50%;
   left: 4px;
+  width: clamp(7px, 1.8vw, 10px);
+  height: clamp(18px, 5vw, 30px);
+  aspect-ratio: auto;
+  border-radius: 999px;
   cursor: ew-resize;
   transform: translateY(-50%);
 }

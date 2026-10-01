@@ -12,6 +12,7 @@ import {
   getLayout,
   getOverlay,
   normalizeMediaTransform,
+  normalizePhotoTransform,
 } from "../shared/catalog.js";
 import type { ClientMessage, ServerMessage } from "../shared/protocol.js";
 import {
@@ -47,7 +48,7 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 8,
+      schemaVersion: 9,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
@@ -62,7 +63,7 @@ let state: BoothState = savedState
       })),
       photoTransforms: (savedState.photoTransforms ?? []).map(({ slot, ...transform }) => ({
         slot,
-        ...normalizeMediaTransform(transform),
+        ...normalizePhotoTransform(transform),
       })),
     }
   : defaultState;

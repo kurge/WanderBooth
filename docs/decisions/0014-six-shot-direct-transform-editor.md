@@ -1,6 +1,6 @@
 # ADR 0014: Use six unique strip shots and full direct object transforms
 
-**Status:** Accepted
+**Status:** Accepted; resizing semantics partially superseded by [ADR 0015](0015-proportional-resizing-with-non-distorting-crop-frames.md)
 
 **Date:** 2026-10-02
 
@@ -42,7 +42,7 @@ MediaTransform
 ```
 
 - Dragging the object moves it.
-- Edge handles change one dimension; corner handles change both dimensions.
+- Edge handles change one dimension; corner handles change both dimensions. ADR 0015 further requires corner handles to preserve the current ratio and treats holder edge changes as crop-boundary changes rather than photo stretching.
 - The round handle rotates the selected object.
 - Crop image mode exposes the image's own handles instead of a zoom slider.
 - Lock removes manipulation handles and prevents accidental pointer edits until the operator chooses Unlock.
@@ -64,7 +64,7 @@ Captured and waiting cards use the same 16:9 box. Captures use `object-fit: cont
 
 - A Double strip session takes longer because it has six countdowns and captures, but produces two different strips as intended.
 - Operators can match irregular imported openings without returning to the artwork source for small placement corrections.
-- Independent scaling can distort an image; the operator sees the exact result before approval and can reset the selected target.
+- ADR 0015 prevents independent image-content scaling from distorting a capture. Only holder bounds and artwork retain independent X/Y geometry.
 - Rotation can expose neutral canvas at the corners of a photo frame. The final-layout preview makes this visible.
 - Deleting an imported frame is intentionally destructive inside WanderBooth and cannot be undone.
 

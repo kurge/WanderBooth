@@ -2,7 +2,7 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.6.0
+**Version:** 0.6.1
 
 **Updated:** 2026-10-02
 
@@ -75,15 +75,15 @@ The review screen places the final composed layout beside the full uncropped cap
 
 1. click or tap a photo to select its frame;
 2. drag the selected frame directly to move the complete masked photo area;
-3. pull an edge or corner handle to shrink or expand its width and height to match the imported opening;
+3. pull a corner handle to scale the selected frame proportionally, or pull a middle edge handle to reshape only that edge of the photo holder to match the imported opening;
 4. double-click the photo, or choose **Crop image** on a touchscreen, to edit the captured image inside the frame;
-5. drag in Crop image mode to reposition the image and use its edge/corner handles to resize it directly;
+5. drag in Crop image mode to reposition the image and use its corner handles to scale it proportionally;
 6. drag the round rotation handle to rotate the selected artwork, photo frame, or image;
 7. choose **Artwork** or click outside the photo openings to select and manipulate the imported design;
 8. choose **Lock** to protect a finished object from accidental movement, then **Unlock** when it needs another change; and
 9. use **Reset** to return only the selected, unlocked object to its centered 100% position.
 
-Moving the artwork adjusts the imported design. Moving, resizing, or rotating a photo frame changes the complete clipped photo area behind that artwork, while Crop image mode changes only the capture inside the area. The Double strip uses six independent photos and transforms rather than matching repeated copies. Selection outlines, labels, handles, and lock indicators are editor guides only and never appear in the exported file. The transparent artwork remains above the photos in both preview and export. Position, width, height, rotation, and lock state are stored in the Host session and the final renderer reuses the visual transforms, so the preview is not a cosmetic-only adjustment.
+Moving the artwork adjusts the imported design. Moving, resizing, or rotating a photo frame changes the complete clipped photo area behind that artwork, while Crop image mode changes only the capture inside the area. Corner handles always preserve the selected object's current ratio. The holder's pill-shaped middle handles can change one edge independently, but the photo is cover-fitted into the new crop area and is never stretched. The Double strip uses six independent photos and transforms rather than matching repeated copies. Selection outlines, labels, handles, and lock indicators are editor guides only and never appear in the exported file. The transparent artwork remains above the photos in both preview and export. Position, holder width/height, proportional photo scale, rotation, and lock state are stored in the Host session and the final renderer reuses the visual transforms, so the preview is not a cosmetic-only adjustment.
 
 The operator can delete any imported frame from its custom-frame card or review thumbnail. WanderBooth asks for confirmation, then removes the catalog record plus its local normalized and preview artwork files. Deletion cannot be undone; the original source file outside WanderBooth is not changed.
 

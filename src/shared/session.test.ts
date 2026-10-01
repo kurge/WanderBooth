@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { type CustomOverlay, normalizeMediaTransform, products } from "./catalog";
+import {
+  type CustomOverlay,
+  normalizeMediaTransform,
+  normalizePhotoTransform,
+  products,
+} from "./catalog";
 import { type BoothState, CommandError, initialBoothState, reduceCommand } from "./session";
 
 const customOverlay: CustomOverlay = {
@@ -39,6 +44,26 @@ describe("WanderBooth session rules", () => {
       offsetY: -0.2,
       scaleX: 1.4,
       scaleY: 1.4,
+      rotation: 0,
+      locked: false,
+    });
+  });
+
+  it("normalizes image-crop scaling so photos cannot be stretched", () => {
+    expect(
+      normalizePhotoTransform({
+        offsetX: 0,
+        offsetY: 0,
+        scaleX: 1.2,
+        scaleY: 1.7,
+        rotation: 0,
+        locked: false,
+      }),
+    ).toEqual({
+      offsetX: 0,
+      offsetY: 0,
+      scaleX: 1.7,
+      scaleY: 1.7,
       rotation: 0,
       locked: false,
     });

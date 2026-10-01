@@ -25,6 +25,30 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.4.1 — 2026-10-02
+
+### Changed
+
+- Changed all corner handles to proportional scaling: dragging one corner changes width and height together while anchoring the opposite corner.
+- Changed middle edge handles to reshape only the selected edge of a photo holder. The holder becomes a larger or smaller crop window while the photograph keeps its natural proportions.
+- Limited image-crop targets to proportional corner handles, in addition to direct movement and rotation, so captured photos cannot be stretched accidentally.
+- Changed the full-resolution renderer to rebuild each photograph with aspect-preserving `cover` fitting inside the resized holder instead of stretching the rendered photo layer.
+- Changed middle edge controls to Canva-style pill handles so their one-axis behavior is visually distinct from proportional corner controls.
+
+### Added
+
+- Added schema-version-9 normalization that converts previously unequal image-crop scales to one safe uniform scale while preserving independent width/height holder geometry.
+- Added ADR 0015 documenting proportional corner behavior and the separation between holder bounds and photo-content scaling.
+
+### Verified
+
+- Added direct-transform tests covering proportional corner scaling, reshaped-holder ratio preservation, one-edge resizing, and non-distorting image-crop normalization.
+- Confirmed all 30 automated tests, formatting, type checks, Host build, and customer-app build pass.
+- Confirmed a six-capture smoke session still produces six branded individual files, the Double strip 4×6 composite, and the slideshow.
+- Visually verified a 150% × 70% photo holder in the browser and full-resolution export: its bounds reshape while the camera text and artwork retain their proportions.
+- Verified Crop image mode exposes only proportional corner handles and normalizes a submitted 110% × 160% image transform to 160% × 160%.
+- Built and validated the unsigned Apple-silicon `WanderBooth-0.9.1-arm64.dmg` installation image.
+
 ## 1.4.0 — 2026-10-02
 
 ### Changed

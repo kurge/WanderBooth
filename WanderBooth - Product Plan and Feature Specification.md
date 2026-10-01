@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.4.0
+document_version: 1.4.1
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -105,7 +105,7 @@ The business should be able to keep serving customers during internet interrupti
 - The owner or attendant can import event-frame artwork from the Mac operator screen after selecting a layout. New imports use a transparent PNG whose photo openings are prepared before import; the artwork is always layered above the photos. Previously imported flat templates remain readable for backward compatibility, but automatic cutout creation is no longer part of the normal operator flow.
 - Imported frames are stored locally, persist across application restarts, are limited to their selected layout, and are not added to the public repository.
 - The operator can delete an imported frame after a destructive-action confirmation; WanderBooth removes its private normalized source and preview files without changing the owner's original artwork file.
-- During review, the finished composed layout is shown beside uncropped source captures in consistently sized 16:9 cards. Only the owner or attendant can use the direct canvas: click the imported artwork or a photo frame, drag it in place, resize width and height with edge/corner handles, rotate it directly, lock it, or enter Crop image mode to manipulate the capture inside its frame. There is no zoom slider. Those adjustments are stored and applied to the final render.
+- During review, the finished composed layout is shown beside uncropped source captures in consistently sized 16:9 cards. Only the owner or attendant can use the direct canvas: click the imported artwork or a photo frame, drag it in place, resize proportionally from a corner, reshape one holder edge from its middle handle, rotate it directly, lock it, or enter Crop image mode to reposition and proportionally scale the capture inside its frame. Reshaping the holder changes the crop window without stretching the photograph. There is no zoom slider. Those adjustments are stored and applied to the final render.
 - One tap starts the complete layout-defined sequence of three, four, or six photos, with a **three-second countdown before each photo**.
 - The customer preview is mirrored for natural posing, while saved and delivered photos are not mirrored.
 - The first pilot will include approximately **5–10 layouts/designs**.
@@ -153,7 +153,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - The renderer now reads data-driven canvas, slot, shape, branding-area, frame, and overlay definitions instead of one hard-coded strip.
 - Synthetic rendering checks passed for the six-shot 4×6 double strip with film overlay and the four-photo heart layout with heart overlay.
 - The operator imports a transparent PNG whose photo openings have already been prepared. The Host validates, normalizes, stores, and registers the frame locally; the old flat-template format remains renderable for previously imported records.
-- Fixed colored and imported custom frames use separate selection modes. The review screen previews the actual composition, keeps captured and waiting cards the same size without cropping source images, and gives staff a Canva-style direct canvas for moving, independently resizing, rotating, and locking artwork, photo frames, and the images inside them. Imported frames can also be deleted from local storage after confirmation. The final renderer reuses the exact stored values.
+- Fixed colored and imported custom frames use separate selection modes. The review screen previews the actual composition, keeps captured and waiting cards the same size without cropping source images, and gives staff a Canva-style direct canvas for moving, proportionally scaling, rotating, and locking artwork, photo frames, and the images inside them. Middle holder handles can change width or height independently to match an opening, but this changes the crop boundary instead of distorting the capture. Imported frames can also be deleted from local storage after confirmation. The final renderer reuses the exact stored values.
 - The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
@@ -347,7 +347,7 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - Menu of compatible 2×6 and 4×6 portrait/landscape layouts
 - Mutually exclusive fixed-color and imported-custom frame modes, with compatible built-in decorations available only for fixed colors
 - Final composed-layout review beside full-aspect, uncropped source captures
-- Staff-only direct canvas for selecting, dragging, edge/corner resizing, rotating, locking, and resetting custom-frame artwork and each photo frame, plus a crop mode for direct manipulation of the image inside it
+- Staff-only direct canvas for selecting, dragging, proportional corner resizing, one-axis middle-edge holder reshaping, rotating, locking, and resetting custom-frame artwork and each photo frame, plus a non-distorting crop mode for direct manipulation of the image inside it
 - Operator-confirmed deletion of imported templates and their private local copies
 - Six-shot Double strip layout with Photos 1–3 on the left and Photos 4–6 on the right of one 4×6 sheet
 - Rectangle, rounded-rectangle, and heart-shaped photo slots
@@ -974,6 +974,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.4.1 | 2026-10-02 | Made corner resizing proportional, changed middle edge handles into one-axis crop-frame controls, prevented image stretching in preview and export, and added schema-version-9 photo-transform normalization. |
 | 1.4.0 | 2026-10-02 | Changed Double strip 4×6 to six unique captures, replaced slider scaling with direct edge/corner resizing and rotation, added persistent object locks and imported-template deletion, and normalized captured/waiting review-card sizes. |
 | 1.3.0 | 2026-10-02 | Replaced the target-button alignment panel with a Canva-style direct composition canvas: click/tap to select, drag to move, resize from corner handles, and enter Crop image mode to position a capture inside its frame. |
 | 1.2.0 | 2026-10-02 | Split each custom-frame photo into an independently movable/scalable holder and image crop, kept transparent artwork above all photos, made transparent PNG the standard import path, and removed stretched whitespace from captured-photo previews. |

@@ -6,6 +6,7 @@ import {
   getProduct,
   identityMediaTransform,
   type MediaTransform,
+  normalizePhotoTransform,
   overlaySupportsLayout,
 } from "./catalog.js";
 
@@ -53,7 +54,7 @@ export type PhotoTransform = MediaTransform & { slot: number };
 export type HolderTransform = MediaTransform & { slot: number };
 
 export type BoothState = {
-  schemaVersion: 8;
+  schemaVersion: 9;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -115,7 +116,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 8,
+  schemaVersion: 9,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -371,7 +372,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
           { slot: command.slot, ...command.transform },
         ].sort((a, b) => a.slot - b.slot),
       });
-    case "UPDATE_PHOTO_TRANSFORM":
+    case "UPDATE_PHOTO_TRANSFORM": {
       requirePhase(state, ["reviewing"]);
       if (
         state.frameMode !== "custom" ||
@@ -383,12 +384,14 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         throw new CommandError("Choose an existing photo to reposition.");
       }
       assertMediaTransform(command.transform);
+      const photoTransform = normalizePhotoTransform(command.transform);
       return revised(state, {
         photoTransforms: [
           ...state.photoTransforms.filter((item) => item.slot !== command.slot),
-          { slot: command.slot, ...command.transform },
+          { slot: command.slot, ...photoTransform },
         ].sort((a, b) => a.slot - b.slot),
       });
+    }
     case "RECORD_CONSENT":
       requirePhase(state, ["selecting"]);
       return revised(state, { consentRecorded: true });

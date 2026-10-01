@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 0.2.0
+document_version: 0.3.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -19,7 +19,7 @@ owner: Kurge
 # WanderBooth — Product Plan and Feature Specification
 
 > [!summary] The short version
-> WanderBooth will be an offline-first photo booth system for our own business. A Windows PC or laptop will act as the **WanderBooth Host**, controlling the camera, image processing, local storage, and Epson printer. An iPad will provide the customer-facing touchscreen over the booth's private local network. The first pilot will sell both branded digital photos and physical prints, use attendant-confirmed cash payments, and give the customer a private QR code after the session. Products, prices, designs, sessions, and sales will initially be managed locally. A remote web dashboard, electronic payments, and native mobile app can be added later.
+> WanderBooth will be an offline-first photo booth system for our own business. A Windows 11 or macOS Sequoia desktop or laptop will act as the **WanderBooth Host**, controlling the camera, image processing, local storage, cloud delivery, and Epson printer. An iPad Pro will provide the customer-facing touchscreen over the booth's local network. The first pilot will sell both branded digital photos and physical prints, use attendant-confirmed cash payments, and give the customer a private 30-day cloud QR link after the session. For a three-photo strip, that link will offer the branded strip, three branded individual photos, and a short looping slideshow video. Products, prices, designs, sessions, and sales will initially be managed locally. A full remote dashboard, electronic payments, and native mobile app can be added later.
 
 ## 1. Document purpose
 
@@ -53,11 +53,11 @@ The business should be able to keep serving customers during internet interrupti
 
 ### Product principles
 
-1. **Offline first:** internet loss must not destroy or block a completed photo session.
-2. **QR delivery first:** the simplest delivery method is scanning a QR code after the session.
+1. **Offline first:** internet loss must not block capture, local saving, or printing, and pending cloud delivery must recover automatically.
+2. **QR delivery first:** the simplest delivery method is scanning a cloud-backed QR code after the session.
 3. **Reliability before novelty:** a successful capture and delivery matters more than AI effects or 360 video.
 4. **Local ownership:** original photos and business data are stored locally first, then synchronized when appropriate.
-5. **One platform first:** support Windows well before attempting every operating system.
+5. **Shared desktop core:** target Windows 11 and macOS Sequoia, while certifying one exact pilot computer before broad hardware support.
 6. **Understandable operations:** error messages, logs, and controls must be readable by a booth attendant who is not a developer.
 7. **Privacy by default:** customer photos are private, access links are difficult to guess, and files are automatically removed according to a documented retention policy.
 
@@ -68,44 +68,51 @@ The business should be able to keep serving customers during internet interrupti
 - The product name is **WanderBooth**.
 - WanderBooth is initially for our own business.
 - The application must be offline-first.
-- A Windows PC or laptop will host the camera, processing, storage, and printing functions.
-- An iPad will be the customer-facing touchscreen for the first booth.
+- The desktop Host will target **Windows 11** and **macOS Sequoia 15.7.5 or later**.
+- An **iPad Pro 12.9-inch (6th generation) running iPadOS 18.2** will be the customer-facing touchscreen for the first booth.
 - The first pilot will sell **both branded digital photos and physical prints**.
 - The first pilot will accept **cash only**, confirmed by a booth attendant.
+- Cash must be collected and confirmed **before capture**.
 - WanderBooth should support both attended and eventually unattended operation, but the cash-only pilot requires an attendant.
 - Customers can choose their product, print layout, and design; the attendant can assist or make the selection for them.
 - A customer must be able to retrieve the finished photo through a QR code after the session.
 - QR access will expire after **30 days**.
+- The QR link must work away from the booth for the full 30 days, using private cloud delivery.
+- Guests do not need to join WanderBooth Wi-Fi; they may use mobile data or any internet connection.
 - Local customer-photo backups will be kept for **30 days**.
 - The customer receives the **final branded photo only**, not the original capture.
+- A three-photo strip session will provide three separately downloadable branded photos, the final branded strip, and a looping slideshow video with each photo shown for approximately 1.5 seconds.
+- Customers receive up to **two retakes**.
+- Initial print formats are **4×6** and **2×6 photo strips**.
+- The first pilot will include approximately **5–10 layouts/designs**.
 - Available camera hardware: **Canon EOS 60D** and **Fujifilm X-M5**.
 - The first printer is an **Epson EcoTank L8050**.
 - A remote web dashboard is useful but is not required for the first release.
 - Product development must be carefully documented and version-controlled.
 - Documentation must remain understandable to a non-developer.
 - The public source repository is **[kurge/WanderBooth](https://github.com/kurge/WanderBooth)**.
+- The public repository remains under default copyright for now; an open-source license may be selected later.
 
 See [WanderBooth Hardware Baseline](docs/HARDWARE.md) for manufacturer compatibility evidence, risks, and the Phase 0 test matrix.
 
 ### Proposed decisions awaiting confirmation
 
-- Version 1 will target **Windows 11** first.
-- The Windows computer will run an installable **WanderBooth Host** application and serve the touch-friendly booth interface to the iPad over the local network.
-- The Fujifilm X-M5 and Canon EOS 60D will both be tested before selecting the first supported camera. The X-M5 is the leading modern candidate, but direct programmatic shutter control must be proven.
+- The exact first-pilot Host computer and its operating system, processor, memory, and storage still need to be selected.
+- The Host will be an installable desktop application and will serve the touch-friendly booth interface to the iPad over a shared local connection.
+- The **Fujifilm X-M5 is the recommended first camera** because it is the newer tether-capable option. This recommendation requires owner confirmation and a time-boxed control prototype; the Canon EOS 60D remains a fallback.
 - Essential administration—products, prices, sessions, settings, and local sales—will be inside a PIN-protected owner area.
-- A dedicated travel router will provide the booth's local network for reliable offline QR delivery.
-- Cash will normally be confirmed by an attendant before capture begins.
+- The Host and iPad may share venue Wi-Fi or a personal/mobile hotspot. A dedicated router is optional unless field testing shows it is needed for reliability.
 
-### Why the first release uses a Host and iPad client
+### Why the first release uses a desktop Host and iPad client
 
 A normal website running only on an iPad has limited control over desktop printer drivers, tethered cameras, automatic startup, silent printing, USB-device recovery, and local files.
 
 WanderBooth therefore separates the system into two cooperating parts:
 
-1. **WanderBooth Host on Windows:** controls the camera and Epson printer, processes photos, stores sessions, and serves the local application.
+1. **WanderBooth Host on Windows or macOS:** controls the camera and Epson printer, processes photos, stores sessions, uploads deliverables, and serves the local application.
 2. **WanderBooth Touch on iPad:** shows the customer interface in a full-screen local web app and sends actions to the Host.
 
-This provides the touch experience we want without forcing the iPad to control Windows hardware. It also gives us a path to package the same interface as a native iPad application later if needed.
+This provides the touch experience we want without forcing the iPad to control desktop hardware. It also gives us a path to package the same interface as a native iPad application later if needed.
 
 ## 4. Users
 
@@ -138,7 +145,7 @@ Attendant confirms cash received
      ↓
 Live preview and countdown
      ↓
-Capture photo(s)
+Capture photo(s), with up to two retakes
      ↓
 Review and limited retake
      ↓
@@ -146,7 +153,7 @@ Create final branded photo
      ↓
 Print, if purchased
      ↓
-Display private download QR code
+Upload deliverables and display private cloud QR code
      ↓
 Customer saves photo
      ↓
@@ -168,68 +175,57 @@ IDLE
   → REVIEWING
   → PROCESSING
   → PRINT_QUEUED (when applicable)
+  → UPLOAD_QUEUED
+  → UPLOADING
   → READY_TO_DOWNLOAD
   → FULFILLED
   → RESET
 ```
 
-Every state must also have a clear failure path, such as `CASH_CANCELLED`, `CAMERA_FAILED`, `PRINT_FAILED`, `REFUND_REQUIRED`, or `RECOVERY_REQUIRED`. Electronic-payment states will be added only when online payments enter scope.
+Every state must also have a clear failure path, such as `CASH_CANCELLED`, `CAMERA_FAILED`, `PRINT_FAILED`, `UPLOAD_PENDING`, `REFUND_REQUIRED`, or `RECOVERY_REQUIRED`. An upload outage must not prevent local printing or erase a session. Electronic-payment states will be added only when online payments enter scope.
 
-## 6. Offline QR photo delivery
+## 6. Cloud QR photo delivery with offline recovery
 
 This is a defining WanderBooth feature.
 
 ### Customer experience
 
-1. WanderBooth finishes and safely saves the customer's photo.
-2. The completion screen displays a QR code.
-3. The customer scans the QR code with their phone camera.
-4. A simple mobile page opens with the photo and a **Download photo** button.
-5. The customer saves the photo; no WanderBooth account or mobile application is required.
+1. WanderBooth finishes processing and safely saves the session locally.
+2. For a three-photo vertical strip, WanderBooth creates:
+   - three individually downloadable branded photos;
+   - the final branded composite strip; and
+   - a short H.264 MP4 slideshow that shows each photo for approximately 1.5 seconds and loops in the web page.
+3. The Host uploads those deliverables to private cloud storage.
+4. Only after the upload is confirmed, the completion screen displays a QR code for a private HTTPS page.
+5. The customer scans the code using any internet connection; they do not join WanderBooth Wi-Fi.
+6. The mobile page previews the strip, individual photos, and slideshow, with clear download buttons.
+7. The link and cloud media expire 30 days after the session. No account or app installation is required.
 
-### When internet is available
+### Delivery and security requirements
 
-The application can upload the finished photo to secure cloud storage and display an HTTPS download link. The link should:
-
-- contain an unguessable random token;
-- display only that session's final deliverable;
-- expire automatically;
-- avoid exposing other customers' sessions; and
-- permit download without collecting unnecessary personal information.
-
-For the first release, online and offline QR access both expire 30 days after the session.
-
-An important limitation remains: a purely local QR link works only while the customer is connected to the WanderBooth network and the Host is running. A link that works from anywhere for the full 30 days requires a small cloud upload/download service, even though the full owner dashboard can remain deferred. Whether that remote 30-day access is required for the first pilot is still an owner decision.
-
-### When internet is not available
-
-The booth creates its own local network using a dedicated router. WanderBooth runs a small local download server on the booth computer.
-
-The customer completes a two-step process:
-
-1. Scan a Wi-Fi QR code to join the WanderBooth guest network.
-2. Scan the session QR code to open the private photo-download page hosted by the booth computer.
-
-If the phone is already connected to the WanderBooth network, only the session QR code is needed.
-
-### Offline delivery requirements
-
-- The final image must exist locally before a QR code is shown.
-- Each session receives a cryptographically random download token.
-- Guessing one token must not reveal another session.
-- The download page must work on modern iPhone and Android browsers.
-- The page must clearly explain how to join the booth network when the phone is offline.
+- Each session receives a cryptographically random, unguessable share token.
+- Guessing or changing one token must not reveal another session.
+- The mobile page must work on current iPhone and Android browsers.
+- The page may show only the branded deliverables for that session; raw camera originals are never uploaded or exposed.
 - Access must expire automatically 30 days after the session.
-- The attendant must be able to revoke a session link.
-- The local server must start automatically with WanderBooth.
-- Router client isolation must be disabled so guest phones can reach the kiosk.
-- The Windows firewall rule and local server port must be configured during installation.
-- When internet returns, eligible sessions can upload in the background without blocking the current customer.
-- Only the final branded deliverable is exposed; original camera files are never included on the customer page.
+- The attendant must be able to revoke or re-display a session link.
+- Files remain private in object storage and are served through controlled or short-lived access URLs.
+- Cloud cleanup and local 30-day cleanup must be independently logged and retry safely.
+- Downloading should not require a name, phone number, email address, or customer account.
 
-### Future improvement
+### What happens when internet is unavailable
 
-A later version can use a captive portal so that joining the WanderBooth Wi-Fi automatically opens a page where the customer enters or scans their session code. This should not delay the first pilot.
+Offline-first does not mean the phone downloads from the booth. It means the paid session can still be captured, processed, saved, and printed safely while cloud delivery waits.
+
+- The Host saves the finished files and delivery manifest locally before attempting an upload.
+- A persistent upload queue retries automatically when connectivity returns, including after an application restart.
+- A stable share token and URL may be reserved before upload, but the application must label it **Cloud delivery pending** until every required file is confirmed online.
+- If a stable pending link is shown, its page must safely display a not-ready message and become available after the upload completes. Otherwise, the attendant re-displays the QR code once the upload succeeds.
+- The booth must show a clear connection/upload status before the customer leaves.
+- Printing and the next session must not be blocked by a queued upload, subject to local capacity limits.
+- The Host needs venue internet, a phone hotspot, or another data connection for guest delivery. A dedicated travel router is not required for the first pilot.
+
+The iPad still needs a local connection to the Host for booth controls. This may use the same venue Wi-Fi or mobile hotspot, but it is separate from the guest's cloud-download path.
 
 ## 7. Feature priorities
 
@@ -248,13 +244,16 @@ A later version can use a captive portal so that joining the WanderBooth Wi-Fi a
 - Live camera preview
 - Configurable countdown
 - Single-photo session
-- Configurable multi-photo session for photo strips
+- Three-photo vertical-strip session, with other configurable layouts
 - Photo review
-- One configurable retake
+- Up to two retakes
 - Processing screen
 - Final photo preview
-- Offline QR photo delivery
-- Online QR delivery when internet is available
+- Cloud QR delivery that works away from the booth for 30 days
+- Three separate branded-photo downloads for a three-photo session
+- Final composite-strip download
+- Looping slideshow preview and MP4 download at approximately 1.5 seconds per photo
+- Clear pending-delivery state and automatic upload retry during an outage
 - Automatic timeout and safe reset
 - English interface; additional languages can follow
 
@@ -268,6 +267,7 @@ A later version can use a captive portal so that joining the WanderBooth Wi-Fi a
 - Decide which layouts and designs customers may choose
 - Configure countdown and retake rules
 - Configure QR-access expiration
+- View upload status and retry a failed cloud delivery
 - Browse completed sessions
 - Reopen the latest session
 - Re-display a session QR code
@@ -287,7 +287,10 @@ A later version can use a captive portal so that joining the WanderBooth Wi-Fi a
 - Crop, rotate, and resize without distorting the image
 - Apply a branded frame or overlay
 - Generate full-resolution and phone-friendly versions
-- Generate the agreed Epson L8050 print layouts; initial paper sizes remain to be confirmed
+- Generate individually downloadable branded photos
+- Generate an H.264 MP4 slideshow for multi-photo sessions
+- Generate Epson L8050 layouts for 4×6 prints and 2×6 strips
+- Ship with approximately 5–10 selectable initial layouts/designs
 - Store every session in a predictable local folder structure
 
 #### Local data and recovery
@@ -296,8 +299,8 @@ A later version can use a captive portal so that joining the WanderBooth Wi-Fi a
 - Unique session and order identifiers
 - Persistent state after application restart
 - No lost completed photo after a crash
-- Automatic startup with Windows
-- Kiosk lock so customers cannot exit into Windows
+- Automatic startup with Windows or macOS
+- Kiosk lock so customers cannot exit into the desktop operating system
 - Storage-capacity warning
 - Automatic retention cleanup with an audit record
 - Daily local backup to a separately configured location
@@ -316,7 +319,7 @@ A later version can use a captive portal so that joining the WanderBooth Wi-Fi a
 
 #### Printing for the first pilot
 
-- Support the Epson EcoTank L8050 through its Windows printer driver
+- Support the Epson EcoTank L8050 through the operating system's official Epson printer driver
 - Test print
 - Automatic print after fulfillment
 - Persistent print queue
@@ -340,7 +343,7 @@ A later version can use a captive portal so that joining the WanderBooth Wi-Fi a
 - Email or SMS receipt
 - Staff accounts and roles
 - Remote support connection
-- Cloud backup and synchronization
+- Broader cloud backup and synchronization beyond the P0 QR-delivery service
 - Owner web dashboard
 - Remote product and price updates
 - Device heartbeat and alerts
@@ -367,7 +370,8 @@ A later version can use a captive portal so that joining the WanderBooth Wi-Fi a
 ### Explicit non-goals for version 1
 
 - Supporting every camera and printer
-- Shipping Windows, macOS, iOS, and Android together
+- Building native iOS or Android booth applications; the iPad uses a web client
+- Certifying every Windows and Mac computer even though the shared Host is designed for both operating systems
 - Building the remote dashboard before the local booth works reliably
 - AI photo generation
 - Public social galleries
@@ -390,7 +394,7 @@ A later version can use a captive portal so that joining the WanderBooth Wi-Fi a
 10. Review and retake
 11. Processing
 12. Print status
-13. QR download
+13. Upload status and QR download
 14. Thank you/reset
 
 ### Attendant screens
@@ -419,7 +423,18 @@ A later version can use a captive portal so that joining the WanderBooth Wi-Fi a
 
 This architecture is a proposal, not a final commitment. Hardware decisions may change it.
 
-### WanderBooth Host on Windows
+```mermaid
+flowchart LR
+    I["iPad Touch"] <-->|"local Wi-Fi or hotspot"| H["Desktop Host<br/>Windows or macOS"]
+    C["Camera"] <--> H
+    H --> P["Epson L8050"]
+    H -->|"queued internet upload"| D["Private cloud delivery"]
+    G["Guest phone"] -->|"30-day HTTPS QR link"| D
+```
+
+The camera, printer, session database, and original files stay under Host control. Only approved branded deliverables are uploaded. The guest phone talks to the cloud—not to the booth computer.
+
+### WanderBooth Host on Windows and macOS
 
 - **Shared interface:** React and TypeScript
 - **Desktop shell and hardware host:** Electron
@@ -427,17 +442,18 @@ This architecture is a proposal, not a final commitment. Hardware decisions may 
 - **Local database:** SQLite
 - **Photo processing:** Sharp, with a controlled template renderer
 - **QR generation:** a maintained QR-code library
-- **Local web and download server:** a small HTTP server bound to the booth's private network
+- **Local web server:** a small HTTP server for the iPad interface, bound only to the booth's trusted local connection
 - **Live communication:** WebSocket connection between the Host and iPad
 - **Camera adapter:** one replaceable module for each supported camera workflow
-- **Print adapter:** Windows print integration configured for the Epson L8050
-- **Packaging:** signed Windows installer with automatic update support added after the pilot
+- **Cloud delivery client:** persistent upload queue, retry logic, and delivery-status tracking
+- **Print adapter:** operating-system-specific print integration configured for the Epson L8050
+- **Packaging:** Windows installer and notarized macOS application; automatic update support follows the pilot
 
-The Host can also display owner and diagnostic screens directly on the Windows computer.
+The Host can also display owner and diagnostic screens directly on the desktop computer. Hardware code must sit behind adapters because camera discovery, permissions, printing, startup, and file locations differ between Windows and macOS.
 
 ### WanderBooth Touch on iPad
 
-- The Host serves the customer interface over the local network.
+- The Host serves the customer interface over a shared local Wi-Fi or hotspot connection.
 - The iPad opens the interface in Safari or as an installed Progressive Web App.
 - iPad Guided Access keeps the customer inside WanderBooth.
 - Customer taps send commands to the Host; the Host remains responsible for camera capture and printing.
@@ -446,25 +462,34 @@ The Host can also display owner and diagnostic screens directly on the Windows c
 ### Why Electron plus a local web client is proposed
 
 - It uses web development skills while producing an installable desktop application.
-- It supports Windows automatic startup and access to local hardware.
-- It can run the local QR download server.
+- It supports desktop automatic startup and access to local hardware.
+- It supports one shared codebase for Windows and macOS while allowing OS-specific hardware adapters.
 - It can access local files and SQLite.
 - It provides more printing control than a normal browser.
-- It lets the iPad act as a dedicated touch controller without trying to install Windows printer or camera drivers on it.
+- It lets the iPad act as a dedicated touch controller without trying to install desktop printer or camera drivers on it.
 - A large ecosystem makes the initial application easier to maintain than a custom native application.
 
 The trade-off is a larger installation size and higher memory usage. For a dedicated booth laptop or PC, that is acceptable if reliability tests pass.
 
+### Minimal P0 cloud delivery service
+
+The full management dashboard remains deferred, but remote 30-day QR access requires a deliberately small cloud service in P0:
+
+- an authenticated upload API used only by registered booth Hosts;
+- private S3-compatible object storage for branded deliverables;
+- a small database recording share-token hash, session metadata, upload state, and expiry;
+- a public, mobile-friendly download page addressed by an unguessable token;
+- scheduled deletion after 30 days, with safe retries and audit records; and
+- rate limiting, basic monitoring, and a way for an attendant to revoke access.
+
+The cloud service must never become a dependency for capture, local saving, processing, or printing. A connectivity outage delays only remote delivery.
+
 ### Later cloud components
 
-- Web dashboard built with React/Next.js
-- API service
-- PostgreSQL database
-- S3-compatible private media storage
-- Expiring signed download links
-- Device heartbeat and remote settings synchronization
-
-The cloud design must not become a dependency for local capture, local saving, or offline QR delivery.
+- Owner web dashboard built with React/Next.js
+- PostgreSQL-based business reporting and synchronization
+- Device heartbeat, remote settings, and support tools
+- Broader cloud backup beyond customer delivery files
 
 Architecture decisions are recorded in [docs/decisions](docs/decisions/).
 
@@ -482,6 +507,7 @@ These are the main records the application must understand.
 | Payment | An attendant-confirmed cash payment in version 1; later, a verified electronic payment attempt |
 | Print job | A request to send a particular deliverable to a printer |
 | Share token | The private random key used in the QR download link |
+| Upload job | A persistent request to copy a session's approved deliverables to the cloud, with retry and status information |
 | Layout | The arrangement and size of one or more photos on a digital image or printed sheet |
 | Design | The branded frame, colors, graphics, and text applied to a layout |
 | Device | The booth computer and its configuration |
@@ -493,6 +519,7 @@ These are the main records the application must understand.
 - Collect only data needed to complete the session and payment.
 - Do not make one customer's photo visible in another customer's gallery.
 - Keep download tokens unguessable.
+- Keep uploaded media private, expose only approved branded deliverables, and remove cloud media after 30 days.
 - Store future payment-provider secrets outside the user interface and logs.
 - Never store full card information when electronic payments are added.
 - Record consent, deletion, reprint, refund, and administrative actions.
@@ -512,29 +539,31 @@ Before WanderBooth accepts paying customers, it must demonstrate:
 - a median capture-to-delivery time below 45 seconds;
 - a visible, understandable recovery instruction for every expected failure;
 - successful QR downloads on current iPhone and Android devices;
-- successful operation with internet disconnected; and
+- successful cloud upload and QR download over venue internet and mobile data;
+- successful capture, processing, saving, and printing with internet disconnected, followed by automatic upload recovery; and
 - correct automatic deletion after the configured retention period.
 
 ## 13. Development roadmap
 
-### Phase 0 — decisions and hardware experiment
+### Phase 0 — decisions and end-to-end feasibility experiment
 
 **Goal:** remove the riskiest unknowns before building the full interface.
 
 Tasks:
 
-- Confirm the remaining cash-flow details and first products.
-- Confirm Windows version and booth hardware.
-- Compare Canon EOS 60D and Fujifilm X-M5 tethering, live view, trigger control, and transfer speed.
+- Confirm initial products and PHP prices when the business is ready.
+- Choose the first pilot Host operating system and record its exact computer model, processor, memory, and storage.
+- Confirm the Fujifilm X-M5 as the recommended first camera, then test tethering, live view, trigger control, and transfer speed. Use the Canon EOS 60D only as a fallback unless the owner changes the selection.
 - Test Epson L8050 print sizes, margins, speed, quality, paper handling, and failure recovery.
-- Confirm the iPad model and iPadOS version.
-- Select and test a dedicated local router.
+- Test the confirmed iPad Pro 12.9-inch (6th generation) on iPadOS 18.2.
+- Test Host-to-iPad control over the expected venue Wi-Fi or mobile-hotspot setup.
 - Prototype camera capture.
-- Prototype photo processing.
+- Prototype the three individual branded photos, 2×6 composite strip, and looping MP4 slideshow.
 - Prototype the iPad-to-Host control connection.
-- Prototype phone download over the offline booth network.
+- Prototype queued upload to private cloud storage and a 30-day mobile download page.
+- Verify that capture and printing continue with internet disconnected and that the upload completes after reconnection.
 
-Exit condition: an iPad triggers the Host to capture a photo, the Host creates a private local link, and a phone downloads the branded result by QR without internet.
+Exit condition: an iPad triggers the Host to capture three photos, the Host renders all approved deliverables, a phone downloads them from a private cloud QR page, and an interrupted upload resumes safely after reconnection.
 
 ### Phase 1 — offline photo-session prototype
 
@@ -542,19 +571,19 @@ Tasks:
 
 - Create the Host application and iPad web client.
 - Add iPad Guided Access instructions and Host automatic startup.
-- Add attract, preview, countdown, capture, review, processing, and QR screens.
+- Add attract, preview, countdown, capture, two-retake, review, processing, upload-status, and QR screens.
 - Add session folders and SQLite records.
 - Add restart recovery.
 - Add a simple local owner area.
 
-Exit condition: a complete unpaid test session works repeatedly with internet disconnected.
+Exit condition: a complete unpaid test session works repeatedly, local capture remains usable without internet, and queued cloud delivery recovers after reconnection.
 
 ### Phase 2 — products and business workflow
 
 Tasks:
 
 - Add products and local pricing.
-- Add configurable templates and branding.
+- Add the first 5–10 configurable templates and branding assets.
 - Add session history and CSV export.
 - Add retention and cleanup.
 - Add staff PIN and audit records.
@@ -569,7 +598,7 @@ Tasks:
 
 - Add attendant-confirmed cash approval and change calculation.
 - Add fulfillment and refund states.
-- Integrate the Epson L8050 through the Windows driver.
+- Integrate the Epson L8050 through the selected pilot operating system's driver.
 - Add print queue, retry, and reprint protection.
 
 Exit condition: one cash-confirmed order reliably produces exactly one purchased digital deliverable and the correct number of prints.
@@ -580,15 +609,15 @@ Tasks:
 
 - Run power-loss, network-loss, camera-loss, and printer-loss tests.
 - Complete 300-session reliability test.
-- Package a signed installer.
+- Package the selected pilot operating system first, then validate the other desktop target.
 - Prepare operator setup and troubleshooting guides.
 - Run a staff-only pilot, then a limited customer pilot.
 - Review metrics and incidents after each pilot.
 
 ### Phase 5 — dashboard and expansion
 
-- Build the remote web dashboard only after the booth is stable.
-- Add remote configuration, cloud storage, support tools, and reporting.
+- Build the full remote web dashboard only after the booth is stable.
+- Expand the existing minimal delivery service with remote configuration, broader cloud backup, support tools, and reporting.
 - Evaluate a mobile booth app after real usage clarifies the need.
 
 ## 14. Version-control and documentation process
@@ -642,7 +671,7 @@ Use semantic versioning:
 Suggested commit language:
 
 ```text
-feat: add offline session download page
+feat: add cloud session download page
 fix: prevent duplicate print fulfillment
 docs: record first-camera decision
 test: cover session recovery after restart
@@ -665,54 +694,52 @@ test: cover session recovery after restart
 
 | Risk | Why it matters | Early response |
 |---|---|---|
-| Guest phone cannot reach the local booth | Offline QR delivery fails | Test a dedicated router and current iPhone/Android devices before full development |
+| Cloud upload or mobile data fails | Customer cannot immediately open the 30-day QR page | Preserve all deliverables locally, queue retries, show an honest pending state, and re-display the QR after recovery |
 | Camera disconnects | Cash-confirmed customer cannot take a photo | Detect readiness before cash confirmation and implement reconnect/recovery |
-| Camera cannot be controlled from our app | The owned camera may tether only through manufacturer software | Run a time-boxed Canon 60D versus Fujifilm X-M5 integration spike and keep a watched-folder fallback |
-| iPad loses its Host connection | Customer interface cannot trigger or observe the session | Dedicated router, visible connection status, automatic reconnect, and safe session recovery |
+| Camera cannot be controlled from our app | The selected camera may tether only through manufacturer software | Run a time-boxed Fujifilm X-M5 integration spike and keep the Canon 60D or a watched-folder workflow as fallback |
+| iPad loses its Host connection | Customer interface cannot trigger or observe the session | Test the actual shared network/hotspot, show connection status, reconnect automatically, and recover the session safely |
 | Printer fails after cash confirmation | Customer paid but receives nothing | Persistent print queue, staff recovery, reprint protection, refund state |
 | Power loss | Session or order may be lost | Persist every state transition in SQLite and save files before moving forward |
 | Repeated tap or staff action | Duplicate order or print | Idempotent commands and unique fulfillment constraints |
 | Storage fills | New sessions fail or old files remain indefinitely | Capacity warnings, retention cleanup, and backups |
-| Supporting too much hardware | Development becomes unpredictable | Certify one camera, printer, computer, and router combination first |
+| Supporting Windows and macOS too early | OS-specific camera and printing work can double the first milestone | Keep shared application code, isolate adapters, and certify one exact pilot computer before validating the second OS |
+| Supporting too much hardware | Development becomes unpredictable | Certify one camera, printer, computer, and network setup first |
 | Privacy mistake | Customer trust and legal exposure | Private tokens, clear notice, minimum collection, and automatic deletion |
 
 ## 16. Remaining Phase 0 questions for the owner
 
-The repository and product baseline now exist. These answers are needed before the first implementation backlog is approved.
+The repository and product baseline now exist. Most workflow decisions are confirmed. These remaining answers can be resolved while the feasibility prototype begins; the first three hardware answers are needed before direct camera integration starts.
 
-### Business and customer flow
+### Hardware
 
-1. Confirm that the attendant should collect and confirm cash **before** the customer starts the session.
-2. How many retakes should a customer receive?
-3. What are the first products, print quantities, and approximate PHP prices?
-4. Which print sizes should the Epson L8050 produce first: 4×6, 2×6 strips printed on 4×6 paper, or something else?
-5. How many layouts and visual designs should customers choose from in the first pilot?
-6. Who will supply the first design assets and branding?
+1. Confirm the **Fujifilm X-M5** as the first camera to integrate, with the Canon EOS 60D kept as a fallback.
+2. Should the first pilot Host run Windows 11 or macOS Sequoia 15.7.5+?
+3. What is the exact first-pilot computer model, processor, memory, and available storage?
+4. Will the Host and iPad normally share venue Wi-Fi, a dedicated mobile hotspot, or a phone hotspot?
 
-### Hardware and network
+### Products and design
 
-7. Which exact Windows laptop or PC will run the first booth, including Windows version, processor, and memory?
-8. Which iPad model and iPadOS version will be the touchscreen?
-9. May we test both owned cameras before choosing, or do you prefer the Canon EOS 60D or Fujifilm X-M5?
-10. Is it acceptable for guests to join a WanderBooth Wi-Fi network when the venue has no internet?
-11. Are you willing to use a small dedicated travel router at the booth?
-12. Must the 30-day QR link work after the customer leaves the booth network? If yes, a minimal cloud delivery service becomes part of P0.
+5. What will the first products and print quantities be? PHP prices may remain blank until the business decides them.
+6. Is the three-photo vertical 2×6 strip the default multi-photo product, and what arrangement should the first 4×6 product use?
+7. Who will supply the first 5–10 layout/design assets and WanderBooth branding?
+8. Confirm the working assumption that each separately downloadable individual photo also carries WanderBooth/event branding.
 
-### Pilot and repository
+### Pilot timing
 
-13. Is there a target date or event for the first live pilot?
-14. The repository is public but currently has no software license. Should it remain publicly viewable with default copyright, or do you eventually want an open-source license?
+9. Replace “a few months from now” with a target month or event once it is known.
 
 ## 17. Plain-language glossary
 
 | Term | Meaning |
 |---|---|
 | Desktop application | A program installed on the computer, like Spotify or Photoshop, rather than a website opened in a browser |
-| Host | The Windows part of WanderBooth that controls hardware, storage, processing, and the local network service |
-| Web client | The touch interface loaded by the iPad from the WanderBooth Host over the private network |
+| Host | The Windows or macOS part of WanderBooth that controls hardware, storage, processing, printing, cloud uploads, and the local iPad service |
+| Web client | The touch interface loaded by the iPad from the WanderBooth Host over their shared local connection |
 | Offline first | Core work succeeds locally even when internet is unavailable |
-| Local network | A private Wi-Fi connection between the booth computer and nearby customer phones |
-| Local server | A small part of WanderBooth that sends a customer's photo to their phone over the booth network |
+| Local network | The shared Wi-Fi or hotspot connection used by the iPad to control the booth Host; guest phones do not need to join it |
+| Local server | A small part of WanderBooth that serves the iPad interface and receives its booth commands |
+| Cloud delivery service | The small online system that privately stores approved deliverables and serves the 30-day QR page |
+| Upload queue | A durable list of cloud uploads that still need to run or retry |
 | SQLite | A small database stored as a file on the booth computer |
 | Webhook | A secure message from a payment provider telling WanderBooth that a payment succeeded or failed |
 | Idempotency | Protection that makes repeated messages produce only one order, download, or print |
@@ -725,5 +752,6 @@ The repository and product baseline now exist. These answers are needed before t
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.0 | 2026-10-02 | Confirmed Windows 11 and macOS Sequoia targets, iPad hardware, cash-before-capture, two retakes, 4×6 and 2×6 formats, 5–10 designs, and cloud QR delivery containing individual branded photos, a composite, and a looping slideshow. |
 | 0.2.0 | 2026-10-02 | Confirmed digital and print products, cash-only pilot, iPad touchscreen, owned Canon/Fujifilm/Epson hardware, 30-day retention, branded-only delivery, public GitHub repository, and Host-plus-iPad architecture. |
 | 0.1.0 | 2026-10-01 | Initial product plan covering offline-first operation, QR photo delivery, first-release features, proposed architecture, roadmap, version control, risks, and blocking questions. |

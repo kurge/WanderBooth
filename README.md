@@ -13,7 +13,7 @@ updated: 2026-10-02
 
 # WanderBooth
 
-WanderBooth is an offline-first photo booth application being developed for our own photo business. The first release will use a Windows PC or laptop as the booth host and an iPad as the customer-facing touchscreen. It will sell both branded digital photos and physical prints, accept attendant-confirmed cash payments, and let customers retrieve their completed photo by scanning a QR code.
+WanderBooth is an offline-first photo booth application being developed for our own photo business. The desktop Host will target Windows 11 and macOS Sequoia 15.7.5 or later, while an iPad provides the customer-facing touchscreen. It will sell both branded digital photos and physical prints, accept attendant-confirmed cash payments, and let customers retrieve their completed photos and looping slideshow from a private 30-day cloud link by scanning a QR code.
 
 ## Project documents
 
@@ -25,9 +25,9 @@ WanderBooth is an offline-first photo booth application being developed for our 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **0.2.0 — Hardware and Workflow Baseline**
+- Product-plan version: **0.3.0 — Cloud QR Delivery Baseline**
 - Development status: **Discovery; coding has not started**
-- Immediate next step: answer the remaining Phase 0 questions, then build the camera-to-iPad offline QR proof of concept.
+- Immediate next step: confirm the first pilot computer and camera, then build an iPad-to-Host capture and cloud-QR proof of concept.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**
 - Repository visibility: **Public**
 

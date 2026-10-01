@@ -7,6 +7,8 @@
 
 The WanderBooth source repository is public at [kurge/WanderBooth](https://github.com/kurge/WanderBooth). Customer photos, session databases, cash records, secrets, local backups, and diagnostic exports must never be committed.
 
+No open-source license will be added yet. The source is publicly viewable but remains under default copyright unless the owner later adopts an explicit license.
+
 ## Why
 
 - The owner created the repository publicly.
@@ -24,4 +26,4 @@ The WanderBooth source repository is public at [kurge/WanderBooth](https://githu
 
 - Product plans and implementation details are publicly visible.
 - Mistakenly committed sensitive data may persist in Git history even after file deletion.
-- A software license remains an open decision; public visibility alone does not grant reuse rights.
+- Public visibility alone does not grant reuse rights; changing to an open-source license later requires a deliberate owner decision.

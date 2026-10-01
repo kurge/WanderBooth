@@ -1,6 +1,6 @@
 # ADR 0001: Windows Host and iPad Client
 
-- Status: Accepted
+- Status: Superseded by ADR 0004
 - Date: 2026-10-02
 
 ## Decision
@@ -21,3 +21,7 @@ WanderBooth will use a Windows PC or laptop as the Host for camera control, phot
 - The Host must expose a carefully limited local service.
 - Setup involves more than one device.
 - Connection status and automatic recovery become first-class features.
+
+## Superseded
+
+The Host/iPad separation remains valid, but the Host is no longer Windows-only. ADR 0004 expands the desktop target to Windows 11 and macOS Sequoia while retaining one certified pilot setup.

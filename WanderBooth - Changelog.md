@@ -12,7 +12,7 @@ updated: 2026-10-02
 
 # WanderBooth — Changelog
 
-This note records material changes to WanderBooth's product definition and documentation. Source-code release changes will move to the dedicated WanderBooth repository after it is created.
+This note records material changes to WanderBooth's product definition and documentation. Application release changes will use this same repository and changelog once coding begins.
 
 The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic versions.
 
@@ -20,16 +20,43 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 ### Pending decisions
 
-- First Windows computer
-- First supported camera after comparing the Canon EOS 60D and Fujifilm X-M5
-- iPad model and iPadOS version
-- Offline-router approach
-- Confirmation that guests may join the WanderBooth Wi-Fi network
-- Whether 30-day QR access must work away from the booth network, which would require a minimal cloud delivery service
-- Initial products, prices, print sizes, layouts, and designs
-- Retake allowance
-- First live-pilot date
-- Public-repository software-license decision
+- First pilot Host OS: Windows 11 or macOS Sequoia 15.7.5+
+- Exact first pilot computer model, CPU, memory, and storage
+- Owner confirmation of the recommended Fujifilm X-M5 as the first integrated camera
+- Normal Host/iPad connection: venue Wi-Fi, mobile hotspot, or phone hotspot
+- Initial products, quantities, and PHP prices
+- Exact 4×6 layout and confirmation that the three-photo vertical 2×6 strip is the default strip product
+- Source of the first 5–10 design assets and branding
+- Exact first live-pilot month or event
+
+## 0.3.0 — 2026-10-02
+
+### Confirmed
+
+- Desktop Host target is Windows 11 and macOS Sequoia 15.7.5 or later; one exact pilot computer will be certified first.
+- The customer touchscreen is an iPad Pro 12.9-inch (6th generation) running iPadOS 18.2.
+- Cash is collected and confirmed before capture.
+- Each customer receives up to two retakes.
+- Initial print formats are 4×6 and 2×6 strips, with approximately 5–10 initial layouts/designs.
+- Guests do not need to join WanderBooth Wi-Fi.
+- QR links use cloud delivery, work away from the booth, and expire after 30 days.
+- A three-photo strip session includes three separately downloadable branded photos, the final branded strip, and a looping slideshow video showing each photo for about 1.5 seconds.
+- A dedicated travel router is optional, not required for the first pilot.
+- The public repository remains under default copyright for now.
+
+### Changed
+
+- Reframed offline-first behavior around uninterrupted capture, local saving, processing, and printing, with a persistent cloud-upload queue for delivery outages.
+- Moved the minimal cloud QR service into P0 while keeping the full products, pricing, sales, and support dashboard deferred.
+- Expanded the Host architecture from Windows-only to a cross-platform Windows/macOS desktop core with OS-specific hardware adapters.
+- Recommended the Fujifilm X-M5 for the first focused camera prototype instead of requiring a comparison of both owned cameras.
+- Replaced local guest-Wi-Fi downloads with private cloud delivery over the customer's own internet connection.
+
+### Added
+
+- Upload states, retry behavior, private cloud storage requirements, 30-day cloud cleanup, and pending-delivery recovery.
+- Concrete multi-photo deliverables and slideshow format.
+- Architecture decisions for cross-platform hosting and cloud QR delivery.
 
 ## 0.2.0 — 2026-10-02
 

@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 0.6.1
+document_version: 0.7.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -75,6 +75,7 @@ The business should be able to keep serving customers during internet interrupti
 - An **iPad Pro 12.9-inch (6th generation) running iPadOS 18.2** will be the first Self-Service touchscreen and can also be an attended display-only screen or optional camera source.
 - A future dedicated touchscreen must be able to replace the iPad without changing the Self-Service workflow.
 - Attendant-Operated mode supports either the iPad/future touchscreen in display-only mode or a normal second monitor connected to the Host.
+- The iPad uses Safari on the same local network for normal Self-Service touch. Sidecar may be used as an extended display for the read-only Attendant-Operated presentation.
 - The first pilot will sell **both branded digital photos and physical prints**.
 - The first pilot will accept **cash only**, confirmed by a booth attendant.
 - Cash must be collected and confirmed **before capture**.
@@ -101,6 +102,7 @@ The business should be able to keep serving customers during internet interrupti
 - WanderBooth must offer a camera-source selector that is available only to the owner or attendant. Customers cannot change the active camera source.
 - Supported source types must include dedicated DSLR/mirrorless cameras, USB/UVC webcams, built-in Windows/Mac laptop cameras, and the iPad camera.
 - The camera system must be extensible so additional brands and models can be added through adapters and tested compatibility profiles.
+- The starting MacBook camera is implemented as an Experimental standard video-device source. One packaged three-photo session passed at 1920×1080; it is not yet certified for customers or prints.
 - The first printer is an **Epson EcoTank L8050**.
 - A remote web dashboard is useful but is not required for the first release.
 - Product development must be carefully documented and version-controlled.
@@ -131,11 +133,13 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - Cash confirmation is staff-only and occurs before capture; no price appears on screen.
 - Session state and command history persist in a local SQLite database.
 - A development-only camera simulator exercises capture and two-retake behavior safely.
+- Staff can select the simulator or MacBook camera only while the booth is idle. The Mac path includes permission handling, live preview, physical device choice, synchronized remote trigger, and local JPEG transfer.
+- The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
 - A packaged Apple-silicon `WanderBooth.app` and verified DMG can be launched without developer commands on the starting Mac.
 
-This checkpoint is not yet a pilot release. Real camera capture, Epson printing, cloud upload, QR generation, the 30-day download page, and automatic retention cleanup are still required.
+This checkpoint is not yet a pilot release. Camera reliability certification, Epson printing, cloud upload, QR generation, the 30-day download page, and automatic retention cleanup are still required.
 
 ### Why the first release uses a desktop Host and reusable customer client
 
@@ -932,6 +936,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 0.7.0 | 2026-10-02 | Implemented the Experimental MacBook camera source, verified a packaged three-photo session, served the customer screen from the packaged Host, and documented Safari versus Sidecar iPad setup. |
 | 0.6.1 | 2026-10-02 | Imported the owner-supplied Wander Press PH source artwork, documented exact brand tokens, replaced placeholder colors, and added a verified double-clickable Mac application and DMG build. |
 | 0.6.0 | 2026-10-02 | Confirmed the starting MacBook Host, X-M5 and built-in-camera order, first three-photo 2×6 product, iPad screen, no on-screen price, placeholder brand direction, and the first working local prototype checkpoint. |
 | 0.5.1 | 2026-10-02 | Confirmed iPad-first and future-touchscreen display support, second-monitor attended presentation, read-only customer photo review, operator-controlled replacement, and product/layout-derived capture counts. |

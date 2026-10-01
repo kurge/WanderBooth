@@ -26,13 +26,14 @@ Open `http://localhost:5173/?surface=operator` for the operator surface. Open `h
 Operator window ─┐
                  ├── WebSocket ── Local Host ── SQLite event/state store
 iPad display ────┘                     │
-                                      ├── camera adapter (simulator first)
+                                      ├── camera sources (simulator + Mac media device)
                                       └── local deliverable renderer
 ```
 
 - `src/app/` — responsive React operator and customer interfaces.
 - `src/host/` — local HTTP/WebSocket service, persistence, and deliverable processing.
-- `src/camera/` — replaceable camera adapters. Only the simulator exists in Phase 0.
+- `src/camera/` — Host-side replaceable camera adapters; currently contains the simulator.
+- `src/app/useMacBookCamera.ts` — standard media-device preview and JPEG capture for the Mac operator renderer.
 - `src/shared/` — product catalog, permissions, session state machine, and wire messages.
 - `electron/` — desktop window wrapper for the operator surface.
 - `assets/brand/` — owner-supplied Wander Press source artwork and documented color tokens.
@@ -45,7 +46,7 @@ The Host is authoritative. Every screen sends a command, the Host applies role a
 
 - Product: one three-photo vertical 2×6 strip; its layout fixes the capture count at three.
 - Payments: staff-confirmed cash only; price is intentionally absent from the UI.
-- Camera: simulator is active; MacBook camera is the next adapter; Fujifilm X-M5 follows.
+- Camera: simulator and experimental MacBook camera work; Fujifilm X-M5 follows. Camera selection remains staff-only and idle-only.
 - Delivery: branded local files work; cloud upload, QR generation, and 30-day expiry are not implemented yet.
 - Printing: 2×6 artwork is rendered at 600×1800 pixels and 300 DPI, but Epson L8050 queue control is not implemented yet.
 - Authentication: local prototype roles are screen-based, not authenticated accounts.

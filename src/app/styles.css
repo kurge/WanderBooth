@@ -361,6 +361,7 @@ p {
 
 .device-card {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 11px;
   margin: 9px 0;
@@ -368,6 +369,30 @@ p {
   border: 1px solid var(--line);
   border-radius: 15px;
   background: rgba(255, 255, 255, 0.67);
+  color: inherit;
+  text-align: left;
+}
+
+.device-card--selectable {
+  cursor: pointer;
+}
+
+.device-card--selectable:hover:not(:disabled) {
+  border-color: rgba(53, 114, 196, 0.42);
+}
+
+.device-card--selected {
+  border-color: var(--blue);
+  background: white;
+  box-shadow: 0 8px 24px rgba(53, 114, 196, 0.1);
+}
+
+.device-card:disabled {
+  cursor: not-allowed;
+}
+
+.device-card--selected:disabled {
+  opacity: 1;
 }
 
 .device-card__status {
@@ -385,6 +410,75 @@ p {
 .device-card strong,
 .device-card small {
   display: block;
+}
+
+.camera-control {
+  margin: 10px 0 15px;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(41, 9, 66, 0.06);
+}
+
+.camera-control video {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  border-radius: 11px;
+  aspect-ratio: 4 / 3;
+  background: #191524;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.camera-control label {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 9px;
+  color: #656a83;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.camera-control select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: white;
+}
+
+.camera-control__error {
+  margin: 0 0 9px;
+  color: #a53e2a;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.camera-control .button {
+  width: 100%;
+}
+
+.ipad-connection code {
+  display: block;
+  padding: 10px;
+  border-radius: 10px;
+  color: var(--blue-dark);
+  background: rgba(221, 244, 38, 0.35);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.ipad-connection p {
+  margin: 9px 0 0;
+  font-size: 0.7rem;
+  line-height: 1.48;
+}
+
+.start-note {
+  margin-top: 10px;
+  font-size: 0.8rem;
 }
 
 .device-card strong {

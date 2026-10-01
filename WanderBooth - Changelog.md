@@ -26,6 +26,23 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 0.7.0 — 2026-10-02
+
+### Added
+
+- Added a staff-only MacBook camera source with explicit enablement, macOS/Electron permission controls, mirrored live preview, detected-device selection, and 1920×1080 JPEG capture.
+- Added pending-capture identity so the Host accepts only the expected session, photo slot, and revision and rejects stale uploads.
+- Added a packaged-Host customer page and a live local Safari address in the operator sidebar.
+- Added plain-language iPad setup instructions for Safari Self-Service and Sidecar Attendant-Operated display use.
+- Added state migration for existing local Phase 0 databases and kept the selected source across booth resets.
+
+### Verified
+
+- Completed one packaged three-photo session using the starting MacBook's FaceTime HD Camera.
+- Confirmed all three real captures reached the correct slots at 1920×1080 and produced three branded individual files, the 2×6 strip, and the looping slideshow.
+- Confirmed the packaged Host serves the customer application over the current LAN address.
+- Kept the MacBook source labeled Experimental pending the full 50-session, recovery, crop, lighting, and print-quality test.
+
 ## 0.6.1 — 2026-10-02
 
 ### Fixed

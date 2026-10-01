@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, session } = require("electron");
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 
@@ -12,6 +12,7 @@ function startProductionHost() {
       ...process.env,
       ELECTRON_RUN_AS_NODE: "1",
       WANDERBOOTH_DATA_DIR: path.join(app.getPath("userData"), "runtime"),
+      WANDERBOOTH_WEB_DIR: path.join(__dirname, "../dist"),
     },
     stdio: "inherit",
   });
@@ -57,7 +58,36 @@ function createOperatorWindow() {
   }
 }
 
+function isTrustedBoothUrl(url) {
+  if (url.startsWith("file://")) return true;
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "http:" &&
+      ["127.0.0.1", "localhost"].includes(parsed.hostname) &&
+      ["4174", "5173"].includes(parsed.port)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function configureCameraPermissions() {
+  session.defaultSession.setPermissionCheckHandler(
+    (_webContents, permission, requestingOrigin) =>
+      permission === "media" && isTrustedBoothUrl(requestingOrigin),
+  );
+  session.defaultSession.setPermissionRequestHandler(
+    (webContents, permission, callback, details) => {
+      const trusted = isTrustedBoothUrl(details.requestingUrl || webContents.getURL());
+      const requestsAudio = details.mediaTypes?.includes("audio") ?? false;
+      callback(permission === "media" && trusted && !requestsAudio);
+    },
+  );
+}
+
 app.whenReady().then(() => {
+  configureCameraPermissions();
   startProductionHost();
   createOperatorWindow();
 

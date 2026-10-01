@@ -53,6 +53,52 @@ describe("WanderBooth session rules", () => {
     expect(reduceCommand(state, { type: "CONFIRM_CASH" }, "attendant").phase).toBe("ready");
   });
 
+  it("allows staff to select the MacBook camera only while idle", () => {
+    const selected = reduceCommand(
+      initialBoothState(),
+      { type: "SET_CAMERA_SOURCE", cameraSourceId: "macbook_camera" },
+      "attendant",
+    );
+    expect(selected.cameraSourceId).toBe("macbook_camera");
+    expect(() =>
+      reduceCommand(
+        initialBoothState(),
+        { type: "SET_CAMERA_SOURCE", cameraSourceId: "macbook_camera" },
+        "customer",
+      ),
+    ).toThrow("Only staff");
+    expect(() =>
+      reduceCommand(
+        beginSelection(),
+        { type: "SET_CAMERA_SOURCE", cameraSourceId: "macbook_camera" },
+        "attendant",
+      ),
+    ).toThrow("not available");
+  });
+
+  it("tracks the exact photo expected from a real camera", () => {
+    let state = completeSelection();
+    state = reduceCommand(state, { type: "CONFIRM_CASH" }, "attendant");
+    state = reduceCommand(state, { type: "CAPTURE" }, "attendant");
+    expect(state.pendingCapture).toEqual({ kind: "capture", slot: 1, revision: 1 });
+
+    state = reduceCommand(
+      state,
+      {
+        type: "CAPTURE_COMPLETED",
+        capture: {
+          capturedAt: "2026-10-02T00:00:00.000Z",
+          mediaUrl: "/media/test.jpg",
+          revision: 1,
+          slot: 1,
+        },
+      },
+      "system",
+    );
+    expect(state.pendingCapture).toBeNull();
+    expect(state.phase).toBe("ready");
+  });
+
   it("rejects unknown designs", () => {
     const state = beginSelection();
     expect(() =>
@@ -64,6 +110,7 @@ describe("WanderBooth session rules", () => {
     const state = { ...initialBoothState(), operationMode: "self_service" as const, revision: 9 };
     const reset = reduceCommand(state, { type: "RESET" }, "owner");
     expect(reset.operationMode).toBe("self_service");
+    expect(reset.cameraSourceId).toBe("simulator");
     expect(reset.revision).toBe(10);
     expect(reset.phase).toBe("idle");
   });

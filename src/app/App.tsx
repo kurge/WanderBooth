@@ -3,7 +3,9 @@ import { useEffect, useMemo } from "react";
 import wanderPressSplashLogo from "../../assets/brand/source/wander-press-splash-shadow.png";
 import { designs, layouts, products } from "../shared/catalog";
 import type { Actor, BoothState, Command, OperationMode } from "../shared/session";
+import { createId } from "./createId";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
+import { type CameraStatus, useMacBookCamera } from "./useMacBookCamera";
 
 type Surface = "operator" | "customer";
 
@@ -291,8 +293,9 @@ function SessionPanel({
           <span className="eyebrow">Photo {Math.min(nextPhoto, 3)} of 3</span>
           <h1>{state.phase === "capturing" ? "Hold that pose…" : "Ready when you are."}</h1>
           <p>
-            The first prototype uses a clearly marked simulated camera while we wire in the MacBook
-            camera.
+            {state.cameraSourceId === "macbook_camera"
+              ? "The Mac camera takes the photo even when the shutter is pressed from the iPad."
+              : "The simulator is active, so this run uses generated test photos."}
           </p>
           {interactive && state.phase === "ready" && (
             <button
@@ -449,33 +452,141 @@ function SessionPanel({
   return null;
 }
 
-function OperatorSidebar({ state }: { state: BoothState }) {
+function OperatorSidebar({
+  state,
+  camera,
+  customerUrls,
+  sendCommand,
+}: {
+  state: BoothState;
+  camera: {
+    devices: MediaDeviceInfo[];
+    error: string | null;
+    selectedDeviceId: string | null;
+    startCamera: (deviceId?: string) => Promise<void>;
+    status: CameraStatus;
+    stopCamera: () => void;
+    videoRef: React.RefObject<HTMLVideoElement | null>;
+  };
+  customerUrls: string[];
+  sendCommand: (command: Command) => void;
+}) {
+  const isIdle = state.phase === "idle";
+  const macBookSelected = state.cameraSourceId === "macbook_camera";
+
   return (
     <aside className="operator-sidebar">
       <section>
         <span className="eyebrow">Pilot hardware</span>
         <h2>Camera source</h2>
-        <div className="device-card device-card--ready">
+        <button
+          className={`device-card device-card--selectable ${
+            state.cameraSourceId === "simulator" ? "device-card--ready device-card--selected" : ""
+          }`}
+          type="button"
+          disabled={!isIdle}
+          onClick={() => sendCommand({ type: "SET_CAMERA_SOURCE", cameraSourceId: "simulator" })}
+        >
           <span className="device-card__status" />
           <div>
             <strong>Prototype simulator</strong>
-            <small>Ready · active source</small>
+            <small>
+              {state.cameraSourceId === "simulator" ? "Ready · active source" : "Available"}
+            </small>
           </div>
-        </div>
-        <div className="device-card">
+        </button>
+        <button
+          className={`device-card device-card--selectable ${
+            macBookSelected && camera.status === "ready"
+              ? "device-card--ready device-card--selected"
+              : macBookSelected
+                ? "device-card--selected"
+                : ""
+          }`}
+          type="button"
+          disabled={!isIdle}
+          onClick={() =>
+            sendCommand({ type: "SET_CAMERA_SOURCE", cameraSourceId: "macbook_camera" })
+          }
+        >
           <span className="device-card__status" />
           <div>
             <strong>MacBook camera</strong>
-            <small>Next integration · experimental</small>
+            <small>
+              {!macBookSelected && "Available · experimental"}
+              {macBookSelected && camera.status === "off" && "Selected · needs to be enabled"}
+              {macBookSelected && camera.status === "requesting" && "Requesting camera access…"}
+              {macBookSelected && camera.status === "ready" && "Ready · active source"}
+              {macBookSelected && camera.status === "error" && "Needs attention"}
+            </small>
           </div>
-        </div>
-        <div className="device-card">
+        </button>
+
+        {macBookSelected && (
+          <div className="camera-control">
+            <video
+              ref={camera.videoRef}
+              muted
+              playsInline
+              aria-label="Live MacBook camera preview"
+            />
+            {camera.devices.length > 1 && (
+              <label>
+                Video device
+                <select
+                  value={camera.selectedDeviceId ?? ""}
+                  onChange={(event) => void camera.startCamera(event.target.value)}
+                >
+                  {camera.devices.map((device, index) => (
+                    <option value={device.deviceId} key={device.deviceId}>
+                      {device.label || `Camera ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {camera.error && <p className="camera-control__error">{camera.error}</p>}
+            {camera.status === "ready" ? (
+              <button
+                className="button button--quiet button--tiny"
+                type="button"
+                disabled={!isIdle}
+                onClick={camera.stopCamera}
+              >
+                Turn camera off
+              </button>
+            ) : (
+              <button
+                className="button button--primary button--tiny"
+                type="button"
+                disabled={camera.status === "requesting"}
+                onClick={() => void camera.startCamera()}
+              >
+                {camera.status === "requesting" ? "Starting camera…" : "Enable MacBook camera"}
+              </button>
+            )}
+          </div>
+        )}
+
+        <button className="device-card" type="button" disabled>
           <span className="device-card__status" />
           <div>
             <strong>Fujifilm X-M5</strong>
             <small>Planned tether test</small>
           </div>
-        </div>
+        </button>
+      </section>
+      <section className="ipad-connection">
+        <span className="eyebrow">iPad customer screen</span>
+        <h2>Open in Safari</h2>
+        {customerUrls.length > 0 ? (
+          <>
+            <code>{customerUrls[0]}</code>
+            <p>Keep the Mac and iPad on the same Wi-Fi, then enter this address on the iPad.</p>
+          </>
+        ) : (
+          <p>Connect this Mac to Wi-Fi to show the local iPad address.</p>
+        )}
       </section>
       <section className="session-facts">
         <span className="eyebrow">Current rules</span>
@@ -513,7 +624,12 @@ function OperatorSidebar({ state }: { state: BoothState }) {
 function App() {
   const isOperator = surface === "operator";
   const actor = actorForSurface(surface);
-  const { state, connected, error, sendCommand } = useBoothConnection(actor);
+  const { state, connected, customerUrls, error, sendCommand } = useBoothConnection(actor);
+  const camera = useMacBookCamera({
+    active: isOperator && state?.cameraSourceId === "macbook_camera",
+    state,
+    sendCommand,
+  });
   const interactive = useMemo(
     () => isOperator || state?.operationMode === "self_service",
     [isOperator, state?.operationMode],
@@ -586,12 +702,14 @@ function App() {
                 <button
                   className="button button--primary button--large"
                   type="button"
-                  onClick={() =>
-                    sendCommand({ type: "BEGIN_SESSION", sessionId: crypto.randomUUID() })
-                  }
+                  disabled={state.cameraSourceId === "macbook_camera" && camera.status !== "ready"}
+                  onClick={() => sendCommand({ type: "BEGIN_SESSION", sessionId: createId() })}
                 >
                   Start a new session
                 </button>
+                {state.cameraSourceId === "macbook_camera" && camera.status !== "ready" && (
+                  <p className="start-note">Enable the MacBook camera before starting a session.</p>
+                )}
               </section>
             ) : (
               <section className="customer-hero">
@@ -615,7 +733,14 @@ function App() {
             />
           )}
         </main>
-        {isOperator && <OperatorSidebar state={state} />}
+        {isOperator && (
+          <OperatorSidebar
+            state={state}
+            camera={camera}
+            customerUrls={customerUrls}
+            sendCommand={sendCommand}
+          />
+        )}
       </div>
     </div>
   );

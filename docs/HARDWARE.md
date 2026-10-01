@@ -2,7 +2,7 @@
 
 **Status:** Phase 0 testing
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 
 **Updated:** 2026-10-02
 
@@ -18,13 +18,21 @@ This document records the hardware already available for WanderBooth, the suppor
 | Future Self-Service touchscreen | Dedicated touchscreen model not yet selected | Must run the same responsive customer client; evaluate when purchased |
 | Dedicated camera | Canon EOS 60D | Owned secondary integration target |
 | Recommended first dedicated camera | Fujifilm X-M5 | Run the first brand/model-specific Phase 0 control test |
-| Host built-in camera | Built-in camera on the starting MacBook Pro | Next camera adapter; treat through the standard browser/webcam interface |
+| Host built-in camera | FaceTime HD Camera on the starting MacBook Pro | Implemented as an Experimental source; one packaged three-photo session passed at 1920×1080 |
 | External webcam | Any standard USB/UVC device supplied later | Detect generically, then certify individual models as needed |
 | Printer | Epson EcoTank L8050 | First-pilot printer |
 | Host/iPad network | Venue Wi-Fi, mobile hotspot, or phone hotspot | Exact first-pilot setup not selected; dedicated travel router is optional |
 | Guest delivery | Customer's mobile data or any internet connection | Cloud QR link; guest does not join WanderBooth Wi-Fi |
 
 At the start of Phase 0 the Mac had approximately 25 GiB of free storage. That is adequate for development but too little to assume safe event operation without storage monitoring and 30-day cleanup. Before the first live pilot, measure real session size and reserve enough space for the expected event plus a recovery margin. Machine serial numbers, UUIDs, and personal device identifiers are intentionally excluded from this public repository.
+
+### Current iPad connection choices
+
+- **Safari on the local network is the primary Self-Service path.** It provides normal finger touch and connects to the customer address shown by WanderBooth.
+- **Sidecar is the secondary Attendant-Operated path.** It turns the connected iPad into an extended Mac display for the read-only customer window.
+- The USB cable can power the iPad and carry Sidecar. The Safari customer client still uses the Mac and iPad's shared Wi-Fi or hotspot connection.
+
+See [IPAD_SETUP.md](IPAD_SETUP.md) for the setup steps and Apple references.
 
 ## Camera findings
 
@@ -47,6 +55,12 @@ Every tested source receives one compatibility label:
 “Supports other cameras” means WanderBooth can add and select adapters without rewriting the customer, session, printing, or delivery workflow. It does not mean every camera will provide remote trigger, full-resolution stills, live view, autofocus, or flash control automatically.
 
 The current source-by-source status is maintained in [CAMERA_COMPATIBILITY.md](CAMERA_COMPATIBILITY.md).
+
+### Starting MacBook camera
+
+WanderBooth 0.2.0 can request macOS camera permission, show a mirrored operator preview, list detected standard video devices, capture an unmirrored 1920×1080 JPEG, and transfer the exact pending slot to the local Host. The packaged app completed one three-photo session and rendered all five deliverable entries. The Host rejects a late capture from an expired session and does not silently fall back to the simulator.
+
+This source remains **Experimental**. One successful session is not enough to approve it for paying customers or physical prints. The next certification work is retake testing, loss/recovery behavior, 50 consecutive sessions, crop and orientation checks, low-light review, and Epson L8050 output comparison. See the [test record](test-records/2026-10-02-macbook-camera.md).
 
 ### Canon EOS 60D
 

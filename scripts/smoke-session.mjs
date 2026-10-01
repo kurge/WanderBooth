@@ -68,6 +68,10 @@ const command = (payload) =>
     );
   });
 
+if (currentState.cameraSourceId !== "simulator") {
+  await command({ type: "SET_CAMERA_SOURCE", cameraSourceId: "simulator" });
+}
+
 await command({ type: "BEGIN_SESSION", sessionId: `smoke-${Date.now()}` });
 await command({ type: "SELECT_PRODUCT", productId: "three-photo-strip" });
 await command({ type: "SELECT_LAYOUT", layoutId: "vertical-2x6" });

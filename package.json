@@ -1,6 +1,6 @@
 {
   "name": "wanderbooth",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "author": "Wander Press PH",
   "description": "Offline-first photo booth host and customer experience for Wander Press PH.",

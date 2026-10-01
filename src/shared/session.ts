@@ -2,6 +2,7 @@ import { getDesign, getLayout, getProduct } from "./catalog.js";
 
 export type Actor = "owner" | "attendant" | "customer" | "system";
 export type OperationMode = "attendant" | "self_service";
+export type CameraSourceId = "simulator" | "macbook_camera";
 export type Phase =
   | "idle"
   | "selecting"
@@ -20,6 +21,12 @@ export type Capture = {
   capturedAt: string;
 };
 
+export type PendingCapture = {
+  kind: "capture" | "retake";
+  slot: number;
+  revision: number;
+};
+
 export type Deliverable = {
   kind: "individual" | "strip" | "slideshow";
   label: string;
@@ -28,9 +35,10 @@ export type Deliverable = {
 };
 
 export type BoothState = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   revision: number;
   operationMode: OperationMode;
+  cameraSourceId: CameraSourceId;
   phase: Phase;
   sessionId: string | null;
   productId: string | null;
@@ -38,6 +46,7 @@ export type BoothState = {
   designId: string | null;
   requiredCaptureCount: number;
   captures: Capture[];
+  pendingCapture: PendingCapture | null;
   retakesRemaining: number;
   cashConfirmed: boolean;
   consentRecorded: boolean;
@@ -48,6 +57,7 @@ export type BoothState = {
 
 export type Command =
   | { type: "SET_MODE"; mode: OperationMode }
+  | { type: "SET_CAMERA_SOURCE"; cameraSourceId: CameraSourceId }
   | { type: "BEGIN_SESSION"; sessionId: string }
   | { type: "SELECT_PRODUCT"; productId: string }
   | { type: "SELECT_LAYOUT"; layoutId: string }
@@ -59,6 +69,7 @@ export type Command =
   | { type: "CAPTURE_COMPLETED"; capture: Capture }
   | { type: "RETAKE"; slot: number }
   | { type: "RETAKE_COMPLETED"; capture: Capture }
+  | { type: "CAMERA_CAPTURE_FAILED"; message: string }
   | { type: "APPROVE" }
   | { type: "PROCESSING_STARTED" }
   | { type: "PROCESSING_COMPLETED"; deliverables: Deliverable[] }
@@ -69,9 +80,10 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   revision: 0,
   operationMode: "attendant",
+  cameraSourceId: "simulator",
   phase: "idle",
   sessionId: null,
   productId: null,
@@ -79,6 +91,7 @@ export const initialBoothState = (): BoothState => ({
   designId: null,
   requiredCaptureCount: 0,
   captures: [],
+  pendingCapture: null,
   retakesRemaining: 2,
   cashConfirmed: false,
   consentRecorded: false,
@@ -109,8 +122,13 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
       if (!isStaff(actor)) throw new CommandError("Only staff can change operation mode.");
       requirePhase(state, ["idle"]);
       return;
+    case "SET_CAMERA_SOURCE":
+      if (!isStaff(actor)) throw new CommandError("Only staff can choose the camera source.");
+      requirePhase(state, ["idle"]);
+      return;
     case "RESET":
     case "CONFIRM_CASH":
+    case "CAMERA_CAPTURE_FAILED":
       if (!isStaff(actor)) throw new CommandError("This action is staff-only.");
       return;
     case "BEGIN_SESSION":
@@ -150,6 +168,8 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
   switch (command.type) {
     case "SET_MODE":
       return revised(state, { operationMode: command.mode });
+    case "SET_CAMERA_SOURCE":
+      return revised(state, { cameraSourceId: command.cameraSourceId });
     case "BEGIN_SESSION":
       requirePhase(state, ["idle"]);
       return revised(state, {
@@ -160,6 +180,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         designId: null,
         requiredCaptureCount: 0,
         captures: [],
+        pendingCapture: null,
         retakesRemaining: 2,
         cashConfirmed: false,
         consentRecorded: false,
@@ -210,37 +231,77 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       if (state.captures.length >= state.requiredCaptureCount) {
         throw new CommandError("All required photos have already been captured.");
       }
-      return revised(state, { phase: "capturing" });
+      if (state.pendingCapture) throw new CommandError("A photo is already being captured.");
+      return revised(state, {
+        phase: "capturing",
+        pendingCapture: {
+          kind: "capture",
+          slot: state.captures.length + 1,
+          revision: 1,
+        },
+      });
     case "CAPTURE_COMPLETED": {
       requirePhase(state, ["capturing"]);
+      if (
+        state.pendingCapture?.kind !== "capture" ||
+        state.pendingCapture.slot !== command.capture.slot ||
+        state.pendingCapture.revision !== command.capture.revision
+      ) {
+        throw new CommandError("The completed photo does not match the pending capture.");
+      }
       const captures = [
         ...state.captures.filter((item) => item.slot !== command.capture.slot),
         command.capture,
       ].sort((a, b) => a.slot - b.slot);
       return revised(state, {
         captures,
+        pendingCapture: null,
         phase: captures.length >= state.requiredCaptureCount ? "reviewing" : "ready",
       });
     }
-    case "RETAKE":
+    case "RETAKE": {
       requirePhase(state, ["reviewing"]);
       if (state.retakesRemaining <= 0) throw new CommandError("No retakes remain.");
       if (!state.captures.some((capture) => capture.slot === command.slot)) {
         throw new CommandError("Choose an existing photo to replace.");
       }
-      return revised(state, { phase: "capturing" });
+      const original = state.captures.find((capture) => capture.slot === command.slot);
+      return revised(state, {
+        phase: "capturing",
+        pendingCapture: {
+          kind: "retake",
+          slot: command.slot,
+          revision: (original?.revision ?? 0) + 1,
+        },
+      });
+    }
     case "RETAKE_COMPLETED": {
       requirePhase(state, ["capturing"]);
+      if (
+        state.pendingCapture?.kind !== "retake" ||
+        state.pendingCapture.slot !== command.capture.slot ||
+        state.pendingCapture.revision !== command.capture.revision
+      ) {
+        throw new CommandError("The completed photo does not match the pending retake.");
+      }
       const captures = [
         ...state.captures.filter((item) => item.slot !== command.capture.slot),
         command.capture,
       ].sort((a, b) => a.slot - b.slot);
       return revised(state, {
         captures,
+        pendingCapture: null,
         retakesRemaining: state.retakesRemaining - 1,
         phase: "reviewing",
       });
     }
+    case "CAMERA_CAPTURE_FAILED":
+      requirePhase(state, ["capturing"]);
+      return revised(state, {
+        phase: "error",
+        pendingCapture: null,
+        lastError: command.message,
+      });
     case "APPROVE":
       requirePhase(state, ["reviewing"]);
       if (state.captures.length !== state.requiredCaptureCount) {
@@ -259,6 +320,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       return {
         ...initialBoothState(),
         operationMode: state.operationMode,
+        cameraSourceId: state.cameraSourceId,
         revision: state.revision + 1,
         updatedAt: now(),
       };

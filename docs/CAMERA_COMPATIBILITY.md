@@ -23,7 +23,7 @@ This matrix is the source of truth for which camera sources WanderBooth can safe
 |---|---|---|---|---|---|---|---|---|
 | Fujifilm X-M5 | Dedicated camera | Planned | Planned | Not tested | Not tested | None yet | Planned | Recommended first dedicated-camera test; direct control still needs proof |
 | Canon EOS 60D | Dedicated camera | Planned | Planned | Not tested | Not tested | None yet | Planned | Owned secondary target; watched-folder bridge may be required |
-| Starting MacBook Pro built-in camera | Standard video device | Not applicable | In progress | Not tested | Not tested | None yet | Experimental | Exact Host is selected; browser camera adapter is the next implementation task |
+| Starting MacBook Pro built-in camera | Standard video device | Not applicable | Passed once | Passed once at 1920×1080 | None yet | Experimental | Packaged app completed one three-photo session and all deliverables; reliability, recovery, crop, and print-quality certification remain |
 | USB/UVC webcam | Standard video device | Planned | Planned | Not tested | Not tested | None yet | Planned | Exact webcam model is not selected |
 | iPad Pro front camera | iPad camera | Not applicable | Not applicable | Not tested | Not tested | None yet | Planned | Captures in WanderBooth Touch and transfers to Host |
 | iPad Pro rear camera | iPad camera | Not applicable | Not applicable | Not tested | Not tested | None yet | Planned | Evaluate as the preferred iPad source for quality |
@@ -69,3 +69,7 @@ Required setup:
 - The customer interface never displays camera-source selection controls.
 - A paid session never falls back silently to another source.
 - New brands and models enter as Planned or Experimental and become Certified only after the recorded test passes.
+
+## Completed records
+
+- [2026-10-02 starting MacBook camera smoke test](test-records/2026-10-02-macbook-camera.md)

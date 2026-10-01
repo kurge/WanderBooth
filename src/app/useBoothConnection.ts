@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ClientMessage, ServerMessage } from "../shared/protocol";
 import type { Actor, BoothState, Command } from "../shared/session";
+import { createId } from "./createId";
 
 const hostName = window.location.hostname || "127.0.0.1";
 export const hostHttpUrl = `http://${hostName}:4174`;
@@ -10,7 +11,7 @@ const hostSocketUrl = `ws://${hostName}:4174/ws`;
 const clientId = (() => {
   const stored = window.sessionStorage.getItem("wanderbooth-client-id");
   if (stored) return stored;
-  const generated = crypto.randomUUID();
+  const generated = createId();
   window.sessionStorage.setItem("wanderbooth-client-id", generated);
   return generated;
 })();
@@ -21,6 +22,7 @@ export function useBoothConnection(actor: Actor) {
   const [state, setState] = useState<BoothState | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customerUrls, setCustomerUrls] = useState<string[]>([]);
 
   useEffect(() => {
     let disposed = false;
@@ -33,6 +35,10 @@ export function useBoothConnection(actor: Actor) {
       socket.addEventListener("open", () => {
         setConnected(true);
         setError(null);
+        void fetch(`${hostHttpUrl}/api/info`)
+          .then((response) => response.json())
+          .then((info: { customerUrls?: string[] }) => setCustomerUrls(info.customerUrls ?? []))
+          .catch(() => setCustomerUrls([]));
         const hello: ClientMessage = { type: "HELLO", actor, clientId };
         socket.send(JSON.stringify(hello));
       });
@@ -73,7 +79,7 @@ export function useBoothConnection(actor: Actor) {
         type: "COMMAND",
         actor,
         clientId,
-        commandId: crypto.randomUUID(),
+        commandId: createId(),
         command,
       };
       socket.send(JSON.stringify(message));
@@ -81,5 +87,5 @@ export function useBoothConnection(actor: Actor) {
     [actor],
   );
 
-  return { state, connected, error, sendCommand };
+  return { state, connected, customerUrls, error, sendCommand };
 }

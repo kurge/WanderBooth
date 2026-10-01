@@ -22,17 +22,18 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - [Hardware baseline](docs/HARDWARE.md) — owned devices, known compatibility, risks, and the Phase 0 hardware test plan.
 - [Camera compatibility matrix](docs/CAMERA_COMPATIBILITY.md) — camera sources, adapter types, test status, and product-level approval.
 - [Operation modes](docs/OPERATION_MODES.md) — control ownership, screen behavior, permissions, and workflows for Attendant-Operated and Self-Service use.
+- [iPad setup](docs/IPAD_SETUP.md) — Safari touchscreen and Sidecar second-display instructions.
 - [Architecture decision records](docs/decisions/) — short records explaining why major technical and product choices were made.
 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **0.6.1 — Packaged Mac Build and Supplied Branding**
+- Product-plan version: **0.7.0 — MacBook Camera and iPad Connection**
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
 - First prototype: **three-photo vertical 2×6 strip**, iPad customer screen, no on-screen price
-- Current camera: **prototype simulator**; MacBook camera is the next adapter and Fujifilm X-M5 is the first dedicated-camera target
-- Immediate next step: connect the MacBook camera through the standard browser camera adapter, then test the operator and iPad surfaces together.
+- Current cameras: **prototype simulator and experimental MacBook camera**; Fujifilm X-M5 is the first dedicated-camera target
+- Immediate next step: verify the physical iPad Safari flow, then begin Epson L8050 printing and private cloud QR delivery.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**
 - Repository visibility: **Public**
 
@@ -49,14 +50,16 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Local SQLite state and event history so the Host remains authoritative.
 - Three branded individual PNGs, a 600×1800-pixel 2×6 strip at 300 DPI, and an MP4 slideshow.
 - Synthetic camera output for safe development without customer images.
+- Staff-only simulator/MacBook source selection, live FaceTime HD Camera preview, three-photo capture, and local Host transfer.
+- A customer URL served by the packaged Host for a real touch-controlled iPad Safari screen.
 - A double-clickable Apple-silicon Mac application and local DMG build.
 - Supplied Wander Press PH artwork and exact blue, lime, yellow, cream, orange, and purple brand tokens.
 
-The prototype does **not** yet control the MacBook camera or X-M5, print to the Epson L8050, upload to cloud storage, or generate the private 30-day QR page. These are explicit upcoming milestones rather than hidden assumptions.
+The prototype now controls the starting MacBook camera, but it does **not** yet control the X-M5, print to the Epson L8050, upload to cloud storage, or generate the private 30-day QR page. The built-in camera remains Experimental until the full reliability and print-quality test is complete.
 
 ## Open the app on this Mac
 
-The current local installation image is generated at `release/WanderBooth-0.1.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
+The current local installation image is generated at `release/WanderBooth-0.2.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 
@@ -71,7 +74,7 @@ pnpm install
 pnpm dev
 ```
 
-Open the operator view at `http://localhost:5173/?surface=operator`. On an iPad using the same local network, replace `localhost` with this Mac's local network address and open `/?surface=customer`.
+Open the operator view at `http://localhost:5173/?surface=operator`. The packaged app shows the full iPad Safari address in its sidebar. Development mode uses this Mac's local network address on port `5173`; the packaged app uses port `4174`.
 
 Useful checks:
 

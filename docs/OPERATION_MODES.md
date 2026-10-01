@@ -42,6 +42,7 @@ WanderBooth supports two staff-selected workflows. The difference is who control
 
 - The operator uses the Host laptop and its operator console.
 - The customer sees a separate read-only screen. The first pilot supports either a second monitor attached to the Host or the iPad/browser in display-only mode.
+- On the iPad, Sidecar is suitable for this display-only presentation. The Safari customer URL also works and does not require Sidecar.
 - A future dedicated touchscreen can run the same responsive customer client in display-only or Self-Service mode.
 - The customer display can show the live preview, countdown, captured images, waiting states, processing, print status, QR code, and completion message.
 - The customer display does not provide session-choice buttons.
@@ -66,6 +67,7 @@ Even when the customer display shows captured images, only the operator can subm
 ### Physical setup
 
 - The customer uses the iPad first and may later use a dedicated touchscreen running the same responsive interactive kiosk.
+- The iPad opens the local customer URL in Safari for normal finger touch. Sidecar is not the Self-Service input path.
 - The operator console remains available for cash confirmation, status, overrides, and recovery.
 - If the iPad camera is the active camera source, the same client supplies the preview and captures before sending them to the Host.
 
@@ -84,6 +86,8 @@ Even when the customer display shows captured images, only the operator can subm
 11. WanderBooth renders, prints, uploads, and shows the QR code.
 
 Self-Service does not grant access to camera selection, payment confirmation, refunds, reprints, diagnostics, mode changes, or owner settings.
+
+See [iPad setup](IPAD_SETUP.md) for the exact Safari and Sidecar steps.
 
 ## Photo replacement and style rules
 

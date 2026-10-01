@@ -1,6 +1,7 @@
 import { createReadStream, existsSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import { createServer, type ServerResponse } from "node:http";
+import { mkdir, writeFile } from "node:fs/promises";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { networkInterfaces } from "node:os";
 import { extname, resolve } from "node:path";
 
 import WebSocket, { WebSocketServer } from "ws";
@@ -20,16 +21,36 @@ import { buildDeliverables } from "./deliverables.js";
 
 const port = Number(process.env.WANDERBOOTH_HOST_PORT ?? 4174);
 const dataDirectory = resolve(process.env.WANDERBOOTH_DATA_DIR ?? "data/runtime");
+const webDirectory = process.env.WANDERBOOTH_WEB_DIR
+  ? resolve(process.env.WANDERBOOTH_WEB_DIR)
+  : null;
 await mkdir(dataDirectory, { recursive: true });
 
 const database = new BoothDatabase(dataDirectory);
-let state: BoothState = database.loadState() ?? initialBoothState();
+const defaultState = initialBoothState();
+const savedState = database.loadState();
+let state: BoothState = savedState
+  ? {
+      ...defaultState,
+      ...savedState,
+      schemaVersion: 2,
+      cameraSourceId: savedState.cameraSourceId ?? "simulator",
+      pendingCapture: savedState.pendingCapture ?? null,
+    }
+  : defaultState;
 database.saveState(state);
 
 const contentTypes: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
   ".mp4": "video/mp4",
 };
 
@@ -42,18 +63,109 @@ const sendJson = (response: ServerResponse, status: number, body: unknown) => {
   response.end(JSON.stringify(body));
 };
 
+const customerUrls = () => {
+  const urls = new Set<string>();
+  for (const addresses of Object.values(networkInterfaces())) {
+    for (const address of addresses ?? []) {
+      if (
+        address.family === "IPv4" &&
+        !address.internal &&
+        !address.address.startsWith("169.254.")
+      ) {
+        urls.add(`http://${address.address}:${port}/?surface=customer`);
+      }
+    }
+  }
+  return [...urls];
+};
+
+const serveFile = (response: ServerResponse, absolutePath: string) => {
+  response.writeHead(200, {
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-store",
+    "Content-Type": contentTypes[extname(absolutePath).toLowerCase()] ?? "application/octet-stream",
+  });
+  createReadStream(absolutePath).pipe(response);
+};
+
+const readImageBody = async (request: IncomingMessage) => {
+  const maximumBytes = 15 * 1024 * 1024;
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += buffer.length;
+    if (totalBytes > maximumBytes) {
+      throw new CommandError("The captured photo is larger than 15 MB.");
+    }
+    chunks.push(buffer);
+  }
+
+  if (totalBytes === 0) throw new CommandError("The camera did not send a photo.");
+  return Buffer.concat(chunks);
+};
+
+let commandQueue = Promise.resolve();
+
+const receiveCameraCapture = async (request: IncomingMessage, response: ServerResponse) => {
+  if (state.cameraSourceId !== "macbook_camera") {
+    throw new CommandError("The MacBook camera is not the selected source.");
+  }
+  if (state.phase !== "capturing" || !state.pendingCapture || !state.sessionId) {
+    throw new CommandError("There is no pending camera capture.");
+  }
+  if (request.headers["content-type"]?.split(";")[0] !== "image/jpeg") {
+    throw new CommandError("Camera captures must be JPEG images.");
+  }
+  if (request.headers["x-session-id"] !== state.sessionId) {
+    throw new CommandError("That camera capture belongs to an expired session.");
+  }
+
+  const pending = state.pendingCapture;
+  const sessionId = safeSessionId(state.sessionId);
+  const body = await readImageBody(request);
+  const captureDirectory = resolve(dataDirectory, "sessions", sessionId, "captures");
+  await mkdir(captureDirectory, { recursive: true });
+  const filename = `photo-${pending.slot}-r${pending.revision}.jpg`;
+  await writeFile(resolve(captureDirectory, filename), body);
+
+  systemCommit({
+    type: pending.kind === "retake" ? "RETAKE_COMPLETED" : "CAPTURE_COMPLETED",
+    capture: {
+      slot: pending.slot,
+      revision: pending.revision,
+      mediaUrl: `/media/sessions/${sessionId}/captures/${filename}`,
+      capturedAt: new Date().toISOString(),
+    },
+  });
+  sendJson(response, 201, { ok: true });
+};
+
 const httpServer = createServer((request, response) => {
+  const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+
   if (request.method === "OPTIONS") {
     response.writeHead(204, {
-      "Access-Control-Allow-Headers": "Content-Type",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, X-Session-Id",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Origin": "*",
     });
     response.end();
     return;
   }
 
-  if (request.url === "/health") {
+  if (request.method === "POST" && requestUrl.pathname === "/api/camera-captures") {
+    commandQueue = commandQueue
+      .then(() => receiveCameraCapture(request, response))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : "The photo could not be saved.";
+        sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
+      });
+    return;
+  }
+
+  if (requestUrl.pathname === "/health") {
     sendJson(response, 200, {
       ok: true,
       service: "wanderbooth-host",
@@ -63,13 +175,21 @@ const httpServer = createServer((request, response) => {
     return;
   }
 
-  if (request.url === "/api/state") {
+  if (requestUrl.pathname === "/api/state") {
     sendJson(response, 200, state);
     return;
   }
 
-  if (request.url?.startsWith("/media/")) {
-    const relativePath = decodeURIComponent(request.url.slice("/media/".length)).replaceAll(
+  if (requestUrl.pathname === "/api/info") {
+    sendJson(response, 200, {
+      customerUrls: customerUrls(),
+      service: "wanderbooth-host",
+    });
+    return;
+  }
+
+  if (requestUrl.pathname.startsWith("/media/")) {
+    const relativePath = decodeURIComponent(requestUrl.pathname.slice("/media/".length)).replaceAll(
       "\\",
       "/",
     );
@@ -80,14 +200,24 @@ const httpServer = createServer((request, response) => {
       return;
     }
 
-    response.writeHead(200, {
-      "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "no-store",
-      "Content-Type":
-        contentTypes[extname(absolutePath).toLowerCase()] ?? "application/octet-stream",
-    });
-    createReadStream(absolutePath).pipe(response);
+    serveFile(response, absolutePath);
     return;
+  }
+
+  if (request.method === "GET" && webDirectory) {
+    const requestedPath = requestUrl.pathname === "/" ? "/index.html" : requestUrl.pathname;
+    const absolutePath = resolve(webDirectory, `.${decodeURIComponent(requestedPath)}`);
+    const safeRoot = `${webDirectory}/`;
+    if (absolutePath.startsWith(safeRoot) && existsSync(absolutePath)) {
+      serveFile(response, absolutePath);
+      return;
+    }
+
+    const indexPath = resolve(webDirectory, "index.html");
+    if (existsSync(indexPath)) {
+      serveFile(response, indexPath);
+      return;
+    }
   }
 
   sendJson(response, 404, { error: "Route not found." });
@@ -137,18 +267,21 @@ const runCapture = async (
 ) => {
   const sessionId = safeSessionId(state.sessionId ?? "");
   commit(reduceCommand(state, command, actor), actor, command, id);
-  const slot = state.captures.length + 1;
+  if (state.cameraSourceId === "macbook_camera") return;
+
+  const pending = state.pendingCapture;
+  if (!pending) throw new CommandError("The simulator capture was not scheduled.");
   const result = await takeSimulatedPhoto({
     dataDirectory,
     sessionId,
-    slot,
-    revision: 1,
+    slot: pending.slot,
+    revision: pending.revision,
   });
   systemCommit({
     type: "CAPTURE_COMPLETED",
     capture: {
-      slot,
-      revision: 1,
+      slot: pending.slot,
+      revision: pending.revision,
       mediaUrl: result.mediaUrl,
       capturedAt: result.capturedAt,
     },
@@ -161,20 +294,22 @@ const runRetake = async (
   id: string,
 ) => {
   const sessionId = safeSessionId(state.sessionId ?? "");
-  const original = state.captures.find((capture) => capture.slot === command.slot);
   commit(reduceCommand(state, command, actor), actor, command, id);
-  const revision = (original?.revision ?? 0) + 1;
+  if (state.cameraSourceId === "macbook_camera") return;
+
+  const pending = state.pendingCapture;
+  if (!pending) throw new CommandError("The simulator retake was not scheduled.");
   const result = await takeSimulatedPhoto({
     dataDirectory,
     sessionId,
-    slot: command.slot,
-    revision,
+    slot: pending.slot,
+    revision: pending.revision,
   });
   systemCommit({
     type: "RETAKE_COMPLETED",
     capture: {
-      slot: command.slot,
-      revision,
+      slot: pending.slot,
+      revision: pending.revision,
       mediaUrl: result.mediaUrl,
       capturedAt: result.capturedAt,
     },
@@ -190,8 +325,6 @@ const runApproval = async (
   const deliverables = await buildDeliverables(state, dataDirectory);
   systemCommit({ type: "PROCESSING_COMPLETED", deliverables });
 };
-
-let commandQueue = Promise.resolve();
 
 const processMessage = async (socket: WebSocket, rawData: WebSocket.RawData) => {
   let message: ClientMessage;

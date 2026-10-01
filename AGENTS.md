@@ -46,14 +46,14 @@ The Host is authoritative. Every screen sends a command, the Host applies role a
 
 ## Current Phase 0 boundaries
 
-- Products/templates: two product families currently expose five layouts, five frame palettes, four built-in overlays, and locally imported event frames. Layout geometry fixes the unique capture count at three or four.
+- Products/templates: two product families currently expose five layouts, five frame palettes, four built-in overlays, and locally imported event frames. Layout geometry fixes the unique capture count at three, four, or six; the double-strip 4×6 uses six different shots.
 - Payments: staff-confirmed cash only; price is intentionally absent from the UI.
 - Camera: simulator and experimental MacBook camera work; Fujifilm X-M5 follows. Camera selection remains staff-only and idle-only.
 - Capture: one command starts the product-defined sequence. Countdown ticks and capture triggers are Host-owned and broadcast to every screen.
 - Preview: the Mac renderer sends reduced mirrored JPEG frames to an in-memory Host relay; full-resolution unmirrored captures use a separate persisted route.
 - Delivery: branded local files work; cloud upload, QR generation, and 30-day expiry are not implemented yet.
 - Rendering: layout slots can repeat capture indices and use rectangle, rounded, or heart masks. A session uses either a generated fixed-color frame (with an optional built-in treatment) or one imported custom frame. New imports use transparent PNG artwork with pre-cut openings; legacy flat-template records remain renderable. The Host applies persisted frame, holder, and image transforms in preview and export.
-- Review: the final composed layout is the primary preview. Full source captures remain visible without CSS cropping or inherited empty-card height for retake decisions. The staff-only direct canvas uses click/tap selection, drag movement, corner resizing, and a Crop image mode; frame artwork, each photo frame, and the image inside each frame still have separate normalized transforms in authoritative Host state.
+- Review: the final composed layout is the primary preview. Captured and waiting source cards share a 16:9 footprint and use `contain` for uncropped review. The staff-only direct canvas uses click/tap selection, drag movement, independent edge/corner resizing, direct rotation, object locking, and Crop image mode; frame artwork, each photo frame, and the image inside each frame have separate normalized transforms in authoritative Host state. Imported templates can be deleted with confirmation from the operator UI.
 - Printing: the 2×6 and 4×6 composite files render at 300 DPI. The first double-strip file now exists, but Epson L8050 queue control is not implemented yet.
 - Authentication: local prototype roles are screen-based, not authenticated accounts.
 - Distribution: the current Mac build is unsigned and intended only for this development machine. Public downloads will require Apple Developer signing and notarization.

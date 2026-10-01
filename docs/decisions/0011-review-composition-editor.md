@@ -1,5 +1,7 @@
 # ADR 0011: Review the final composition and persist custom-frame alignment
 
+> **Update:** ADR 0014 supersedes the repeated Double strip example and uniform-scale transform. The persistent Host-owned composition principle remains accepted.
+
 **Status:** Accepted; fixed-holder details superseded by [ADR 0012](0012-independent-photo-holder-and-image-transforms.md)
 
 **Date:** 2026-10-02

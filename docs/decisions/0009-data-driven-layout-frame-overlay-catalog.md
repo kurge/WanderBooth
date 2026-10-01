@@ -1,5 +1,7 @@
 # ADR 0009: Data-Driven Layout, Frame, and Overlay Catalog
 
+> **Update:** ADR 0014 supersedes this record's matching/repeated Double strip mapping. The data-driven catalog decision remains accepted, but Double strip 4×6 now maps six unique captures to its six slots.
+
 - Status: Accepted
 - Date: 2026-10-02
 

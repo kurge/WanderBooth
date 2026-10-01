@@ -8,6 +8,8 @@
 
 **Interaction update:** ADR 0013 supersedes the button-first interaction described below. The transform and rendering model in this record remains authoritative.
 
+**Transform update:** ADR 0014 replaces the single uniform scale with independent X/Y scaling, rotation, and a lock flag. The holder/image separation and rendering order remain authoritative.
+
 ## Context
 
 A captured image can be panned and zoomed inside a fixed layout slot, but this is not enough when an imported frame's transparent opening is offset from the built-in slot. Scaling only the image changes its crop while leaving the clipped photo area in the wrong place. The operator needs to correct both layers without editing the raw capture or modifying the transparent artwork during a paid session.
@@ -27,10 +29,10 @@ Photo composition
 The custom frame keeps its existing independent transform. All three use the same normalized format:
 
 ```text
-MediaTransform
-├── offsetX  (-1.0 … +1.0, fraction of target width)
-├── offsetY  (-1.0 … +1.0, fraction of target height)
-└── scale    (0.5 … 3.0)
+MediaTransform (superseded by ADR 0014)
+├── offsetX
+├── offsetY
+└── scale
 
 BoothState
 ├── frameTransform
@@ -40,7 +42,7 @@ BoothState
 
 The original operator review used separate **Holder** and **Image** target buttons. ADR 0013 replaces that presentation with direct canvas selection and manipulation while retaining the same Host commands and transforms. These controls remain staff-only, review-only, and custom-frame-only.
 
-Transforms are keyed by unique capture number rather than visible layout-slot identity. If Photo 1 appears twice on a double strip, both copies use the same holder and image transforms.
+Transforms are keyed by capture number rather than browser element identity. ADR 0014 changed the Double strip to six unique captures, so every current visible slot has its own holder and image transforms.
 
 ## Rendering order
 
@@ -61,19 +63,18 @@ The operator interface accepts transparent PNG or WebP artwork with openings pre
 
 ## Source-photo preview
 
-Filled capture cards preserve their natural image height and align to the start of their grid row. An empty 3:4 waiting placeholder can no longer stretch neighboring landscape cards and create false white space. Source cards remain separate from the cropped final-layout preview.
+ADR 0014 replaces the mixed natural-height/3:4 cards with one consistent 16:9 footprint. Captured images use `contain`, while waiting cards occupy the same dimensions. Source cards remain separate from the cropped final-layout preview.
 
 ## Consequences
 
 - The operator can align artwork openings and photo crops independently without changing raw files.
-- Repeated copies stay visually consistent and require fewer controls.
+- Every current photo slot can be aligned independently through its unique capture number.
 - A holder scaled below 100% or moved too far may expose the neutral canvas. The final preview makes this visible before approval.
-- Holder geometry is still based on the selected built-in layout. Operators cannot draw new masks, change aspect ratio, rotate, or adjust the two repeated copies separately.
+- Holder geometry is still based on the selected built-in layout. Operators cannot draw new masks or use perspective distortion. ADR 0014 adds aspect-ratio changes and rotation, and makes all six double-strip slots independent.
 - State schema version 7 adds `holderTransforms`; older saved state migrates with an empty list, which is equivalent to centered 100% holders.
 
 ## Revisit when
 
 - production templates require authoring completely new holder shapes or aspect ratios;
-- operators request rotation, perspective, or freeform masks;
-- repeated copies need deliberately different alignment; or
+- operators request perspective or freeform masks;
 - a reusable pre-session calibration profile is preferable to per-session adjustment.

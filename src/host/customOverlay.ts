@@ -75,27 +75,31 @@ const transformToCanvas = async (
   height: number,
   transform: MediaTransform,
 ) => {
-  const scaledWidth = Math.max(1, Math.round(width * transform.scale));
-  const scaledHeight = Math.max(1, Math.round(height * transform.scale));
-  const scaled = await sharp(source)
+  const scaledWidth = Math.max(1, Math.round(width * transform.scaleX));
+  const scaledHeight = Math.max(1, Math.round(height * transform.scaleY));
+  const transformed = await sharp(source)
     .resize(scaledWidth, scaledHeight, { fit: "fill" })
+    .rotate(transform.rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .ensureAlpha()
     .png()
     .toBuffer();
-  const desiredLeft = Math.round((width - scaledWidth) / 2 + transform.offsetX * width);
-  const desiredTop = Math.round((height - scaledHeight) / 2 + transform.offsetY * height);
+  const transformedMetadata = await sharp(transformed).metadata();
+  const transformedWidth = transformedMetadata.width ?? scaledWidth;
+  const transformedHeight = transformedMetadata.height ?? scaledHeight;
+  const desiredLeft = Math.round((width - transformedWidth) / 2 + transform.offsetX * width);
+  const desiredTop = Math.round((height - transformedHeight) / 2 + transform.offsetY * height);
   const cropLeft = Math.max(0, -desiredLeft);
   const cropTop = Math.max(0, -desiredTop);
   const outputLeft = Math.max(0, desiredLeft);
   const outputTop = Math.max(0, desiredTop);
-  const visibleWidth = Math.min(scaledWidth - cropLeft, width - outputLeft);
-  const visibleHeight = Math.min(scaledHeight - cropTop, height - outputTop);
+  const visibleWidth = Math.min(transformedWidth - cropLeft, width - outputLeft);
+  const visibleHeight = Math.min(transformedHeight - cropTop, height - outputTop);
   const canvas = sharp({
     create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   });
 
   if (visibleWidth <= 0 || visibleHeight <= 0) return canvas.png().toBuffer();
-  const visible = await sharp(scaled)
+  const visible = await sharp(transformed)
     .extract({ left: cropLeft, top: cropTop, width: visibleWidth, height: visibleHeight })
     .png()
     .toBuffer();

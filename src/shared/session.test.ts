@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type CustomOverlay, products } from "./catalog";
+import { type CustomOverlay, normalizeMediaTransform, products } from "./catalog";
 import { type BoothState, CommandError, initialBoothState, reduceCommand } from "./session";
 
 const customOverlay: CustomOverlay = {
@@ -33,10 +33,36 @@ const completeSelection = (mode: "attendant" | "self_service" = "attendant") => 
 };
 
 describe("WanderBooth session rules", () => {
+  it("migrates legacy uniform transforms into the direct editor model", () => {
+    expect(normalizeMediaTransform({ offsetX: 0.1, offsetY: -0.2, scale: 1.4 })).toEqual({
+      offsetX: 0.1,
+      offsetY: -0.2,
+      scaleX: 1.4,
+      scaleY: 1.4,
+      rotation: 0,
+      locked: false,
+    });
+  });
+
   it("derives three captures from the selected 2×6 layout", () => {
     const state = completeSelection();
     expect(state.requiredCaptureCount).toBe(3);
     expect(state.phase).toBe("awaiting_cash");
+  });
+
+  it("derives six unique captures from the double-strip 4×6 layout", () => {
+    let state = beginSelection();
+    state = reduceCommand(
+      state,
+      { type: "SELECT_PRODUCT", productId: "three-photo-strip" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_LAYOUT", layoutId: "double-strip-4x6" },
+      "attendant",
+    );
+    expect(state.requiredCaptureCount).toBe(6);
   });
 
   it("derives four captures from a selected 4×6 card layout", () => {
@@ -190,7 +216,17 @@ describe("WanderBooth session rules", () => {
     };
     state = reduceCommand(
       state,
-      { type: "UPDATE_FRAME_TRANSFORM", transform: { offsetX: 0.15, offsetY: -0.1, scale: 1.2 } },
+      {
+        type: "UPDATE_FRAME_TRANSFORM",
+        transform: {
+          offsetX: 0.15,
+          offsetY: -0.1,
+          scaleX: 1.2,
+          scaleY: 0.9,
+          rotation: 8,
+          locked: true,
+        },
+      },
       "attendant",
     );
     state = reduceCommand(
@@ -198,7 +234,14 @@ describe("WanderBooth session rules", () => {
       {
         type: "UPDATE_HOLDER_TRANSFORM",
         slot: 1,
-        transform: { offsetX: 0.1, offsetY: 0.2, scale: 1.15 },
+        transform: {
+          offsetX: 0.1,
+          offsetY: 0.2,
+          scaleX: 1.15,
+          scaleY: 0.85,
+          rotation: -4,
+          locked: false,
+        },
       },
       "attendant",
     );
@@ -207,20 +250,80 @@ describe("WanderBooth session rules", () => {
       {
         type: "UPDATE_PHOTO_TRANSFORM",
         slot: 1,
-        transform: { offsetX: -0.2, offsetY: 0.25, scale: 1.35 },
+        transform: {
+          offsetX: -0.2,
+          offsetY: 0.25,
+          scaleX: 1.35,
+          scaleY: 1.35,
+          rotation: 12,
+          locked: false,
+        },
       },
       "attendant",
     );
-    expect(state.frameTransform).toEqual({ offsetX: 0.15, offsetY: -0.1, scale: 1.2 });
-    expect(state.holderTransforms).toEqual([{ slot: 1, offsetX: 0.1, offsetY: 0.2, scale: 1.15 }]);
-    expect(state.photoTransforms).toEqual([{ slot: 1, offsetX: -0.2, offsetY: 0.25, scale: 1.35 }]);
+    expect(state.frameTransform).toEqual({
+      offsetX: 0.15,
+      offsetY: -0.1,
+      scaleX: 1.2,
+      scaleY: 0.9,
+      rotation: 8,
+      locked: true,
+    });
+    expect(state.holderTransforms).toEqual([
+      {
+        slot: 1,
+        offsetX: 0.1,
+        offsetY: 0.2,
+        scaleX: 1.15,
+        scaleY: 0.85,
+        rotation: -4,
+        locked: false,
+      },
+    ]);
+    expect(state.photoTransforms).toEqual([
+      {
+        slot: 1,
+        offsetX: -0.2,
+        offsetY: 0.25,
+        scaleX: 1.35,
+        scaleY: 1.35,
+        rotation: 12,
+        locked: false,
+      },
+    ]);
     expect(() =>
       reduceCommand(
         state,
-        { type: "UPDATE_FRAME_TRANSFORM", transform: { offsetX: 0, offsetY: 0, scale: 1 } },
+        {
+          type: "UPDATE_FRAME_TRANSFORM",
+          transform: {
+            offsetX: 0,
+            offsetY: 0,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0,
+            locked: false,
+          },
+        },
         "customer",
       ),
     ).toThrow("staff-only");
+  });
+
+  it("deletes an imported frame and clears it when selected", () => {
+    let state = reduceCommand(
+      initialBoothState(),
+      { type: "REGISTER_CUSTOM_OVERLAY", overlay: customOverlay },
+      "system",
+    );
+    state = { ...state, frameMode: "custom", overlayId: customOverlay.id };
+    state = reduceCommand(
+      state,
+      { type: "DELETE_CUSTOM_OVERLAY", overlayId: customOverlay.id },
+      "system",
+    );
+    expect(state.customOverlays).toEqual([]);
+    expect(state.overlayId).toBe("none");
   });
 
   it("keeps pricing out of the first product catalog", () => {

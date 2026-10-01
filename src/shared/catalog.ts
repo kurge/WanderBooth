@@ -52,14 +52,34 @@ export type CustomOverlayMode = "transparent_artwork" | "flat_template";
 export type MediaTransform = {
   offsetX: number;
   offsetY: number;
-  scale: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+  locked: boolean;
 };
 
 export const identityMediaTransform = (): MediaTransform => ({
   offsetX: 0,
   offsetY: 0,
-  scale: 1,
+  scaleX: 1,
+  scaleY: 1,
+  rotation: 0,
+  locked: false,
 });
+
+export const normalizeMediaTransform = (
+  transform?: Partial<MediaTransform> & { scale?: number },
+): MediaTransform => {
+  const legacyScale = Number.isFinite(transform?.scale) ? (transform?.scale ?? 1) : 1;
+  return {
+    offsetX: Number.isFinite(transform?.offsetX) ? (transform?.offsetX ?? 0) : 0,
+    offsetY: Number.isFinite(transform?.offsetY) ? (transform?.offsetY ?? 0) : 0,
+    scaleX: Number.isFinite(transform?.scaleX) ? (transform?.scaleX ?? legacyScale) : legacyScale,
+    scaleY: Number.isFinite(transform?.scaleY) ? (transform?.scaleY ?? legacyScale) : legacyScale,
+    rotation: Number.isFinite(transform?.rotation) ? (transform?.rotation ?? 0) : 0,
+    locked: transform?.locked === true,
+  };
+};
 
 type OverlayBase = {
   id: string;
@@ -83,8 +103,8 @@ export type Overlay = (OverlayBase & { kind: Exclude<OverlayKind, "custom"> }) |
 export const products: Product[] = [
   {
     id: "three-photo-strip",
-    name: "Three-photo strip",
-    description: "Three portraits as one strip or two matching strips on a 4×6 sheet.",
+    name: "Photo strip",
+    description: "Three photos on one 2×6 strip, or six unique photos across two strips.",
     layoutIds: ["vertical-2x6", "double-strip-4x6"],
     price: null,
   },
@@ -116,8 +136,8 @@ export const layouts: Layout[] = [
   {
     id: "double-strip-4x6",
     name: "Double strip 4×6",
-    description: "Two matching three-photo strips on one 4×6 sheet, ready to cut.",
-    requiredCaptureCount: 3,
+    description: "Six unique photos across two three-photo strips on one 4×6 sheet.",
+    requiredCaptureCount: 6,
     printSize: "4x6",
     canvasWidth: 1200,
     canvasHeight: 1800,
@@ -125,9 +145,9 @@ export const layouts: Layout[] = [
       { captureIndex: 0, x: 45, y: 115, width: 510, height: 390, shape: "rounded" },
       { captureIndex: 1, x: 45, y: 535, width: 510, height: 390, shape: "rounded" },
       { captureIndex: 2, x: 45, y: 955, width: 510, height: 390, shape: "rounded" },
-      { captureIndex: 0, x: 645, y: 115, width: 510, height: 390, shape: "rounded" },
-      { captureIndex: 1, x: 645, y: 535, width: 510, height: 390, shape: "rounded" },
-      { captureIndex: 2, x: 645, y: 955, width: 510, height: 390, shape: "rounded" },
+      { captureIndex: 3, x: 645, y: 115, width: 510, height: 390, shape: "rounded" },
+      { captureIndex: 4, x: 645, y: 535, width: 510, height: 390, shape: "rounded" },
+      { captureIndex: 5, x: 645, y: 955, width: 510, height: 390, shape: "rounded" },
     ],
     brandAreas: [
       { x: 45, y: 1400, width: 510, height: 310, align: "center" },

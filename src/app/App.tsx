@@ -184,6 +184,54 @@ function OverlayThumbnail({ overlay }: { overlay: Overlay }) {
   );
 }
 
+function DeleteImportedOverlayButton({
+  overlay,
+  compact = false,
+}: {
+  overlay: CustomOverlay;
+  compact?: boolean;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  const deleteOverlay = async () => {
+    if (
+      !window.confirm(
+        `Delete “${overlay.name}” from this booth? This removes its local artwork files and cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      const response = await fetch(
+        `${hostHttpUrl}/api/overlays/${encodeURIComponent(overlay.id)}`,
+        {
+          method: "DELETE",
+        },
+      );
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "The imported frame could not be deleted.");
+    } catch (error) {
+      window.alert(
+        error instanceof Error ? error.message : "The imported frame could not be deleted.",
+      );
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <button
+      className={`overlay-delete ${compact ? "overlay-delete--compact" : ""}`}
+      type="button"
+      disabled={deleting}
+      onClick={() => void deleteOverlay()}
+      aria-label={`Delete ${overlay.name}`}
+    >
+      {deleting ? "Deleting…" : compact ? "×" : "Delete imported frame"}
+    </button>
+  );
+}
+
 function OverlayImporter({
   layout,
   onImported,
@@ -291,15 +339,50 @@ function OverlayImporter({
 const clampTransform = (value: MediaTransform): MediaTransform => ({
   offsetX: Math.max(-1, Math.min(1, value.offsetX)),
   offsetY: Math.max(-1, Math.min(1, value.offsetY)),
-  scale: Math.max(0.5, Math.min(3, value.scale)),
+  scaleX: Math.max(0.2, Math.min(4, value.scaleX)),
+  scaleY: Math.max(0.2, Math.min(4, value.scaleY)),
+  rotation: Math.max(-180, Math.min(180, value.rotation)),
+  locked: value.locked,
 });
 
 const slotTransformMap = (transforms: Array<HolderTransform | PhotoTransform>) =>
-  Object.fromEntries(
-    transforms.map(({ slot, offsetX, offsetY, scale }) => [slot, { offsetX, offsetY, scale }]),
-  ) as Record<number, MediaTransform>;
+  Object.fromEntries(transforms.map(({ slot, ...transform }) => [slot, transform])) as Record<
+    number,
+    MediaTransform
+  >;
 
 type CompositionTarget = "frame" | `holder:${number}` | `image:${number}`;
+type ResizeHandle = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
+type InteractionKind = "move" | "resize" | "rotate";
+type TargetGeometry = {
+  baseWidth: number;
+  baseHeight: number;
+  centerX: number;
+  centerY: number;
+  parentRotation: number;
+  parentScaleX: number;
+  parentScaleY: number;
+};
+
+const resizeHandles: ResizeHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+
+const rotateVector = (x: number, y: number, degrees: number) => {
+  const radians = (degrees * Math.PI) / 180;
+  return {
+    x: x * Math.cos(radians) - y * Math.sin(radians),
+    y: x * Math.sin(radians) + y * Math.cos(radians),
+  };
+};
+
+const normalizeRotation = (degrees: number) => {
+  let normalized = ((((degrees + 180) % 360) + 360) % 360) - 180;
+  if (normalized === -180) normalized = 180;
+  return normalized;
+};
+
+const transformStyle = (transform: MediaTransform) => ({
+  transform: `translate(${transform.offsetX * 100}%, ${transform.offsetY * 100}%) rotate(${transform.rotation}deg) scale(${transform.scaleX}, ${transform.scaleY})`,
+});
 
 const describeCompositionTarget = (target: CompositionTarget) => {
   if (target === "frame") return { kind: "frame" as const, slot: null };
@@ -336,16 +419,15 @@ function LayoutPreview({
   const [photoDrafts, setPhotoDrafts] = useState<Record<number, MediaTransform>>(
     slotTransformMap(state.photoTransforms),
   );
-  const composerRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<{
-    kind: "move" | "resize";
+    kind: InteractionKind;
+    handle?: ResizeHandle;
+    geometry: TargetGeometry;
     initial: MediaTransform;
     latest: MediaTransform;
+    startAngle: number;
     startX: number;
     startY: number;
-    startDistance: number;
-    centerX: number;
-    centerY: number;
     target: CompositionTarget;
   } | null>(null);
 
@@ -389,43 +471,74 @@ function LayoutPreview({
   const customSource = customOverlay
     ? mediaSource(customOverlay.sourceMediaUrl ?? customOverlay.mediaUrl)
     : null;
-  const customTransformStyle = {
-    transform: `translate(${frameDraft.offsetX * 100}%, ${frameDraft.offsetY * 100}%) scale(${frameDraft.scale})`,
-  };
 
-  const targetGeometry = (target: CompositionTarget, bounds: DOMRect) => {
+  const targetGeometry = (target: CompositionTarget, bounds: DOMRect): TargetGeometry | null => {
     const description = describeCompositionTarget(target);
     if (description.kind === "frame") {
       return {
-        width: bounds.width,
-        height: bounds.height,
+        baseWidth: bounds.width,
+        baseHeight: bounds.height,
         centerX: bounds.left + bounds.width / 2 + frameDraft.offsetX * bounds.width,
         centerY: bounds.top + bounds.height / 2 + frameDraft.offsetY * bounds.height,
+        parentRotation: 0,
+        parentScaleX: 1,
+        parentScaleY: 1,
       };
     }
     const slot = layout.slots.find((item) => item.captureIndex + 1 === description.slot);
     if (!slot) return null;
     const holderTransform = holderDrafts[description.slot] ?? identityMediaTransform();
-    const width = bounds.width * (slot.width / layout.canvasWidth);
-    const height = bounds.height * (slot.height / layout.canvasHeight);
+    const baseWidth = bounds.width * (slot.width / layout.canvasWidth);
+    const baseHeight = bounds.height * (slot.height / layout.canvasHeight);
+    const holderCenterX =
+      bounds.left +
+      bounds.width * ((slot.x + slot.width / 2) / layout.canvasWidth) +
+      holderTransform.offsetX * baseWidth;
+    const holderCenterY =
+      bounds.top +
+      bounds.height * ((slot.y + slot.height / 2) / layout.canvasHeight) +
+      holderTransform.offsetY * baseHeight;
+    if (description.kind === "holder") {
+      return {
+        baseWidth,
+        baseHeight,
+        centerX: holderCenterX,
+        centerY: holderCenterY,
+        parentRotation: 0,
+        parentScaleX: 1,
+        parentScaleY: 1,
+      };
+    }
+    const photoTransform = photoDrafts[description.slot] ?? identityMediaTransform();
+    const photoOffset = rotateVector(
+      photoTransform.offsetX * baseWidth * holderTransform.scaleX,
+      photoTransform.offsetY * baseHeight * holderTransform.scaleY,
+      holderTransform.rotation,
+    );
     return {
-      width,
-      height,
-      centerX:
-        bounds.left +
-        bounds.width * ((slot.x + slot.width / 2) / layout.canvasWidth) +
-        holderTransform.offsetX * width,
-      centerY:
-        bounds.top +
-        bounds.height * ((slot.y + slot.height / 2) / layout.canvasHeight) +
-        holderTransform.offsetY * height,
+      baseWidth,
+      baseHeight,
+      centerX: holderCenterX + photoOffset.x,
+      centerY: holderCenterY + photoOffset.y,
+      parentRotation: holderTransform.rotation,
+      parentScaleX: holderTransform.scaleX,
+      parentScaleY: holderTransform.scaleY,
+    };
+  };
+
+  const worldVectorToParent = (x: number, y: number, geometry: TargetGeometry) => {
+    const unrotated = rotateVector(x, y, -geometry.parentRotation);
+    return {
+      x: unrotated.x / geometry.parentScaleX,
+      y: unrotated.y / geometry.parentScaleY,
     };
   };
 
   const beginInteraction = (
     event: React.PointerEvent<HTMLDivElement>,
     target: CompositionTarget,
-    kind: "move" | "resize",
+    kind: InteractionKind,
+    handle?: ResizeHandle,
   ) => {
     if (!editable || !customOverlay) return;
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -433,18 +546,21 @@ function LayoutPreview({
     if (!geometry) return;
     const initial = transformFor(target);
     setActiveTarget(target);
+    if (initial.locked) return;
+    const pointerFromCenter = worldVectorToParent(
+      event.clientX - geometry.centerX,
+      event.clientY - geometry.centerY,
+      geometry,
+    );
     interactionRef.current = {
       kind,
+      handle,
+      geometry,
       initial,
       latest: initial,
+      startAngle: Math.atan2(pointerFromCenter.y, pointerFromCenter.x),
       startX: event.clientX,
       startY: event.clientY,
-      startDistance: Math.max(
-        1,
-        Math.hypot(event.clientX - geometry.centerX, event.clientY - geometry.centerY),
-      ),
-      centerX: geometry.centerX,
-      centerY: geometry.centerY,
       target,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -452,10 +568,16 @@ function LayoutPreview({
 
   const beginCanvasInteraction = (event: React.PointerEvent<HTMLDivElement>) => {
     const targetElement = event.target as HTMLElement;
-    const resizeTarget = targetElement.dataset.resizeTarget as CompositionTarget | undefined;
-    if (resizeTarget) {
+    const controlTarget = targetElement.dataset.transformTarget as CompositionTarget | undefined;
+    const interactionKind = targetElement.dataset.interactionKind as InteractionKind | undefined;
+    if (controlTarget && interactionKind) {
       event.preventDefault();
-      beginInteraction(event, resizeTarget, "resize");
+      beginInteraction(
+        event,
+        controlTarget,
+        interactionKind,
+        targetElement.dataset.resizeHandle as ResizeHandle | undefined,
+      );
       return;
     }
     const slotElement = targetElement.closest<HTMLElement>("[data-capture-slot]");
@@ -483,28 +605,64 @@ function LayoutPreview({
       event.clientY - interaction.startY,
     );
     if (pointerMovement < 4) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const geometry = targetGeometry(interaction.target, bounds);
-    if (!geometry) return;
-    const next =
-      interaction.kind === "resize"
-        ? clampTransform({
-            ...interaction.initial,
-            scale:
-              interaction.initial.scale *
-              (Math.hypot(
-                event.clientX - interaction.centerX,
-                event.clientY - interaction.centerY,
-              ) /
-                interaction.startDistance),
-          })
-        : clampTransform({
-            ...interaction.initial,
-            offsetX:
-              interaction.initial.offsetX + (event.clientX - interaction.startX) / geometry.width,
-            offsetY:
-              interaction.initial.offsetY + (event.clientY - interaction.startY) / geometry.height,
-          });
+    const { geometry, initial } = interaction;
+    const parentDelta = worldVectorToParent(
+      event.clientX - interaction.startX,
+      event.clientY - interaction.startY,
+      geometry,
+    );
+    let next: MediaTransform;
+    if (interaction.kind === "move") {
+      next = clampTransform({
+        ...initial,
+        offsetX: initial.offsetX + parentDelta.x / geometry.baseWidth,
+        offsetY: initial.offsetY + parentDelta.y / geometry.baseHeight,
+      });
+    } else if (interaction.kind === "rotate") {
+      const pointerFromCenter = worldVectorToParent(
+        event.clientX - geometry.centerX,
+        event.clientY - geometry.centerY,
+        geometry,
+      );
+      const currentAngle = Math.atan2(pointerFromCenter.y, pointerFromCenter.x);
+      next = clampTransform({
+        ...initial,
+        rotation: normalizeRotation(
+          initial.rotation + ((currentAngle - interaction.startAngle) * 180) / Math.PI,
+        ),
+      });
+    } else {
+      const localDelta = rotateVector(parentDelta.x, parentDelta.y, -initial.rotation);
+      const handle = interaction.handle ?? "se";
+      const changesX = handle.includes("e") || handle.includes("w");
+      const changesY = handle.includes("n") || handle.includes("s");
+      const signX = handle.includes("w") ? -1 : 1;
+      const signY = handle.includes("n") ? -1 : 1;
+      const initialWidth = geometry.baseWidth * initial.scaleX;
+      const initialHeight = geometry.baseHeight * initial.scaleY;
+      const requestedWidth = changesX ? initialWidth + signX * localDelta.x : initialWidth;
+      const requestedHeight = changesY ? initialHeight + signY * localDelta.y : initialHeight;
+      const nextScaleX = Math.max(0.2, Math.min(4, requestedWidth / geometry.baseWidth));
+      const nextScaleY = Math.max(0.2, Math.min(4, requestedHeight / geometry.baseHeight));
+      const widthChange = geometry.baseWidth * (nextScaleX - initial.scaleX);
+      const heightChange = geometry.baseHeight * (nextScaleY - initial.scaleY);
+      const localCenterShift = {
+        x: changesX ? (signX * widthChange) / 2 : 0,
+        y: changesY ? (signY * heightChange) / 2 : 0,
+      };
+      const parentCenterShift = rotateVector(
+        localCenterShift.x,
+        localCenterShift.y,
+        initial.rotation,
+      );
+      next = clampTransform({
+        ...initial,
+        offsetX: initial.offsetX + parentCenterShift.x / geometry.baseWidth,
+        offsetY: initial.offsetY + parentCenterShift.y / geometry.baseHeight,
+        scaleX: nextScaleX,
+        scaleY: nextScaleY,
+      });
+    }
     interaction.latest = next;
     updateDraft(interaction.target, next);
   };
@@ -523,20 +681,48 @@ function LayoutPreview({
     event.preventDefault();
     setActiveTarget(`image:${Number(slotElement.dataset.captureSlot)}`);
   };
-  const updateZoom = (scale: number) => {
-    const next = clampTransform({ ...activeTransform, scale });
-    updateDraft(activeTarget, next);
-    commitTransform(activeTarget, next);
-  };
   const resetActive = () => {
     const reset = identityMediaTransform();
     updateDraft(activeTarget, reset);
     commitTransform(activeTarget, reset);
   };
+  const toggleActiveLock = () => {
+    const next = { ...activeTransform, locked: !activeTransform.locked };
+    updateDraft(activeTarget, next);
+    commitTransform(activeTarget, next);
+  };
   const selectActivePhotoMode = (kind: "holder" | "image") => {
     const description = describeCompositionTarget(activeTarget);
     if (description.slot !== null) setActiveTarget(`${kind}:${description.slot}`);
   };
+  const selectionControls = (target: CompositionTarget, transform: MediaTransform) => (
+    <>
+      {transform.locked ? (
+        <i className="layout-composer__lock-badge" aria-hidden="true">
+          Locked
+        </i>
+      ) : (
+        <>
+          {resizeHandles.map((handle) => (
+            <i
+              className={`layout-composer__handle layout-composer__handle--${handle}`}
+              data-interaction-kind="resize"
+              data-resize-handle={handle}
+              data-transform-target={target}
+              key={handle}
+            />
+          ))}
+          <i className="layout-composer__rotation-arm" aria-hidden="true" />
+          <i
+            className="layout-composer__rotation-handle"
+            data-interaction-kind="rotate"
+            data-transform-target={target}
+            title="Drag to rotate"
+          />
+        </>
+      )}
+    </>
+  );
 
   return (
     <section className="layout-preview-card" aria-label="Final layout preview">
@@ -548,7 +734,6 @@ function LayoutPreview({
         <small>{layout.printSize.replace("x", "×")} output</small>
       </div>
       <div
-        ref={composerRef}
         role="application"
         aria-label={editable ? "Direct layout editor" : "Final layout"}
         className={`layout-composer ${editable ? "layout-composer--editable" : ""}`}
@@ -568,7 +753,7 @@ function LayoutPreview({
           <img
             className="layout-composer__custom layout-composer__custom--background"
             src={customSource}
-            style={customTransformStyle}
+            style={transformStyle(frameDraft)}
             alt=""
           />
         )}
@@ -591,15 +776,13 @@ function LayoutPreview({
                 top: `${(slot.y / layout.canvasHeight) * 100}%`,
                 width: `${(slot.width / layout.canvasWidth) * 100}%`,
                 height: `${(slot.height / layout.canvasHeight) * 100}%`,
-                transform: `translate(${holderTransform.offsetX * 100}%, ${holderTransform.offsetY * 100}%) scale(${holderTransform.scale})`,
+                ...transformStyle(holderTransform),
               }}
             >
               {capture ? (
                 <img
                   src={mediaSource(capture.mediaUrl)}
-                  style={{
-                    transform: `translate(${photoTransform.offsetX * 100}%, ${photoTransform.offsetY * 100}%) scale(${photoTransform.scale})`,
-                  }}
+                  style={transformStyle(photoTransform)}
                   alt=""
                 />
               ) : (
@@ -632,23 +815,18 @@ function LayoutPreview({
           <img
             className="layout-composer__custom layout-composer__custom--foreground"
             src={customSource}
-            style={customTransformStyle}
+            style={transformStyle(frameDraft)}
             alt=""
           />
         )}
         {editable && customOverlay && activeTarget === "frame" && (
           <div
             className="layout-composer__selection layout-composer__selection--frame"
-            style={customTransformStyle}
+            style={transformStyle(frameDraft)}
             aria-hidden="true"
           >
-            {(["nw", "ne", "sw", "se"] as const).map((corner) => (
-              <i
-                className={`layout-composer__handle layout-composer__handle--${corner}`}
-                data-resize-target="frame"
-                key={corner}
-              />
-            ))}
+            <b>Artwork</b>
+            {selectionControls("frame", frameDraft)}
           </div>
         )}
         {editable &&
@@ -661,36 +839,52 @@ function LayoutPreview({
             .map((slot) => {
               const captureSlot = slot.captureIndex + 1;
               const holderTransform = holderDrafts[captureSlot] ?? identityMediaTransform();
+              const photoTransform = photoDrafts[captureSlot] ?? identityMediaTransform();
               const mode = describeCompositionTarget(activeTarget).kind;
-              return (
+              const slotPosition = {
+                left: `${(slot.x / layout.canvasWidth) * 100}%`,
+                top: `${(slot.y / layout.canvasHeight) * 100}%`,
+                width: `${(slot.width / layout.canvasWidth) * 100}%`,
+                height: `${(slot.height / layout.canvasHeight) * 100}%`,
+              };
+              return mode === "holder" ? (
                 <div
-                  className={`layout-composer__selection layout-composer__selection--${mode}`}
+                  className="layout-composer__selection layout-composer__selection--holder"
                   key={`selection-${captureSlot}-${slot.x}-${slot.y}`}
                   style={{
-                    left: `${(slot.x / layout.canvasWidth) * 100}%`,
-                    top: `${(slot.y / layout.canvasHeight) * 100}%`,
-                    width: `${(slot.width / layout.canvasWidth) * 100}%`,
-                    height: `${(slot.height / layout.canvasHeight) * 100}%`,
-                    transform: `translate(${holderTransform.offsetX * 100}%, ${holderTransform.offsetY * 100}%) scale(${holderTransform.scale})`,
+                    ...slotPosition,
+                    ...transformStyle(holderTransform),
                   }}
                   aria-hidden="true"
                 >
-                  <b>{mode === "image" ? "Crop photo" : `Photo ${captureSlot} frame`}</b>
-                  {(["nw", "ne", "sw", "se"] as const).map((corner) => (
-                    <i
-                      className={`layout-composer__handle layout-composer__handle--${corner}`}
-                      data-resize-target={activeTarget}
-                      key={corner}
-                    />
-                  ))}
+                  <b>Photo {captureSlot} frame</b>
+                  {selectionControls(activeTarget, holderTransform)}
+                </div>
+              ) : (
+                <div
+                  className="layout-composer__selection-wrapper"
+                  key={`selection-${captureSlot}-${slot.x}-${slot.y}`}
+                  style={{
+                    ...slotPosition,
+                    ...transformStyle(holderTransform),
+                  }}
+                  aria-hidden="true"
+                >
+                  <div
+                    className="layout-composer__selection layout-composer__selection--image layout-composer__selection--nested"
+                    style={transformStyle(photoTransform)}
+                  >
+                    <b>Crop photo {captureSlot}</b>
+                    {selectionControls(activeTarget, photoTransform)}
+                  </div>
                 </div>
               );
             })}
         {editable && (
           <span className="layout-composer__drag-hint">
             {describeCompositionTarget(activeTarget).kind === "image"
-              ? "Crop mode · drag the image"
-              : `Drag to move ${compositionTargetLabel(activeTarget)}`}
+              ? `Crop mode · drag, resize, or rotate${activeTransform.locked ? " · locked" : ""}`
+              : `${activeTransform.locked ? "Locked" : "Drag, resize, or rotate"} ${compositionTargetLabel(activeTarget)}`}
           </span>
         )}
       </div>
@@ -725,33 +919,32 @@ function LayoutPreview({
               </>
             )}
           </div>
-          <div className="composition-editor__zoom">
-            <label className="composition-editor__zoom-label" htmlFor="composition-zoom">
-              Zoom
-            </label>
-            <input
-              className="composition-editor__zoom-input"
-              id="composition-zoom"
-              type="range"
-              min="0.5"
-              max="3"
-              step="0.05"
-              value={activeTransform.scale}
-              onChange={(event) => updateZoom(Number(event.target.value))}
-            />
-            <output>{Math.round(activeTransform.scale * 100)}%</output>
+          <div className="composition-editor__actions">
+            <span>
+              {Math.round(activeTransform.scaleX * 100)}% ×{" "}
+              {Math.round(activeTransform.scaleY * 100)}%
+              {activeTransform.rotation !== 0 && ` · ${Math.round(activeTransform.rotation)}°`}
+            </span>
             <button
               className="button button--quiet button--tiny"
               type="button"
+              onClick={toggleActiveLock}
+            >
+              {activeTransform.locked ? "Unlock" : "Lock"}
+            </button>
+            <button
+              className="button button--quiet button--tiny"
+              type="button"
+              disabled={activeTransform.locked}
               onClick={resetActive}
             >
               Reset
             </button>
           </div>
           <p>
-            Click a photo to select its frame. Drag it to move it, or pull a corner handle to
-            resize. Double-click the photo—or choose Crop image—to reposition the image inside the
-            frame.
+            Click a photo to select its frame. Drag to move, use edge or corner handles to resize,
+            and drag the round handle to rotate. Double-click—or choose Crop image—to adjust the
+            photo inside. Lock an object when its placement is finished.
           </p>
         </div>
       )}
@@ -1040,22 +1233,24 @@ function SelectionPanel({
             </div>
             <div className="overlay-grid">
               {availableCustomOverlays.map((overlay) => (
-                <button
-                  className={
-                    state.overlayId === overlay.id
-                      ? "overlay-card overlay-card--selected"
-                      : "overlay-card"
-                  }
-                  type="button"
-                  key={overlay.id}
-                  onClick={() => sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })}
-                >
-                  <OverlayThumbnail overlay={overlay} />
-                  <span>
-                    <strong>{overlay.name}</strong>
-                    <small>{overlay.description}</small>
-                  </span>
-                </button>
+                <div className="overlay-choice" key={overlay.id}>
+                  <button
+                    className={
+                      state.overlayId === overlay.id
+                        ? "overlay-card overlay-card--selected"
+                        : "overlay-card"
+                    }
+                    type="button"
+                    onClick={() => sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })}
+                  >
+                    <OverlayThumbnail overlay={overlay} />
+                    <span>
+                      <strong>{overlay.name}</strong>
+                      <small>{overlay.description}</small>
+                    </span>
+                  </button>
+                  <DeleteImportedOverlayButton overlay={overlay} />
+                </div>
               ))}
               {availableCustomOverlays.length === 0 && (
                 <p className="catalog-empty">
@@ -1312,16 +1507,20 @@ function SessionPanel({
                 <div className="mini-overlays mini-overlays--custom">
                   <span>Imported</span>
                   {compatibleCustomFrames.map((overlay) => (
-                    <button
-                      type="button"
-                      key={overlay.id}
-                      title={overlay.name}
-                      aria-label={`Use ${overlay.name}`}
-                      aria-pressed={state.overlayId === overlay.id}
-                      onClick={() => sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })}
-                    >
-                      <OverlayThumbnail overlay={overlay} />
-                    </button>
+                    <div className="mini-overlay-choice" key={overlay.id}>
+                      <button
+                        type="button"
+                        title={overlay.name}
+                        aria-label={`Use ${overlay.name}`}
+                        aria-pressed={state.overlayId === overlay.id}
+                        onClick={() =>
+                          sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })
+                        }
+                      >
+                        <OverlayThumbnail overlay={overlay} />
+                      </button>
+                      <DeleteImportedOverlayButton overlay={overlay} compact />
+                    </div>
                   ))}
                   {compatibleCustomFrames.length === 0 && (
                     <small>No imported frames for this layout.</small>
@@ -1585,7 +1784,9 @@ function OperatorSidebar({
           <div>
             <dt>Photos</dt>
             <dd>
-              {state.requiredCaptureCount ? `${state.requiredCaptureCount} automatic` : "3 or 4"}
+              {state.requiredCaptureCount
+                ? `${state.requiredCaptureCount} automatic`
+                : "3, 4, or 6"}
             </dd>
           </div>
           <div>

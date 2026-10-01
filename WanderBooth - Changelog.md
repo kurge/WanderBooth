@@ -25,6 +25,30 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.4.0 — 2026-10-02
+
+### Changed
+
+- Changed Double strip 4×6 from three repeated captures to six unique shots: Photos 1–3 fill the left 2×6 strip and Photos 4–6 fill the right strip.
+- Replaced the uniform scale field with independent width and height scales plus rotation and lock state for imported artwork, every photo frame, and every image crop.
+- Removed the Zoom slider. Objects now resize from eight direct edge/corner handles and rotate from a round on-canvas handle.
+- Made captured and waiting source-photo cards use the same 16:9 footprint. Captures use `contain`, so the complete saved image stays visible without collapsing the card height.
+
+### Added
+
+- Added persistent **Lock/Unlock** controls. Locked objects keep their placement, hide manipulation handles, and cannot be reset until unlocked.
+- Added confirmed deletion for imported templates, including removal of normalized source and preview files from private local runtime storage.
+- Added schema-version-8 migration from legacy uniform scale to equal X/Y scales, zero rotation, and unlocked state.
+- Added ADR 0014 covering the six-shot mapping, transform model, deletion policy, and review-card geometry.
+
+### Verified
+
+- Confirmed all 26 automated tests, formatting, type checks, Host build, and customer-app build pass.
+- Confirmed all six simulator captures produce six branded individual PNGs, the Double strip 4×6 composite, and the six-photo slideshow in an isolated smoke session.
+- Verified the operator UI displays six shots, direct frame/image modes, rotation and resize handles, lock state, and imported-template deletion.
+- Verified deletion removes both private imported-frame files from the isolated runtime.
+- Built and validated the unsigned Apple-silicon `WanderBooth-0.9.0-arm64.dmg` installation image.
+
 ## 1.3.0 — 2026-10-02
 
 ### Changed

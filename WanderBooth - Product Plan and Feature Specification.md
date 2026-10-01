@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.3.0
+document_version: 1.4.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -97,15 +97,16 @@ The business should be able to keep serving customers during internet interrupti
 - Customers receive up to **two retakes**.
 - Initial print formats are **4×6** and **2×6 photo strips**.
 - The first implemented product is a **three-photo vertical 2×6 strip**. The 4×6 product follows after the first workflow is proven.
-- The first physical print for that product is **one 4×6 sheet containing two identical 2×6 strips**, ready to cut into two copies.
+- The first double-strip physical print is **one 4×6 sheet containing two 2×6 strips with six unique shots**, ready to cut into two different three-photo strips.
 - Layout and frame are separate choices: the layout controls photo placement/count, while the frame is either a fixed WanderBooth color with an optional built-in decoration or one imported custom design. Fixed-color and custom-frame modes are mutually exclusive.
 - The first catalog includes **two product families, five layouts, five frame palettes, and four overlay choices**.
-- Layouts may repeat a capture in more than one visible slot; the double-strip layout therefore needs three unique captures, not six.
+- The Double strip 4×6 layout contains six visible slots and takes six unique captures: Photos 1–3 fill the left strip and Photos 4–6 fill the right strip.
 - Initial slot shapes include rectangles, rounded rectangles, and a heart-shaped feature photo.
 - The owner or attendant can import event-frame artwork from the Mac operator screen after selecting a layout. New imports use a transparent PNG whose photo openings are prepared before import; the artwork is always layered above the photos. Previously imported flat templates remain readable for backward compatibility, but automatic cutout creation is no longer part of the normal operator flow.
 - Imported frames are stored locally, persist across application restarts, are limited to their selected layout, and are not added to the public repository.
-- During review, the finished composed layout is shown beside full-aspect, uncropped source captures. Only the owner or attendant can use the direct canvas: click the imported artwork or a photo frame, drag it in place, resize it with corner handles, or enter Crop image mode to move and zoom the capture inside its frame. Those adjustments are stored and applied to the final render; repeated double-strip copies stay synchronized by capture number.
-- One tap starts the complete three-photo sequence, with a **three-second countdown before each photo**.
+- The operator can delete an imported frame after a destructive-action confirmation; WanderBooth removes its private normalized source and preview files without changing the owner's original artwork file.
+- During review, the finished composed layout is shown beside uncropped source captures in consistently sized 16:9 cards. Only the owner or attendant can use the direct canvas: click the imported artwork or a photo frame, drag it in place, resize width and height with edge/corner handles, rotate it directly, lock it, or enter Crop image mode to manipulate the capture inside its frame. There is no zoom slider. Those adjustments are stored and applied to the final render.
+- One tap starts the complete layout-defined sequence of three, four, or six photos, with a **three-second countdown before each photo**.
 - The customer preview is mirrored for natural posing, while saved and delivered photos are not mirrored.
 - The first pilot will include approximately **5–10 layouts/designs**.
 - Available camera hardware: **Canon EOS 60D** and **Fujifilm X-M5**.
@@ -141,18 +142,18 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 
 - React operator and customer surfaces synchronize through a local WebSocket Host.
 - Host-side permissions enforce the difference between Attendant-Operated and Self-Service modes.
-- The selected 2×6 layout fixes the session at three captures.
+- The selected layout fixes the session at three, four, or six captures. Classic 2×6 uses three; Double strip 4×6 uses six unique shots.
 - Cash confirmation is staff-only and occurs before capture; no price appears on screen.
 - Session state and command history persist in a local SQLite database.
 - A development-only camera simulator exercises capture and two-retake behavior safely.
 - Staff can select the simulator or MacBook camera only while the booth is idle. The Mac path includes permission handling, physical device choice, a reduced mirrored preview relayed to the customer screen, and separate full-resolution unmirrored JPEG transfer.
-- One action starts all three product-defined photos. The Host advances and broadcasts the three-second countdown before each capture so the Mac and customer screen cannot drift apart.
+- One action starts every photo required by the selected layout. The Host advances and broadcasts the three-second countdown before each capture so the Mac and customer screen cannot drift apart.
 - Retakes use the same synchronized countdown, and staff can cancel an active session safely back to idle.
-- The selection menu now offers three-photo strips and four-photo cards, with the required automatic capture count changing from the selected layout.
-- The renderer now reads data-driven canvas, slot, shape, repeated-capture, branding-area, frame, and overlay definitions instead of one hard-coded strip.
-- Synthetic rendering checks passed for the repeated 4×6 double strip with film overlay and the four-photo heart layout with heart overlay.
+- The selection menu now offers three-photo, four-photo, and six-photo arrangements, with the required automatic capture count changing from the selected layout.
+- The renderer now reads data-driven canvas, slot, shape, branding-area, frame, and overlay definitions instead of one hard-coded strip.
+- Synthetic rendering checks passed for the six-shot 4×6 double strip with film overlay and the four-photo heart layout with heart overlay.
 - The operator imports a transparent PNG whose photo openings have already been prepared. The Host validates, normalizes, stores, and registers the frame locally; the old flat-template format remains renderable for previously imported records.
-- Fixed colored and imported custom frames use separate selection modes. The review screen previews the actual composition, preserves full source images without stretching their cards, and gives staff a Canva-style direct canvas for selecting, moving, and resizing artwork or photo frames and cropping the images inside them. The final renderer reuses those exact stored values.
+- Fixed colored and imported custom frames use separate selection modes. The review screen previews the actual composition, keeps captured and waiting cards the same size without cropping source images, and gives staff a Canva-style direct canvas for moving, independently resizing, rotating, and locking artwork, photo frames, and the images inside them. Imported frames can also be deleted from local storage after confirmation. The final renderer reuses the exact stored values.
 - The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
@@ -206,7 +207,7 @@ Operator confirms cash received
      ↓
 Customer display shows a mirrored live preview
      ↓
-Operator starts the automatic three-photo sequence
+Operator starts the automatic layout-defined capture sequence
      ↓
 Host shows a synchronized three-second countdown before each photo
      ↓
@@ -237,7 +238,7 @@ Attendant confirms cash received
      ↓
 Mirrored live preview
      ↓
-Customer starts one automatic three-photo sequence
+Customer starts one automatic layout-defined capture sequence
      ↓
 Host shows a synchronized three-second countdown before each photo
      ↓
@@ -346,8 +347,9 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - Menu of compatible 2×6 and 4×6 portrait/landscape layouts
 - Mutually exclusive fixed-color and imported-custom frame modes, with compatible built-in decorations available only for fixed colors
 - Final composed-layout review beside full-aspect, uncropped source captures
-- Staff-only direct canvas for selecting, dragging, corner-resizing, and resetting custom-frame artwork and each photo frame, plus a crop mode for moving and zooming the image inside it
-- Repeated-capture layouts, including two identical 2×6 strips on one 4×6 sheet
+- Staff-only direct canvas for selecting, dragging, edge/corner resizing, rotating, locking, and resetting custom-frame artwork and each photo frame, plus a crop mode for direct manipulation of the image inside it
+- Operator-confirmed deletion of imported templates and their private local copies
+- Six-shot Double strip layout with Photos 1–3 on the left and Photos 4–6 on the right of one 4×6 sheet
 - Rectangle, rounded-rectangle, and heart-shaped photo slots
 - Up to two configured retake or photo-replacement actions
 - Cloud QR delivery that works away from the booth for 30 days
@@ -454,7 +456,7 @@ The iPad still needs a local connection to the Host for booth controls. This may
 #### Printing for the first pilot
 
 - Support the Epson EcoTank L8050 through the operating system's official Epson printer driver
-- Render the first three-photo product as one 4×6 sheet containing two identical vertical 2×6 strips
+- Render the Double strip product as one 4×6 sheet containing two vertical 2×6 strips with six unique photos
 - Test print
 - Automatic print after fulfillment
 - Persistent print queue
@@ -760,15 +762,15 @@ Tasks:
 - Test Host-to-iPad control over the expected venue Wi-Fi or mobile-hotspot setup.
 - Prototype camera selection, readiness checks, preview, capture, and source switching before a session starts.
 - Prototype operation-mode selection, the laptop operator console, the read-only customer display, and the interactive Self-Service touch flow.
-- Refine the working prototype for three individual branded photos, a 2×6 composite strip, and an MP4 slideshow.
-- Render a print-ready 4×6 sheet containing two identical copies of the current 2×6 strip.
-- Use the working data-driven catalog to test multiple three- and four-photo layouts, frame palettes, overlays, repeated slots, and a shaped slot.
+- Refine the working prototype for layout-defined individual branded photos, a composite strip/card, and an MP4 slideshow.
+- Render a print-ready 4×6 sheet containing two different three-photo 2×6 strips from six unique captures.
+- Use the working data-driven catalog to test three-, four-, and six-photo layouts, frame palettes, overlays, and shaped slots.
 - Test the implemented staff-only transparent-artwork and flat-template importer with the final production designs.
 - Test the working browser-to-Host control connection from the physical iPad.
 - Prototype queued upload to private cloud storage and a 30-day mobile download page.
 - Verify that capture and printing continue with internet disconnected and that the upload completes after reconnection.
 
-Exit condition: both operation modes complete the same persisted three-photo workflow; Attendant-Operated choices work only from the operator console; Self-Service choices work from the touchscreen; all three camera adapter families can provide the captures; a phone downloads the results from a private cloud QR page; and an interrupted upload resumes safely after reconnection.
+Exit condition: both operation modes complete the same persisted layout-defined workflow; Attendant-Operated choices work only from the operator console; Self-Service choices work from the touchscreen; all three camera adapter families can provide the captures; a phone downloads the results from a private cloud QR page; and an interrupted upload resumes safely after reconnection.
 
 ### Phase 1 — offline photo-session prototype
 
@@ -972,6 +974,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.4.0 | 2026-10-02 | Changed Double strip 4×6 to six unique captures, replaced slider scaling with direct edge/corner resizing and rotation, added persistent object locks and imported-template deletion, and normalized captured/waiting review-card sizes. |
 | 1.3.0 | 2026-10-02 | Replaced the target-button alignment panel with a Canva-style direct composition canvas: click/tap to select, drag to move, resize from corner handles, and enter Crop image mode to position a capture inside its frame. |
 | 1.2.0 | 2026-10-02 | Split each custom-frame photo into an independently movable/scalable holder and image crop, kept transparent artwork above all photos, made transparent PNG the standard import path, and removed stretched whitespace from captured-photo previews. |
 | 1.1.0 | 2026-10-02 | Separated fixed-color and imported-custom frame modes, added the final composition preview, removed source-review cropping, and added persistent staff-only drag/zoom alignment for the custom frame and each unique photo. |

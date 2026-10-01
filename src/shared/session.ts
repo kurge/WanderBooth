@@ -53,7 +53,7 @@ export type PhotoTransform = MediaTransform & { slot: number };
 export type HolderTransform = MediaTransform & { slot: number };
 
 export type BoothState = {
-  schemaVersion: 7;
+  schemaVersion: 8;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -93,6 +93,7 @@ export type Command =
   | { type: "UPDATE_HOLDER_TRANSFORM"; slot: number; transform: MediaTransform }
   | { type: "UPDATE_PHOTO_TRANSFORM"; slot: number; transform: MediaTransform }
   | { type: "REGISTER_CUSTOM_OVERLAY"; overlay: CustomOverlay }
+  | { type: "DELETE_CUSTOM_OVERLAY"; overlayId: string }
   | { type: "RECORD_CONSENT" }
   | { type: "SUBMIT_SELECTION" }
   | { type: "CONFIRM_CASH" }
@@ -114,7 +115,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 7,
+  schemaVersion: 8,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -159,11 +160,21 @@ const requirePhase = (state: BoothState, phases: Phase[]) => {
 
 const assertMediaTransform = (transform: MediaTransform) => {
   if (
-    ![transform.offsetX, transform.offsetY, transform.scale].every(Number.isFinite) ||
+    ![
+      transform.offsetX,
+      transform.offsetY,
+      transform.scaleX,
+      transform.scaleY,
+      transform.rotation,
+    ].every(Number.isFinite) ||
     Math.abs(transform.offsetX) > 1 ||
     Math.abs(transform.offsetY) > 1 ||
-    transform.scale < 0.5 ||
-    transform.scale > 3
+    transform.scaleX < 0.2 ||
+    transform.scaleX > 4 ||
+    transform.scaleY < 0.2 ||
+    transform.scaleY > 4 ||
+    Math.abs(transform.rotation) > 180 ||
+    typeof transform.locked !== "boolean"
   ) {
     throw new CommandError("That frame or photo adjustment is outside the supported range.");
   }
@@ -211,6 +222,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "PROCESSING_COMPLETED":
     case "FAIL":
     case "REGISTER_CUSTOM_OVERLAY":
+    case "DELETE_CUSTOM_OVERLAY":
       if (actor !== "system") throw new CommandError("Only the Host can complete this action.");
       return;
   }
@@ -556,6 +568,16 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       }
       return revised(state, {
         customOverlays: [...state.customOverlays.filter((item) => item.id !== overlay.id), overlay],
+      });
+    }
+    case "DELETE_CUSTOM_OVERLAY": {
+      const overlay = state.customOverlays.find((item) => item.id === command.overlayId);
+      if (!overlay) throw new CommandError("That imported frame is no longer available.");
+      const wasSelected = state.overlayId === overlay.id;
+      return revised(state, {
+        customOverlays: state.customOverlays.filter((item) => item.id !== overlay.id),
+        overlayId: wasSelected ? "none" : state.overlayId,
+        frameTransform: wasSelected ? identityMediaTransform() : state.frameTransform,
       });
     }
     case "FAIL":

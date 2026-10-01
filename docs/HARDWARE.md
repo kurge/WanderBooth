@@ -2,7 +2,7 @@
 
 **Status:** Phase 0 testing
 
-**Version:** 0.8.0
+**Version:** 0.9.0
 
 **Updated:** 2026-10-02
 
@@ -107,7 +107,7 @@ Official references:
 
 The L8050 is an ink-tank photo printer rather than a dye-sublimation event printer. The first pilot must measure real print speed, borderless margins, color consistency, ink use, paper-feed reliability, drying/smudging, and recovery after a jam or offline state.
 
-The confirmed first print artifact is one 4×6 sheet containing two identical 2×6 vertical strips. This is the next implementation target: render the double-strip sheet, submit exactly one job, and verify the cut line, margins, color, and actual L8050 output before adding automatic printing.
+The confirmed first double-strip print artifact is one 4×6 sheet containing two different three-photo 2×6 vertical strips from six unique shots. The renderer produces the sheet; the next implementation target is to submit exactly one job and verify the cut line, margins, color, and actual L8050 output before adding automatic printing.
 
 ## Phase 0 hardware test matrix
 
@@ -115,7 +115,7 @@ The confirmed first print artifact is one 4×6 sheet containing two identical 2�
 
 - Display a friendly device name, adapter type, compatibility label, and readiness state.
 - Show a usable preview with the correct orientation and aspect ratio.
-- Trigger three captures from the customer interface.
+- Trigger the selected layout's complete three-, four-, or six-photo sequence from the customer interface.
 - Transfer the best available still image to the Host and save it before processing.
 - Report actual resolution, capture latency, and supported capabilities.
 - Complete 50 consecutive sessions without a lost or mismatched capture.
@@ -160,7 +160,7 @@ The confirmed first print artifact is one 4×6 sheet containing two identical 2�
 ### Epson L8050 test
 
 - Install the official driver for the selected pilot OS.
-- Print the first 4×6 artifact containing two identical 2×6 strips and verify both cut copies.
+- Print the first six-shot 4×6 artifact containing two different 2×6 strips and verify both cut pieces.
 - Print later standalone 4×6 and other 2×6 layouts as they enter the product catalog.
 - Test normal and borderless output.
 - Measure 20 consecutive print times.

@@ -77,28 +77,35 @@ async function createBrandedIndividual(input: {
 const heartPath = "M50 94 C42 86 4 61 4 29 C4 5 34 -7 50 17 C66 -7 96 5 96 29 C96 61 58 86 50 94 Z";
 
 async function renderSlot(photoPath: string, slot: PhotoSlot, transform: MediaTransform) {
-  const source = sharp(photoPath).rotate();
-  const metadata = await source.metadata();
-  if (!metadata.width || !metadata.height) {
-    throw new Error("WanderBooth could not read a captured photo.");
-  }
-
-  const coverScale = Math.max(slot.width / metadata.width, slot.height / metadata.height);
-  const scaledWidth = Math.max(1, Math.round(metadata.width * coverScale * transform.scale));
-  const scaledHeight = Math.max(1, Math.round(metadata.height * coverScale * transform.scale));
-  const scaled = await source
-    .resize(scaledWidth, scaledHeight, { fit: "fill" })
+  const basePhoto = await sharp(photoPath)
+    .rotate()
+    .resize(slot.width, slot.height, { fit: "cover" })
     .ensureAlpha()
     .png()
     .toBuffer();
-  const desiredLeft = Math.round((slot.width - scaledWidth) / 2 + transform.offsetX * slot.width);
-  const desiredTop = Math.round((slot.height - scaledHeight) / 2 + transform.offsetY * slot.height);
+  const scaledWidth = Math.max(1, Math.round(slot.width * transform.scaleX));
+  const scaledHeight = Math.max(1, Math.round(slot.height * transform.scaleY));
+  const transformed = await sharp(basePhoto)
+    .resize(scaledWidth, scaledHeight, { fit: "fill" })
+    .rotate(transform.rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .ensureAlpha()
+    .png()
+    .toBuffer();
+  const transformedMetadata = await sharp(transformed).metadata();
+  const transformedWidth = transformedMetadata.width ?? scaledWidth;
+  const transformedHeight = transformedMetadata.height ?? scaledHeight;
+  const desiredLeft = Math.round(
+    (slot.width - transformedWidth) / 2 + transform.offsetX * slot.width,
+  );
+  const desiredTop = Math.round(
+    (slot.height - transformedHeight) / 2 + transform.offsetY * slot.height,
+  );
   const cropLeft = Math.max(0, -desiredLeft);
   const cropTop = Math.max(0, -desiredTop);
   const outputLeft = Math.max(0, desiredLeft);
   const outputTop = Math.max(0, desiredTop);
-  const visibleWidth = Math.min(scaledWidth - cropLeft, slot.width - outputLeft);
-  const visibleHeight = Math.min(scaledHeight - cropTop, slot.height - outputTop);
+  const visibleWidth = Math.min(transformedWidth - cropLeft, slot.width - outputLeft);
+  const visibleHeight = Math.min(transformedHeight - cropTop, slot.height - outputTop);
   const canvas = sharp({
     create: {
       width: slot.width,
@@ -112,7 +119,7 @@ async function renderSlot(photoPath: string, slot: PhotoSlot, transform: MediaTr
       ? await canvas
           .composite([
             {
-              input: await sharp(scaled)
+              input: await sharp(transformed)
                 .extract({
                   left: cropLeft,
                   top: cropTop,
@@ -158,33 +165,37 @@ async function positionHolder(
   canvasWidth: number,
   canvasHeight: number,
 ): Promise<PositionedLayer | null> {
-  const scaledWidth = Math.max(1, Math.round(slot.width * transform.scale));
-  const scaledHeight = Math.max(1, Math.round(slot.height * transform.scale));
+  const scaledWidth = Math.max(1, Math.round(slot.width * transform.scaleX));
+  const scaledHeight = Math.max(1, Math.round(slot.height * transform.scaleY));
+  const transformed = await sharp(input)
+    .resize(scaledWidth, scaledHeight, { fit: "fill" })
+    .rotate(transform.rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+  const transformedMetadata = await sharp(transformed).metadata();
+  const transformedWidth = transformedMetadata.width ?? scaledWidth;
+  const transformedHeight = transformedMetadata.height ?? scaledHeight;
   const desiredLeft = Math.round(
-    slot.x + (slot.width - scaledWidth) / 2 + transform.offsetX * slot.width,
+    slot.x + (slot.width - transformedWidth) / 2 + transform.offsetX * slot.width,
   );
   const desiredTop = Math.round(
-    slot.y + (slot.height - scaledHeight) / 2 + transform.offsetY * slot.height,
+    slot.y + (slot.height - transformedHeight) / 2 + transform.offsetY * slot.height,
   );
   const cropLeft = Math.max(0, -desiredLeft);
   const cropTop = Math.max(0, -desiredTop);
   const outputLeft = Math.max(0, desiredLeft);
   const outputTop = Math.max(0, desiredTop);
-  const visibleWidth = Math.min(scaledWidth - cropLeft, canvasWidth - outputLeft);
-  const visibleHeight = Math.min(scaledHeight - cropTop, canvasHeight - outputTop);
+  const visibleWidth = Math.min(transformedWidth - cropLeft, canvasWidth - outputLeft);
+  const visibleHeight = Math.min(transformedHeight - cropTop, canvasHeight - outputTop);
   if (visibleWidth <= 0 || visibleHeight <= 0) return null;
 
-  const scaled = await sharp(input)
-    .resize(scaledWidth, scaledHeight, { fit: "fill" })
-    .png()
-    .toBuffer();
   const visible =
     cropLeft === 0 &&
     cropTop === 0 &&
-    visibleWidth === scaledWidth &&
-    visibleHeight === scaledHeight
-      ? scaled
-      : await sharp(scaled)
+    visibleWidth === transformedWidth &&
+    visibleHeight === transformedHeight
+      ? transformed
+      : await sharp(transformed)
           .extract({ left: cropLeft, top: cropTop, width: visibleWidth, height: visibleHeight })
           .png()
           .toBuffer();

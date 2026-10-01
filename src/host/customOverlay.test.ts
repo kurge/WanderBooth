@@ -74,11 +74,43 @@ describe("custom overlay preparation", () => {
     const output = await renderCustomOverlay(source, testLayout, "flat_template", {
       offsetX: 0.25,
       offsetY: 0,
-      scale: 1,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      locked: false,
     });
     expect(await alphaAt(output, 5, 5)).toBe(0);
     expect(await alphaAt(output, 40, 5)).toBe(255);
     expect(await alphaAt(output, 60, 60)).toBe(0);
+  });
+
+  it("rotates and independently resizes transparent artwork on the output canvas", async () => {
+    const source = await sharp({
+      create: { width: 120, height: 180, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    })
+      .composite([
+        {
+          input: Buffer.from(
+            '<svg width="120" height="180"><rect x="48" y="10" width="24" height="70" fill="#3572c4" /></svg>',
+          ),
+        },
+      ])
+      .png()
+      .toBuffer();
+    const output = await renderCustomOverlay(source, testLayout, "transparent_artwork", {
+      offsetX: 0,
+      offsetY: 0,
+      scaleX: 1.4,
+      scaleY: 0.7,
+      rotation: 90,
+      locked: true,
+    });
+    const metadata = await sharp(output).metadata();
+    const stats = await sharp(output).stats();
+    expect(metadata.width).toBe(120);
+    expect(metadata.height).toBe(180);
+    expect(stats.channels[3]?.max).toBe(255);
+    expect(stats.channels[3]?.mean).toBeGreaterThan(0);
   });
 
   it("rejects artwork with the wrong aspect ratio", async () => {

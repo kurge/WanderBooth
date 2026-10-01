@@ -1,5 +1,5 @@
 import { createReadStream, existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { networkInterfaces } from "node:os";
 import { extname, resolve } from "node:path";
@@ -11,7 +11,7 @@ import {
   type CustomOverlayMode,
   getLayout,
   getOverlay,
-  identityMediaTransform,
+  normalizeMediaTransform,
 } from "../shared/catalog.js";
 import type { ClientMessage, ServerMessage } from "../shared/protocol.js";
 import {
@@ -47,7 +47,7 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 7,
+      schemaVersion: 8,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
@@ -55,9 +55,15 @@ let state: BoothState = savedState
       customOverlays: savedCustomOverlays,
       frameMode: savedFrameMode,
       designId: savedFrameMode === "custom" ? null : savedState.designId,
-      frameTransform: savedState.frameTransform ?? identityMediaTransform(),
-      holderTransforms: savedState.holderTransforms ?? [],
-      photoTransforms: savedState.photoTransforms ?? [],
+      frameTransform: normalizeMediaTransform(savedState.frameTransform),
+      holderTransforms: (savedState.holderTransforms ?? []).map(({ slot, ...transform }) => ({
+        slot,
+        ...normalizeMediaTransform(transform),
+      })),
+      photoTransforms: (savedState.photoTransforms ?? []).map(({ slot, ...transform }) => ({
+        slot,
+        ...normalizeMediaTransform(transform),
+      })),
     }
   : defaultState;
 database.saveState(state);
@@ -261,6 +267,36 @@ const receiveOverlayImport = async (request: IncomingMessage, response: ServerRe
   sendJson(response, 201, { overlay });
 };
 
+const overlayPathFromMediaUrl = (mediaUrl: string) => {
+  const relativePath = decodeURIComponent(mediaUrl.replace(/^\/media\//, "")).replaceAll("\\", "/");
+  const absolutePath = resolve(dataDirectory, relativePath);
+  if (!absolutePath.startsWith(`${dataDirectory}/`)) {
+    throw new CommandError("The imported frame file path is invalid.");
+  }
+  return absolutePath;
+};
+
+const receiveOverlayDelete = async (overlayId: string, response: ServerResponse) => {
+  if (!["idle", "selecting", "reviewing"].includes(state.phase)) {
+    throw new CommandError("Delete imported frames before payment, or while reviewing photos.");
+  }
+  const overlay = state.customOverlays.find((item) => item.id === overlayId);
+  if (!overlay) throw new CommandError("That imported frame is no longer available.");
+
+  const files = new Set([overlay.mediaUrl, overlay.sourceMediaUrl].filter(Boolean) as string[]);
+  await Promise.all(
+    [...files].map(async (mediaUrl) => {
+      try {
+        await unlink(overlayPathFromMediaUrl(mediaUrl));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    }),
+  );
+  systemCommit({ type: "DELETE_CUSTOM_OVERLAY", overlayId });
+  sendJson(response, 200, { ok: true });
+};
+
 const httpServer = createServer((request, response) => {
   const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
@@ -268,7 +304,7 @@ const httpServer = createServer((request, response) => {
     response.writeHead(204, {
       "Access-Control-Allow-Headers":
         "Content-Type, X-Session-Id, X-WanderBooth-Layout-Id, X-WanderBooth-Overlay-Mode, X-WanderBooth-Overlay-Name",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Methods": "DELETE, GET, POST, OPTIONS",
       "Access-Control-Allow-Origin": "*",
     });
     response.end();
@@ -291,6 +327,21 @@ const httpServer = createServer((request, response) => {
       .catch((error) => {
         const message =
           error instanceof Error ? error.message : "The design could not be imported.";
+        sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
+      });
+    return;
+  }
+
+  if (request.method === "DELETE" && requestUrl.pathname.startsWith("/api/overlays/")) {
+    commandQueue = commandQueue
+      .then(() =>
+        receiveOverlayDelete(
+          decodeURIComponent(requestUrl.pathname.slice("/api/overlays/".length)),
+          response,
+        ),
+      )
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : "The design could not be deleted.";
         sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
       });
     return;

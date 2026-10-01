@@ -5,7 +5,7 @@
 
 ## Decision
 
-The WanderBooth Host owns the countdown and capture sequence. One operator or customer action starts the complete product-defined sequence; for the current product, that means three photos with a three-second countdown before each photo. Every connected screen observes the same persisted session state instead of running its own independent timer.
+The WanderBooth Host owns the countdown and capture sequence. One operator or customer action starts the complete product-defined sequence: three, four, or six photos with a three-second countdown before each photo. Every connected screen observes the same persisted session state instead of running its own independent timer.
 
 For the MacBook camera, the operator renderer publishes a reduced 960×540 mirrored JPEG preview to the Host at approximately five frames per second. The Host keeps those frames only in memory and relays them to the iPad/customer client as a multipart image stream. The full saved capture follows a separate path at the camera's available resolution and is not mirrored.
 
@@ -29,7 +29,7 @@ The operator receives a visible **Cancel session** control throughout an active 
 
 ## Contracts and failure behavior
 
-- `START_CAPTURE_SEQUENCE` begins the initial three-photo sequence only when the session is ready.
+- `START_CAPTURE_SEQUENCE` begins the selected layout's complete sequence only when the session is ready.
 - `RETAKE` begins the same three-second countdown for one selected existing slot.
 - Only the Host can advance `COUNTDOWN_TICK`, trigger a capture, or accept a completed capture.
 - Each uploaded capture must match the pending session, slot, kind, and revision.

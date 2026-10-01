@@ -21,6 +21,19 @@ const customOverlay: CustomOverlay = {
   pixelHeight: 1800,
 };
 
+const customPortraitOverlay: CustomOverlay = {
+  id: "custom-portrait-overlay",
+  name: "Custom Portrait Test",
+  description: "Imported custom portrait frame.",
+  kind: "custom",
+  layoutIds: ["custom-portrait-4x6"],
+  mediaUrl: "/media/overlays/custom-portrait-overlay.png",
+  sourceMediaUrl: "/media/overlays/custom-portrait-overlay-source.png",
+  importMode: "transparent_artwork",
+  pixelWidth: 1200,
+  pixelHeight: 1800,
+};
+
 const beginSelection = (mode: "attendant" | "self_service" = "attendant") => {
   const initial = { ...initialBoothState(), operationMode: mode };
   const actor = mode === "attendant" ? "attendant" : "customer";
@@ -423,6 +436,125 @@ describe("WanderBooth session rules", () => {
       photoTransforms: [{ slot: 1, scaleX: 1.3, scaleY: 1.3 }],
     });
     expect(state.captures).toEqual([]);
+  });
+
+  it("maps repeated captures into independently editable custom holders", () => {
+    let state = reduceCommand(
+      initialBoothState(),
+      { type: "REGISTER_CUSTOM_OVERLAY", overlay: customPortraitOverlay },
+      "system",
+    );
+    state = reduceCommand(state, { type: "OPEN_TEMPLATE_GALLERY" }, "attendant");
+    state = reduceCommand(
+      state,
+      {
+        type: "BEGIN_TEMPLATE_CREATE",
+        name: "Repeated Capture Portrait",
+        productId: "custom-photo-layout",
+        layoutId: "custom-portrait-4x6",
+        overlayId: customPortraitOverlay.id,
+        initialHolderId: "holder-a",
+      },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "ADD_TEMPLATE_HOLDER", holderId: "holder-b" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "ADD_TEMPLATE_HOLDER", holderId: "holder-c" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SET_TEMPLATE_HOLDER_CAPTURE", holderId: "holder-b", captureSlot: 1 },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      {
+        type: "UPDATE_HOLDER_TRANSFORM",
+        slot: 1,
+        holderId: "holder-a",
+        transform: {
+          offsetX: 0.1,
+          offsetY: 0,
+          scaleX: 1,
+          scaleY: 1,
+          rotation: 0,
+          locked: false,
+        },
+      },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      {
+        type: "UPDATE_HOLDER_TRANSFORM",
+        slot: 1,
+        holderId: "holder-b",
+        transform: {
+          offsetX: -0.2,
+          offsetY: 0,
+          scaleX: 1,
+          scaleY: 1,
+          rotation: 5,
+          locked: true,
+        },
+      },
+      "attendant",
+    );
+
+    expect(state.customSlots?.map((slot) => slot.captureIndex + 1)).toEqual([1, 1, 2]);
+    expect(state.requiredCaptureCount).toBe(2);
+    expect(state.holderTransforms).toHaveLength(2);
+    expect(state.holderTransforms.map((transform) => transform.holderId)).toEqual([
+      "holder-a",
+      "holder-b",
+    ]);
+
+    state = reduceCommand(
+      state,
+      { type: "SAVE_TEMPLATE", templateId: "custom-template-1", name: "Repeated Capture Portrait" },
+      "attendant",
+    );
+    expect(state.savedTemplates[0].customSlots?.map((slot) => slot.captureIndex + 1)).toEqual([
+      1, 1, 2,
+    ]);
+  });
+
+  it("enforces the eight-holder maximum for custom templates", () => {
+    let state = reduceCommand(
+      initialBoothState(),
+      { type: "REGISTER_CUSTOM_OVERLAY", overlay: customPortraitOverlay },
+      "system",
+    );
+    state = reduceCommand(state, { type: "OPEN_TEMPLATE_GALLERY" }, "attendant");
+    state = reduceCommand(
+      state,
+      {
+        type: "BEGIN_TEMPLATE_CREATE",
+        name: "Eight Holders",
+        productId: "custom-photo-layout",
+        layoutId: "custom-portrait-4x6",
+        overlayId: customPortraitOverlay.id,
+        initialHolderId: "holder-1",
+      },
+      "attendant",
+    );
+    for (let index = 2; index <= 8; index += 1) {
+      state = reduceCommand(
+        state,
+        { type: "ADD_TEMPLATE_HOLDER", holderId: `holder-${index}` },
+        "attendant",
+      );
+    }
+    expect(state.customSlots).toHaveLength(8);
+    expect(() =>
+      reduceCommand(state, { type: "ADD_TEMPLATE_HOLDER", holderId: "holder-9" }, "attendant"),
+    ).toThrow("up to 8 holders");
   });
 
   it("lets a self-service guest apply a saved template before capture", () => {

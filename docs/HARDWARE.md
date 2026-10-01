@@ -115,7 +115,7 @@ The confirmed first double-strip print artifact is one 4×6 sheet containing two
 
 - Display a friendly device name, adapter type, compatibility label, and readiness state.
 - Show a usable preview with the correct orientation and aspect ratio.
-- Trigger the selected layout's complete three-, four-, or six-photo sequence from the customer interface.
+- Trigger the selected layout's complete one-to-eight-photo sequence from the customer interface.
 - Transfer the best available still image to the Host and save it before processing.
 - Report actual resolution, capture latency, and supported capabilities.
 - Complete 50 consecutive sessions without a lost or mismatched capture.

@@ -9,13 +9,17 @@ import {
   getOverlay,
   getProduct,
   identityMediaTransform,
+  isCustomLayoutId,
   type Layout,
   layouts,
+  MAX_CUSTOM_HOLDERS,
   type MediaTransform,
   type Overlay,
   overlaySupportsLayout,
   overlays,
+  photoSlotId,
   products,
+  resolveLayout,
 } from "../shared/catalog";
 import type {
   Actor,
@@ -349,13 +353,15 @@ const clampTransform = (value: MediaTransform): MediaTransform => ({
   locked: value.locked,
 });
 
-const slotTransformMap = (transforms: Array<HolderTransform | PhotoTransform>) =>
-  Object.fromEntries(transforms.map(({ slot, ...transform }) => [slot, transform])) as Record<
-    number,
-    MediaTransform
-  >;
+const holderTransformMap = (transforms: Array<HolderTransform | PhotoTransform>) =>
+  Object.fromEntries(
+    transforms.map(({ slot, holderId, ...transform }) => [
+      holderId ?? `capture-${slot}`,
+      transform,
+    ]),
+  ) as Record<string, MediaTransform>;
 
-type CompositionTarget = "frame" | `holder:${number}` | `image:${number}`;
+type CompositionTarget = "frame" | `holder:${string}` | `image:${string}`;
 type InteractionKind = "move" | "resize" | "rotate";
 type TargetGeometry = {
   baseWidth: number;
@@ -396,17 +402,22 @@ const holderStyle = (slot: Layout["slots"][number], layout: Layout, transform: M
 });
 
 const describeCompositionTarget = (target: CompositionTarget) => {
-  if (target === "frame") return { kind: "frame" as const, slot: null };
-  const [kind, slot] = target.split(":");
-  return { kind: kind as "holder" | "image", slot: Number(slot) };
+  if (target === "frame") return { kind: "frame" as const, holderId: null };
+  const separator = target.indexOf(":");
+  return {
+    kind: target.slice(0, separator) as "holder" | "image",
+    holderId: target.slice(separator + 1),
+  };
 };
 
-const compositionTargetLabel = (target: CompositionTarget) => {
+const compositionTargetLabel = (target: CompositionTarget, layout: Layout) => {
   const description = describeCompositionTarget(target);
   if (description.kind === "frame") return "frame artwork";
+  const slot = layout.slots.find((item) => photoSlotId(item) === description.holderId);
+  const captureSlot = (slot?.captureIndex ?? 0) + 1;
   return description.kind === "holder"
-    ? `photo ${description.slot} frame`
-    : `photo ${description.slot} image`;
+    ? `Capture ${captureSlot} holder`
+    : `Capture ${captureSlot} image`;
 };
 
 function LayoutPreview({
@@ -420,17 +431,17 @@ function LayoutPreview({
   sendCommand: (command: Command) => void;
   context?: "session" | "template";
 }) {
-  const layout = getLayout(state.layoutId);
+  const layout = resolveLayout(state.layoutId, state.customSlots);
   const design = getDesign(state.designId) ?? getDesign("wander-splash");
   const overlay = getOverlay(state.overlayId, state.customOverlays);
   const customOverlay = overlay?.kind === "custom" ? overlay : null;
   const [activeTarget, setActiveTarget] = useState<CompositionTarget>("frame");
   const [frameDraft, setFrameDraft] = useState(state.frameTransform);
-  const [holderDrafts, setHolderDrafts] = useState<Record<number, MediaTransform>>(
-    slotTransformMap(state.holderTransforms),
+  const [holderDrafts, setHolderDrafts] = useState<Record<string, MediaTransform>>(
+    holderTransformMap(state.holderTransforms),
   );
-  const [photoDrafts, setPhotoDrafts] = useState<Record<number, MediaTransform>>(
-    slotTransformMap(state.photoTransforms),
+  const [photoDrafts, setPhotoDrafts] = useState<Record<string, MediaTransform>>(
+    holderTransformMap(state.photoTransforms),
   );
   const interactionRef = useRef<{
     kind: InteractionKind;
@@ -446,10 +457,13 @@ function LayoutPreview({
 
   useEffect(() => setFrameDraft(state.frameTransform), [state.frameTransform]);
   useEffect(
-    () => setHolderDrafts(slotTransformMap(state.holderTransforms)),
+    () => setHolderDrafts(holderTransformMap(state.holderTransforms)),
     [state.holderTransforms],
   );
-  useEffect(() => setPhotoDrafts(slotTransformMap(state.photoTransforms)), [state.photoTransforms]);
+  useEffect(
+    () => setPhotoDrafts(holderTransformMap(state.photoTransforms)),
+    [state.photoTransforms],
+  );
 
   if (!layout || !design || !overlay) return null;
 
@@ -457,27 +471,32 @@ function LayoutPreview({
     const description = describeCompositionTarget(target);
     if (description.kind === "frame") return frameDraft;
     if (description.kind === "holder") {
-      return holderDrafts[description.slot] ?? identityMediaTransform();
+      return holderDrafts[description.holderId] ?? identityMediaTransform();
     }
-    return photoDrafts[description.slot] ?? identityMediaTransform();
+    return photoDrafts[description.holderId] ?? identityMediaTransform();
   };
   const updateDraft = (target: CompositionTarget, transform: MediaTransform) => {
     const description = describeCompositionTarget(target);
     if (description.kind === "frame") setFrameDraft(transform);
     else if (description.kind === "holder") {
-      setHolderDrafts((current) => ({ ...current, [description.slot]: transform }));
+      setHolderDrafts((current) => ({ ...current, [description.holderId]: transform }));
     } else {
-      setPhotoDrafts((current) => ({ ...current, [description.slot]: transform }));
+      setPhotoDrafts((current) => ({ ...current, [description.holderId]: transform }));
     }
   };
   const commitTransform = (target: CompositionTarget, transform: MediaTransform) => {
     const description = describeCompositionTarget(target);
     if (description.kind === "frame") {
       sendCommand({ type: "UPDATE_FRAME_TRANSFORM", transform });
-    } else if (description.kind === "holder") {
-      sendCommand({ type: "UPDATE_HOLDER_TRANSFORM", slot: description.slot, transform });
     } else {
-      sendCommand({ type: "UPDATE_PHOTO_TRANSFORM", slot: description.slot, transform });
+      const slot = layout.slots.find((item) => photoSlotId(item) === description.holderId);
+      if (!slot) return;
+      sendCommand({
+        type: description.kind === "holder" ? "UPDATE_HOLDER_TRANSFORM" : "UPDATE_PHOTO_TRANSFORM",
+        slot: slot.captureIndex + 1,
+        holderId: description.holderId,
+        transform,
+      });
     }
   };
   const activeTransform = transformFor(activeTarget);
@@ -498,9 +517,9 @@ function LayoutPreview({
         parentScaleY: 1,
       };
     }
-    const slot = layout.slots.find((item) => item.captureIndex + 1 === description.slot);
+    const slot = layout.slots.find((item) => photoSlotId(item) === description.holderId);
     if (!slot) return null;
-    const holderTransform = holderDrafts[description.slot] ?? identityMediaTransform();
+    const holderTransform = holderDrafts[description.holderId] ?? identityMediaTransform();
     const baseWidth = bounds.width * (slot.width / layout.canvasWidth);
     const baseHeight = bounds.height * (slot.height / layout.canvasHeight);
     const holderCenterX =
@@ -522,7 +541,7 @@ function LayoutPreview({
         parentScaleY: 1,
       };
     }
-    const photoTransform = photoDrafts[description.slot] ?? identityMediaTransform();
+    const photoTransform = photoDrafts[description.holderId] ?? identityMediaTransform();
     const photoOffset = rotateVector(
       photoTransform.offsetX * baseWidth * holderTransform.scaleX,
       photoTransform.offsetY * baseHeight * holderTransform.scaleY,
@@ -593,12 +612,13 @@ function LayoutPreview({
       );
       return;
     }
-    const slotElement = targetElement.closest<HTMLElement>("[data-capture-slot]");
+    const slotElement = targetElement.closest<HTMLElement>("[data-holder-id]");
     if (slotElement) {
-      const slot = Number(slotElement.dataset.captureSlot);
-      const imageTarget: CompositionTarget = `image:${slot}`;
+      const holderId = slotElement.dataset.holderId;
+      if (!holderId) return;
+      const imageTarget: CompositionTarget = `image:${holderId}`;
       const target: CompositionTarget =
-        activeTarget === imageTarget ? imageTarget : `holder:${slot}`;
+        activeTarget === imageTarget ? imageTarget : `holder:${holderId}`;
       beginInteraction(event, target, "move");
       return;
     }
@@ -680,10 +700,11 @@ function LayoutPreview({
     commitTransform(interaction.target, interaction.latest);
   };
   const enterCropMode = (event: React.MouseEvent<HTMLDivElement>) => {
-    const slotElement = (event.target as HTMLElement).closest<HTMLElement>("[data-capture-slot]");
-    if (!slotElement) return;
+    const slotElement = (event.target as HTMLElement).closest<HTMLElement>("[data-holder-id]");
+    const holderId = slotElement?.dataset.holderId;
+    if (!holderId) return;
     event.preventDefault();
-    setActiveTarget(`image:${Number(slotElement.dataset.captureSlot)}`);
+    setActiveTarget(`image:${holderId}`);
   };
   const resetActive = () => {
     const reset = identityMediaTransform();
@@ -697,7 +718,7 @@ function LayoutPreview({
   };
   const selectActivePhotoMode = (kind: "holder" | "image") => {
     const description = describeCompositionTarget(activeTarget);
-    if (description.slot !== null) setActiveTarget(`${kind}:${description.slot}`);
+    if (description.holderId !== null) setActiveTarget(`${kind}:${description.holderId}`);
   };
   const selectionControls = (target: CompositionTarget, transform: MediaTransform) => (
     <>
@@ -777,18 +798,20 @@ function LayoutPreview({
         )}
         {layout.slots.map((slot) => {
           const captureSlot = slot.captureIndex + 1;
+          const holderId = photoSlotId(slot);
           const capture = state.captures.find((item) => item.slot === captureSlot);
-          const holderTransform = holderDrafts[captureSlot] ?? identityMediaTransform();
-          const photoTransform = photoDrafts[captureSlot] ?? identityMediaTransform();
-          const holderIsActive = activeTarget === `holder:${captureSlot}` && editable;
-          const imageIsActive = activeTarget === `image:${captureSlot}` && editable;
+          const holderTransform = holderDrafts[holderId] ?? identityMediaTransform();
+          const photoTransform = photoDrafts[holderId] ?? identityMediaTransform();
+          const holderIsActive = activeTarget === `holder:${holderId}` && editable;
+          const imageIsActive = activeTarget === `image:${holderId}` && editable;
           return (
             <div
               className={`layout-composer__slot layout-composer__slot--${slot.shape} ${
                 holderIsActive ? "layout-composer__slot--active-holder" : ""
               } ${imageIsActive ? "layout-composer__slot--active-image" : ""}`}
               data-capture-slot={captureSlot}
-              key={`${captureSlot}-${slot.x}-${slot.y}`}
+              data-holder-id={holderId}
+              key={holderId}
               style={{
                 ...holderStyle(slot, layout, holderTransform),
               }}
@@ -856,12 +879,13 @@ function LayoutPreview({
           describeCompositionTarget(activeTarget).kind !== "frame" &&
           layout.slots
             .filter(
-              (slot) => slot.captureIndex + 1 === describeCompositionTarget(activeTarget).slot,
+              (slot) => photoSlotId(slot) === describeCompositionTarget(activeTarget).holderId,
             )
             .map((slot) => {
               const captureSlot = slot.captureIndex + 1;
-              const holderTransform = holderDrafts[captureSlot] ?? identityMediaTransform();
-              const photoTransform = photoDrafts[captureSlot] ?? identityMediaTransform();
+              const holderId = photoSlotId(slot);
+              const holderTransform = holderDrafts[holderId] ?? identityMediaTransform();
+              const photoTransform = photoDrafts[holderId] ?? identityMediaTransform();
               const mode = describeCompositionTarget(activeTarget).kind;
               const slotPosition = {
                 ...holderStyle(slot, layout, holderTransform),
@@ -869,19 +893,19 @@ function LayoutPreview({
               return mode === "holder" ? (
                 <div
                   className="layout-composer__selection layout-composer__selection--holder"
-                  key={`selection-${captureSlot}-${slot.x}-${slot.y}`}
+                  key={`selection-${holderId}`}
                   style={{
                     ...slotPosition,
                   }}
                   aria-hidden="true"
                 >
-                  <b>Photo {captureSlot} frame</b>
+                  <b>Capture {captureSlot} holder</b>
                   {selectionControls(activeTarget, holderTransform)}
                 </div>
               ) : (
                 <div
                   className="layout-composer__selection-wrapper"
-                  key={`selection-${captureSlot}-${slot.x}-${slot.y}`}
+                  key={`selection-${holderId}`}
                   style={{
                     ...slotPosition,
                   }}
@@ -891,7 +915,7 @@ function LayoutPreview({
                     className="layout-composer__selection layout-composer__selection--image layout-composer__selection--nested"
                     style={transformStyle(photoTransform)}
                   >
-                    <b>Crop photo {captureSlot}</b>
+                    <b>Crop Capture {captureSlot}</b>
                     {selectionControls(activeTarget, photoTransform)}
                   </div>
                 </div>
@@ -901,7 +925,7 @@ function LayoutPreview({
           <span className="layout-composer__drag-hint">
             {describeCompositionTarget(activeTarget).kind === "image"
               ? `Crop mode · drag, resize, or rotate${activeTransform.locked ? " · locked" : ""}`
-              : `${activeTransform.locked ? "Locked" : "Drag, resize, or rotate"} ${compositionTargetLabel(activeTarget)}`}
+              : `${activeTransform.locked ? "Locked" : "Drag, resize, or rotate"} ${compositionTargetLabel(activeTarget, layout)}`}
           </span>
         )}
       </div>
@@ -909,7 +933,7 @@ function LayoutPreview({
         <div className="composition-editor">
           <div className="composition-editor__selection-bar">
             <span>Selected</span>
-            <strong>{compositionTargetLabel(activeTarget)}</strong>
+            <strong>{compositionTargetLabel(activeTarget, layout)}</strong>
             <button
               type="button"
               aria-pressed={activeTarget === "frame"}
@@ -917,7 +941,7 @@ function LayoutPreview({
             >
               Artwork
             </button>
-            {describeCompositionTarget(activeTarget).slot && (
+            {describeCompositionTarget(activeTarget).holderId && (
               <>
                 <button
                   type="button"
@@ -973,7 +997,7 @@ function LayoutPreview({
 }
 
 function TemplateThumbnail({ template, state }: { template: SavedTemplate; state: BoothState }) {
-  const layout = getLayout(template.layoutId);
+  const layout = resolveLayout(template.layoutId, template.customSlots);
   const overlay = getOverlay(template.overlayId, state.customOverlays);
   if (!layout || overlay?.kind !== "custom") {
     return (
@@ -981,7 +1005,7 @@ function TemplateThumbnail({ template, state }: { template: SavedTemplate; state
     );
   }
 
-  const holderTransforms = slotTransformMap(template.holderTransforms);
+  const holderTransforms = holderTransformMap(template.holderTransforms);
   return (
     <span
       className="saved-template-thumbnail"
@@ -993,12 +1017,10 @@ function TemplateThumbnail({ template, state }: { template: SavedTemplate; state
     >
       {layout.slots.map((slot) => {
         const captureSlot = slot.captureIndex + 1;
-        const transform = holderTransforms[captureSlot] ?? identityMediaTransform();
+        const holderId = photoSlotId(slot);
+        const transform = holderTransforms[holderId] ?? identityMediaTransform();
         return (
-          <i
-            key={`${captureSlot}-${slot.x}-${slot.y}`}
-            style={holderStyle(slot, layout, transform)}
-          >
+          <i key={holderId} style={holderStyle(slot, layout, transform)}>
             {captureSlot}
           </i>
         );
@@ -1056,6 +1078,7 @@ function TemplateGalleryPanel({
       productId,
       layoutId: selectedLayout.id,
       overlayId,
+      ...(isCustomLayoutId(selectedLayout.id) ? { initialHolderId: createId() } : {}),
     });
   };
 
@@ -1085,7 +1108,7 @@ function TemplateGalleryPanel({
         </div>
         <div className="saved-template-grid">
           {state.savedTemplates.map((template) => {
-            const layout = getLayout(template.layoutId);
+            const layout = resolveLayout(template.layoutId, template.customSlots);
             return (
               <article className="saved-template-card" key={template.id}>
                 <TemplateThumbnail template={template} state={state} />
@@ -1184,7 +1207,11 @@ function TemplateGalleryPanel({
                 <LayoutThumbnail layout={layout} />
                 <span>
                   <strong>{layout.name}</strong>
-                  <small>{layout.requiredCaptureCount} placeholders</small>
+                  <small>
+                    {isCustomLayoutId(layout.id)
+                      ? "Add up to 8 holders"
+                      : `${layout.requiredCaptureCount} placeholders`}
+                  </small>
                 </span>
               </button>
             ))}
@@ -1257,6 +1284,12 @@ function TemplateEditorPanel({
     ? state.savedTemplates.find((template) => template.id === editor.sourceTemplateId)
     : null;
   const [name, setName] = useState(editor?.startingName ?? "");
+  const customLayout = isCustomLayoutId(state.layoutId);
+  const customSlots = state.customSlots ?? [];
+  const captureChoices = Array.from(
+    { length: Math.min(MAX_CUSTOM_HOLDERS, state.requiredCaptureCount + 1) },
+    (_, index) => index + 1,
+  );
 
   useEffect(() => setName(editor?.startingName ?? ""), [editor?.startingName]);
 
@@ -1292,6 +1325,72 @@ function TemplateEditorPanel({
           onChange={(event) => setName(event.target.value)}
         />
       </label>
+      {customLayout && (
+        <section className="holder-mapping-panel" aria-labelledby="holder-mapping-title">
+          <div className="holder-mapping-panel__heading">
+            <div>
+              <span>Custom photo map</span>
+              <h2 id="holder-mapping-title">Choose which capture fills each holder.</h2>
+              <p>
+                Reuse a capture in multiple holders, or assign a new capture. The booth will take
+                only {state.requiredCaptureCount} photo{state.requiredCaptureCount === 1 ? "" : "s"}
+                .
+              </p>
+            </div>
+            <button
+              className="button button--dark"
+              type="button"
+              disabled={customSlots.length >= MAX_CUSTOM_HOLDERS}
+              onClick={() => sendCommand({ type: "ADD_TEMPLATE_HOLDER", holderId: createId() })}
+            >
+              {customSlots.length >= MAX_CUSTOM_HOLDERS
+                ? "8-holder limit reached"
+                : "Add photo holder"}
+            </button>
+          </div>
+          <div className="holder-mapping-list">
+            {customSlots.map((slot, index) => {
+              const holderId = photoSlotId(slot);
+              return (
+                <div className="holder-mapping-row" key={holderId}>
+                  <strong>Holder {index + 1}</strong>
+                  <label>
+                    Fill with
+                    <select
+                      value={slot.captureIndex + 1}
+                      onChange={(event) =>
+                        sendCommand({
+                          type: "SET_TEMPLATE_HOLDER_CAPTURE",
+                          holderId,
+                          captureSlot: Number(event.target.value),
+                        })
+                      }
+                    >
+                      {captureChoices.map((captureSlot) => (
+                        <option value={captureSlot} key={captureSlot}>
+                          Capture {captureSlot}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="button button--danger button--tiny"
+                    type="button"
+                    disabled={customSlots.length === 1}
+                    onClick={() => sendCommand({ type: "REMOVE_TEMPLATE_HOLDER", holderId })}
+                  >
+                    Remove
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <p className="holder-mapping-panel__summary">
+            {customSlots.length} of {MAX_CUSTOM_HOLDERS} holders · {state.requiredCaptureCount}{" "}
+            unique capture{state.requiredCaptureCount === 1 ? "" : "s"}
+          </p>
+        </section>
+      )}
       <div className="template-editor-stage__canvas">
         <LayoutPreview state={state} editable sendCommand={sendCommand} context="template" />
       </div>
@@ -1387,12 +1486,14 @@ function SelectionPanel({
   sendCommand: (command: Command) => void;
 }) {
   const selectedProduct = getProduct(state.productId);
-  const selectedLayout = getLayout(state.layoutId);
-  const availableLayouts = selectedProduct
-    ? selectedProduct.layoutIds
-        .map((layoutId) => layouts.find((layout) => layout.id === layoutId))
-        .filter((layout): layout is Layout => Boolean(layout))
-    : [];
+  const selectedLayout = resolveLayout(state.layoutId, state.customSlots);
+  const manualSelectionEnabled = !selectedProduct?.templateOnly;
+  const availableLayouts =
+    selectedProduct && manualSelectionEnabled
+      ? selectedProduct.layoutIds
+          .map((layoutId) => layouts.find((layout) => layout.id === layoutId))
+          .filter((layout): layout is Layout => Boolean(layout))
+      : [];
   const availableBuiltInOverlays = selectedLayout
     ? overlays.filter((overlay) => overlaySupportsLayout(overlay, selectedLayout.id))
     : [];
@@ -1453,7 +1554,7 @@ function SelectionPanel({
           </p>
           <div className="saved-template-grid saved-template-grid--selectable">
             {approvedTemplates.map((template) => {
-              const layout = getLayout(template.layoutId);
+              const layout = resolveLayout(template.layoutId, template.customSlots);
               return (
                 <button
                   className={
@@ -1495,21 +1596,23 @@ function SelectionPanel({
           </div>
         </div>
         <div className="product-grid">
-          {products.map((product) => (
-            <button
-              className={
-                state.productId === product.id
-                  ? "catalog-card catalog-card--selected"
-                  : "catalog-card"
-              }
-              type="button"
-              key={product.id}
-              onClick={() => sendCommand({ type: "SELECT_PRODUCT", productId: product.id })}
-            >
-              <strong>{product.name}</strong>
-              <span>{product.description}</span>
-            </button>
-          ))}
+          {products
+            .filter((product) => !product.templateOnly)
+            .map((product) => (
+              <button
+                className={
+                  state.productId === product.id
+                    ? "catalog-card catalog-card--selected"
+                    : "catalog-card"
+                }
+                type="button"
+                key={product.id}
+                onClick={() => sendCommand({ type: "SELECT_PRODUCT", productId: product.id })}
+              >
+                <strong>{product.name}</strong>
+                <span>{product.description}</span>
+              </button>
+            ))}
         </div>
       </div>
 
@@ -1541,6 +1644,11 @@ function SelectionPanel({
             </button>
           ))}
           {!selectedProduct && <p className="catalog-empty">Choose a product first.</p>}
+          {selectedProduct?.templateOnly && (
+            <p className="catalog-empty">
+              This custom layout is already prepared inside the selected saved template.
+            </p>
+          )}
         </div>
       </div>
 
@@ -1552,40 +1660,46 @@ function SelectionPanel({
             <h2>Choose one frame type</h2>
           </div>
         </div>
-        <div className="frame-mode-grid">
-          <button
-            className={
-              state.frameMode === "color" ? "frame-mode frame-mode--selected" : "frame-mode"
-            }
-            type="button"
-            disabled={!state.layoutId}
-            onClick={() => sendCommand({ type: "SELECT_FRAME_MODE", frameMode: "color" })}
-          >
-            <span className="frame-mode__swatches" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </span>
-            <strong>Fixed colored frame</strong>
-            <small>Choose a WanderBooth color and an optional built-in decoration.</small>
-          </button>
-          <button
-            className={
-              state.frameMode === "custom" ? "frame-mode frame-mode--selected" : "frame-mode"
-            }
-            type="button"
-            disabled={!state.layoutId}
-            onClick={() => sendCommand({ type: "SELECT_FRAME_MODE", frameMode: "custom" })}
-          >
-            <span className="frame-mode__import" aria-hidden="true">
-              ↑
-            </span>
-            <strong>Imported custom frame</strong>
-            <small>Use event artwork instead of a WanderBooth frame color.</small>
-          </button>
-        </div>
+        {selectedProduct?.templateOnly ? (
+          <p className="catalog-empty">
+            The selected template already includes its imported frame and holder placements.
+          </p>
+        ) : (
+          <div className="frame-mode-grid">
+            <button
+              className={
+                state.frameMode === "color" ? "frame-mode frame-mode--selected" : "frame-mode"
+              }
+              type="button"
+              disabled={!state.layoutId}
+              onClick={() => sendCommand({ type: "SELECT_FRAME_MODE", frameMode: "color" })}
+            >
+              <span className="frame-mode__swatches" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+              <strong>Fixed colored frame</strong>
+              <small>Choose a WanderBooth color and an optional built-in decoration.</small>
+            </button>
+            <button
+              className={
+                state.frameMode === "custom" ? "frame-mode frame-mode--selected" : "frame-mode"
+              }
+              type="button"
+              disabled={!state.layoutId}
+              onClick={() => sendCommand({ type: "SELECT_FRAME_MODE", frameMode: "custom" })}
+            >
+              <span className="frame-mode__import" aria-hidden="true">
+                ↑
+              </span>
+              <strong>Imported custom frame</strong>
+              <small>Use event artwork instead of a WanderBooth frame color.</small>
+            </button>
+          </div>
+        )}
 
-        {state.frameMode === "color" && (
+        {manualSelectionEnabled && state.frameMode === "color" && (
           <div className="frame-options">
             <div className="catalog-section__subheading">
               <small>Color</small>
@@ -1647,7 +1761,7 @@ function SelectionPanel({
           </div>
         )}
 
-        {state.frameMode === "custom" && selectedLayout && (
+        {manualSelectionEnabled && state.frameMode === "custom" && selectedLayout && (
           <div className="frame-options">
             <div className="catalog-section__subheading">
               <small>Custom frame</small>
@@ -2133,7 +2247,7 @@ function OperatorSidebar({
 }) {
   const isIdle = state.phase === "idle";
   const macBookSelected = state.cameraSourceId === "macbook_camera";
-  const selectedLayout = getLayout(state.layoutId);
+  const selectedLayout = resolveLayout(state.layoutId, state.customSlots);
 
   return (
     <aside className="operator-sidebar">
@@ -2269,7 +2383,7 @@ function OperatorSidebar({
             <dd>
               {state.requiredCaptureCount
                 ? `${state.requiredCaptureCount} automatic`
-                : "3, 4, or 6"}
+                : "1–8 by layout"}
             </dd>
           </div>
           <div>

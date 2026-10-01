@@ -29,10 +29,10 @@ WanderBooth is an offline-first photo booth application being developed for our 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **1.5.0 — Reusable Template Gallery**
+- Product-plan version: **1.6.0 — Freeform Custom Templates**
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
-- Current catalog: **two product families and five layouts, with a mutually exclusive choice of a fixed colored frame or locally imported event frame**, iPad customer screen, no on-screen price
+- Current catalog: **two normal product families with five built-in layouts, plus portrait and landscape custom saved templates with up to eight holders**, a mutually exclusive fixed-color or imported event frame, iPad customer screen, and no on-screen price
 - Current cameras: **prototype simulator and experimental MacBook camera**, now with a relayed customer-screen preview and automatic capture sequence; Fujifilm X-M5 is the first dedicated-camera target
 - First print decision: **one 4×6 sheet containing two three-photo 2×6 strips with six unique shots**; the renderer now produces this file, but printer submission is not implemented
 - Immediate next step: prepare and approve the first production designs in the Template Gallery on the physical iPad/Mac workflow, then test the Epson L8050 print path. Private 30-day cloud QR delivery follows.
@@ -46,12 +46,13 @@ WanderBooth is an offline-first photo booth application being developed for our 
 
 - One synchronized session shared by the laptop operator view and iPad/customer view.
 - Staff-selected Attendant-Operated or Self-Service control.
-- Product/layout menu with three-photo, four-photo, and six-photo arrangements; every layout supplies its own automatic photo count.
+- Product/layout menu with built-in three-photo, four-photo, and six-photo arrangements; saved custom templates derive one to eight automatic captures from their holder labels.
 - Five data-driven layouts: classic 2×6, six-shot double strip 4×6, feature portrait, heart feature, and party landscape.
 - Five reusable fixed-color frames with optional no-overlay, film-edge, confetti, and heart treatments.
 - A mutually exclusive imported-frame path: selecting a custom frame hides and clears fixed colors, while selecting a color clears the custom frame.
 - Operator-only event-frame import for transparent PNG artwork with pre-cut photo openings. The Host preserves a normalized source plus a rendered preview so later alignment is lossless and survives restart; previously imported flat templates remain readable.
 - A persistent staff-only Template Gallery: upload or reuse artwork, align numbered photo placeholders before service, save the complete product/layout/frame/holder/crop setup, update it or save a copy, and delete it without destroying shared artwork.
+- Portrait and landscape custom 4×6 template canvases with one to eight independently editable holders. Each holder maps to Capture 1–8, and the same capture can fill several holders without sharing their placement or crop settings.
 - One-tap approved-template selection at the start of a session. Real captures automatically fill the saved numbered positions, while the existing review editor remains available for session-specific staff adjustments.
 - Rectangle, rounded, heart-shaped, portrait, and landscape rendering.
 - Cash confirmation before capture, with no price shown in the application.
@@ -63,7 +64,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - A layout-defined set of branded individual PNGs, a 300-DPI composite strip/card, and an MP4 slideshow.
 - Synthetic camera output for safe development without customer images.
 - Staff-only simulator/MacBook source selection, local preview relay to the customer screen, and full-resolution local Host transfer.
-- One-tap automatic three-, four-, or six-photo capture with a Host-controlled three-second countdown before every photo.
+- One-tap automatic layout-defined capture, from one to eight photos, with a Host-controlled three-second countdown before every photo.
 - Mirrored live preview for posing, unmirrored saved photos, countdown-based retakes, and a staff-only session-cancel safety control.
 - A customer URL served by the packaged Host for a real touch-controlled iPad Safari screen.
 - A double-clickable Apple-silicon Mac application and local DMG build.
@@ -73,7 +74,7 @@ The prototype now controls the starting MacBook camera, provides a reusable Temp
 
 ## Open the app on this Mac
 
-The current local installation image is generated at `release/WanderBooth-0.10.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
+The current local installation image is generated at `release/WanderBooth-0.11.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

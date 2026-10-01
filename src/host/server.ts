@@ -40,6 +40,7 @@ const savedState = database.loadState();
 const savedCustomOverlays = savedState?.customOverlays ?? [];
 const savedTemplates = (savedState?.savedTemplates ?? []).map((template) => ({
   ...template,
+  customSlots: template.customSlots ?? null,
   frameTransform: normalizeMediaTransform(template.frameTransform),
   holderTransforms: (template.holderTransforms ?? []).map(({ slot, ...transform }) => ({
     slot,
@@ -60,7 +61,7 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 10,
+      schemaVersion: 11,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
@@ -69,6 +70,7 @@ let state: BoothState = savedState
       savedTemplates,
       selectedTemplateId: savedState.selectedTemplateId ?? null,
       templateEditor: savedState.templateEditor ?? null,
+      customSlots: savedState.customSlots ?? null,
       frameMode: savedFrameMode,
       designId: savedFrameMode === "custom" ? null : savedState.designId,
       frameTransform: normalizeMediaTransform(savedState.frameTransform),

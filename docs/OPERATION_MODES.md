@@ -2,7 +2,7 @@
 
 **Status:** Confirmed product behavior
 
-**Version:** 0.8.0
+**Version:** 0.9.0
 
 **Updated:** 2026-10-02
 
@@ -56,7 +56,7 @@ WanderBooth supports two staff-selected workflows. The difference is who control
 3. WanderBooth loads and shows the photo count required by that product/layout.
 4. The operator explains the privacy notice and records the customer's consent.
 5. The operator confirms cash received.
-6. The operator starts one automatic layout-defined sequence of three, four, or six shots. The customer display shows the mirrored preview and the Host-controlled three-second countdown before every photo.
+6. The operator starts one automatic layout-defined sequence. Built-in layouts take three, four, or six shots; custom saved templates derive one to eight shots from their holder Capture labels. The customer display shows the mirrored preview and the Host-controlled three-second countdown before every photo.
 7. WanderBooth shows the finished composed layout plus each full, uncropped source capture to the customer and operator.
 8. The customer may verbally request a replacement; the operator alone selects the photo slot and starts the replacement/retake.
 9. The operator may change to a compatible frame, then use the direct composition canvas to select, drag, independently resize, rotate, and lock the imported artwork or a photo frame. Crop image mode directly manipulates the capture inside that frame before approval.
@@ -80,7 +80,7 @@ Even when the customer display shows captured images, only the operator can subm
 3. The selected product/layout automatically supplies and displays the required photo count.
 4. The customer accepts the privacy notice.
 5. The interface waits while the attendant confirms cash.
-6. The customer taps once to start the selected layout's complete three-, four-, or six-photo sequence. The Host shows the synchronized three-second countdown before every photo.
+6. The customer taps once to start the selected layout's complete sequence of up to eight photos. The Host shows the synchronized three-second countdown before every photo.
 7. The customer reviews the final composed layout and the full uncropped source captures.
 8. Within the configured limit, the customer may replace a selected photo or retake.
 9. Before final approval, the customer may change to another compatible enabled frame. Detailed imported-frame and photo alignment remains an attendant control on the operator console.
@@ -93,8 +93,8 @@ See [iPad setup](IPAD_SETUP.md) for the exact Safari and Sidecar steps.
 
 ## Photo replacement and style rules
 
-- Photo count is not an independent session choice. Each enabled product/layout combination defines the exact number of unique captures, currently three, four, or six.
-- A saved template carries its product/layout and complete prepared alignment. Selecting it never creates a new photo count; it restores the count defined by that layout.
+- Photo count is not an independent session choice. Each built-in product/layout combination defines the exact number of unique captures, currently three, four, or six. A custom saved template derives one to eight unique captures from its holder assignments.
+- A saved template carries its product/layout and complete prepared alignment. For a custom template, multiple holders may share one Capture label. A map of `1, 1, 2, 3` therefore takes three photos and places Capture 1 twice.
 - During final review, staff or an authorized Self-Service guest may switch only to another saved template for the already captured layout. A different layout requires a controlled restart rather than silently discarding or inventing captures.
 - Double strip 4×6 takes six unique photos. Photos 1–3 appear on the left strip and Photos 4–6 appear on the right strip.
 - WanderBooth shows that required number before cash confirmation and capture.
@@ -105,7 +105,7 @@ See [iPad setup](IPAD_SETUP.md) for the exact Safari and Sidecar steps.
 - Choosing a custom frame clears the fixed color and built-in decoration; choosing a fixed color clears the custom frame. The two frame sources cannot be combined accidentally.
 - Changing a compatible frame or built-in decoration re-renders existing accepted captures and does not consume a retake.
 - Source-photo cards use the capture's full aspect ratio rather than cropping it into a decorative review card. Cropping happens only inside the visible final-layout slots, where the operator can inspect it directly.
-- Custom alignment stores one transform for the imported artwork, one photo-frame transform per capture, and one image-crop transform per capture. Each records position, scale, rotation, and a lock flag. Frame holders may store independent width/height crop geometry, while image-crop scale is normalized to one proportional value so the photograph cannot be stretched. The operator manipulates these objects directly on the preview; editor guides never appear in the output.
+- Custom alignment stores one transform for the imported artwork, one photo-frame transform per holder, and one image-crop transform per holder. Each records position, scale, rotation, and a lock flag. Repeated holders can show the same capture without sharing these transforms. Frame holders may store independent width/height crop geometry, while image-crop scale is normalized to one proportional value so the photograph cannot be stretched. The operator manipulates these objects directly on the preview; editor guides never appear in the output.
 - Before capture, changing the product/layout recalculates the required count automatically.
 - After capture, changing to a layout with the same count may reuse the accepted captures. A layout requiring a different count needs an explicit staff/customer confirmation and controlled recapture/restart flow; it can never discard paid-session work silently.
 - Once the result is finally approved, further changes require staff recovery.

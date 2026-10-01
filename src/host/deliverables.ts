@@ -8,13 +8,14 @@ import sharp from "sharp";
 import {
   type CustomOverlayMode,
   getDesign,
-  getLayout,
   getOverlay,
   identityMediaTransform,
   type Layout,
   type MediaTransform,
   type OverlayKind,
   type PhotoSlot,
+  photoSlotId,
+  resolveLayout,
 } from "../shared/catalog.js";
 import type {
   BoothState,
@@ -292,11 +293,14 @@ async function createComposite(input: {
         if (!photoPath)
           throw new Error(`Layout references missing capture ${slot.captureIndex + 1}.`);
         const captureSlot = slot.captureIndex + 1;
+        const holderId = photoSlotId(slot);
         const photoTransform =
-          input.photoTransforms.find((item) => item.slot === captureSlot) ??
+          input.photoTransforms.find((item) => item.holderId === holderId) ??
+          input.photoTransforms.find((item) => !item.holderId && item.slot === captureSlot) ??
           identityMediaTransform();
         const holderTransform =
-          input.holderTransforms.find((item) => item.slot === captureSlot) ??
+          input.holderTransforms.find((item) => item.holderId === holderId) ??
+          input.holderTransforms.find((item) => !item.holderId && item.slot === captureSlot) ??
           identityMediaTransform();
         const photo = await renderSlot(photoPath, slot, holderTransform, photoTransform);
         return positionHolder(photo, slot, holderTransform, width, height);
@@ -409,7 +413,7 @@ export async function buildDeliverables(
 ): Promise<Deliverable[]> {
   if (!state.sessionId) throw new Error("A session is required to build deliverables.");
   const design = getDesign(state.designId) ?? getDesign("wander-splash");
-  const layout = getLayout(state.layoutId);
+  const layout = resolveLayout(state.layoutId, state.customSlots);
   const overlay = getOverlay(state.overlayId, state.customOverlays);
   const validFrame =
     (state.frameMode === "color" &&

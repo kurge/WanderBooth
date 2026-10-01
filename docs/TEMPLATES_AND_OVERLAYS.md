@@ -2,7 +2,7 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.7.0
+**Version:** 0.8.0
 
 **Updated:** 2026-10-02
 
@@ -25,7 +25,19 @@ The Template Gallery is the normal path for designs that will be served repeated
 4. Move and resize each photo holder to match the transparent opening. Enter **Crop image** to set the default image position and scale inside that holder. Rotate or lock objects as needed.
 5. Choose **Save template**. The approved item now appears in the gallery at the start of each session.
 
-When a saved template is selected, real Photo 1 replaces Placeholder 1, Photo 2 replaces Placeholder 2, and so on. WanderBooth also restores the saved artwork position, holder shapes, default image crops, rotation, and lock state. The required capture count still comes from the saved layout—six for Double strip 4×6.
+When a saved template is selected, real Capture 1 replaces every placeholder labeled 1, Capture 2 replaces every placeholder labeled 2, and so on. WanderBooth also restores the saved artwork position, holder shapes, default image crops, rotation, and lock state. Built-in templates use their catalog capture count—six for Double strip 4×6—while a custom template derives its count from its Capture labels.
+
+### Freeform custom layouts
+
+Choose **Custom 4×6 layout** in the Template Gallery when a frame does not fit one of the five built-in arrangements:
+
+1. Choose **Custom portrait 4×6** or **Custom landscape 4×6**, then select or import matching transparent artwork.
+2. Open template setup. The canvas starts with one photo holder.
+3. Choose **Add photo holder** until the design has the required openings. A custom template supports one to eight holders.
+4. Assign each holder to **Capture 1** through **Capture 8**. Assigning the same Capture label to several holders repeats that photo in the finished design.
+5. Move, resize, rotate, crop, and lock each holder independently, then save the template.
+
+Capture labels stay continuous automatically. For example, a four-holder map of `1, 1, 2, 3` takes three photos; it does not take four. The two Capture 1 holders refer to the same source photo but remain separate design objects, so changing one holder never moves, resizes, rotates, crops, or locks the other.
 
 Editing an existing gallery item provides two deliberate choices:
 
@@ -47,6 +59,8 @@ Deleting a saved template leaves its uploaded artwork available for another temp
 | Four-photo card | Feature portrait | 1200×1800 | 4 | Three smaller photos and one large feature photo |
 | Four-photo card | Heart feature | 1200×1800 | 4 | Three rectangles and one heart-shaped photo |
 | Four-photo card | Party landscape | 1800×1200 | 4 | Three photos across the top and one larger photo below |
+| Custom 4×6 template | Custom portrait | 1200×1800 | 1–8 | Staff adds up to eight holders and maps each to a Capture label |
+| Custom 4×6 template | Custom landscape | 1800×1200 | 1–8 | Same freeform holder mapping on a horizontal canvas |
 
 ### Fixed-color frames
 

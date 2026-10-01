@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.5.0
+document_version: 1.6.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -106,10 +106,12 @@ The business should be able to keep serving customers during internet interrupti
 - Imported frames are stored locally, persist across application restarts, are limited to their selected layout, and are not added to the public repository.
 - Before serving customers, the owner or attendant can turn imported artwork into an approved reusable template by aligning numbered photo placeholders once and saving the product, layout, frame artwork, artwork transform, every photo-holder transform, every default image crop, rotations, and locks.
 - Saved templates appear in a Template Gallery at session selection. Choosing one automatically restores its layout, required photo count, artwork, and every saved placement; real captures fill the numbered placeholders in capture order.
+- The Template Gallery also supports a blank custom 4×6 canvas in portrait or landscape orientation. Staff can add between one and eight independently editable photo holders, assign each holder to Capture 1 through Capture 8, and reuse one capture in several holders. For example, holder labels `1, 1, 2, 3` require only three actual photos while rendering Capture 1 twice.
+- Custom holder assignments are normalized into one continuous capture sequence, so a template never asks the booth to skip a capture number. Every repeated holder keeps its own position, size, rotation, crop, and lock state even when it displays the same captured photo as another holder.
 - Template creation, editing, duplication, and deletion are staff-only. A Self-Service customer may choose an approved saved template but cannot change the saved definition. The post-capture direct editor remains available to staff for session-specific final adjustments.
 - The operator can delete a saved template after confirmation without deleting its reusable artwork. Imported artwork can be deleted separately only after no saved templates reference it; deleting it removes WanderBooth's private normalized source and preview without changing the owner's original file.
 - During review, the finished composed layout is shown beside uncropped source captures in consistently sized 16:9 cards. Only the owner or attendant can use the direct canvas: click the imported artwork or a photo frame, drag it in place, resize proportionally from a corner, reshape one holder edge from its middle handle, rotate it directly, lock it, or enter Crop image mode to reposition and proportionally scale the capture inside its frame. Reshaping the holder changes the crop window without stretching the photograph. There is no zoom slider. Those adjustments are stored and applied to the final render.
-- One tap starts the complete layout-defined sequence of three, four, or six photos, with a **three-second countdown before each photo**.
+- One tap starts the complete layout-defined sequence of up to eight photos, with a **three-second countdown before each photo**. Built-in layouts currently require three, four, or six captures; a saved custom layout derives its count from its Capture labels.
 - The customer preview is mirrored for natural posing, while saved and delivered photos are not mirrored.
 - The first pilot will include approximately **5–10 layouts/designs**.
 - Available camera hardware: **Canon EOS 60D** and **Fujifilm X-M5**.
@@ -145,18 +147,18 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 
 - React operator and customer surfaces synchronize through a local WebSocket Host.
 - Host-side permissions enforce the difference between Attendant-Operated and Self-Service modes.
-- The selected layout fixes the session at three, four, or six captures. Classic 2×6 uses three; Double strip 4×6 uses six unique shots.
+- The selected layout fixes the session capture count. Classic 2×6 uses three; Double strip 4×6 uses six unique shots; a custom saved template derives one to eight unique captures from its holder labels.
 - Cash confirmation is staff-only and occurs before capture; no price appears on screen.
 - Session state and command history persist in a local SQLite database.
 - A development-only camera simulator exercises capture and two-retake behavior safely.
 - Staff can select the simulator or MacBook camera only while the booth is idle. The Mac path includes permission handling, physical device choice, a reduced mirrored preview relayed to the customer screen, and separate full-resolution unmirrored JPEG transfer.
 - One action starts every photo required by the selected layout. The Host advances and broadcasts the three-second countdown before each capture so the Mac and customer screen cannot drift apart.
 - Retakes use the same synchronized countdown, and staff can cancel an active session safely back to idle.
-- The selection menu now offers three-photo, four-photo, and six-photo arrangements, with the required automatic capture count changing from the selected layout.
+- The selection menu offers built-in three-photo, four-photo, and six-photo arrangements plus saved portrait or landscape custom templates with one to eight holders and a derived automatic capture count.
 - The renderer now reads data-driven canvas, slot, shape, branding-area, frame, and overlay definitions instead of one hard-coded strip.
 - Synthetic rendering checks passed for the six-shot 4×6 double strip with film overlay and the four-photo heart layout with heart overlay.
 - The operator imports a transparent PNG whose photo openings have already been prepared. The Host validates, normalizes, stores, and registers the frame locally; the old flat-template format remains renderable for previously imported records.
-- The staff-only Template Gallery turns imported artwork into reusable, approved session choices. A pre-capture placeholder editor stores product/layout choice plus artwork, holder, crop, rotation, and lock geometry; real photos automatically replace the six or fewer numbered samples when that template is selected.
+- The staff-only Template Gallery turns imported artwork into reusable, approved session choices. A pre-capture placeholder editor stores product/layout choice plus artwork, holder, crop, rotation, and lock geometry. Custom portrait or landscape templates can contain up to eight holders, and each holder maps independently to a Capture label so the same photo can appear more than once without sharing its placement settings.
 - Fixed colored and imported custom frames use separate selection modes. The review screen previews the actual composition, keeps captured and waiting cards the same size without cropping source images, and gives staff a Canva-style direct canvas for moving, proportionally scaling, rotating, and locking artwork, photo frames, and the images inside them. Middle holder handles can change width or height independently to match an opening, but this changes the crop boundary instead of distorting the capture. Imported frames can also be deleted from local storage after confirmation. The final renderer reuses the exact stored values.
 - The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
@@ -771,7 +773,7 @@ Tasks:
 - Prototype operation-mode selection, the laptop operator console, the read-only customer display, and the interactive Self-Service touch flow.
 - Refine the working prototype for layout-defined individual branded photos, a composite strip/card, and an MP4 slideshow.
 - Render a print-ready 4×6 sheet containing two different three-photo 2×6 strips from six unique captures.
-- Use the working data-driven catalog to test three-, four-, and six-photo layouts, frame palettes, overlays, and shaped slots.
+- Use the working data-driven catalog to test built-in three-, four-, and six-photo layouts plus custom one-to-eight-capture templates, frame palettes, overlays, and shaped slots.
 - Test the implemented staff-only transparent-artwork and flat-template importer with the final production designs.
 - Use the implemented Template Gallery to prepare, save, and reuse the first production layouts before the first busy event test.
 - Test the working browser-to-Host control connection from the physical iPad.

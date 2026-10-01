@@ -1,13 +1,19 @@
 import {
   type CustomOverlay,
+  captureCountForSlots,
   getDesign,
   getLayout,
   getOverlay,
   getProduct,
   identityMediaTransform,
+  isCustomLayoutId,
+  MAX_CUSTOM_HOLDERS,
   type MediaTransform,
   normalizePhotoTransform,
   overlaySupportsLayout,
+  type PhotoSlot,
+  photoSlotId,
+  resolveLayout,
 } from "./catalog.js";
 
 export type Actor = "owner" | "attendant" | "customer" | "system";
@@ -52,8 +58,8 @@ export type Deliverable = {
   mimeType: string;
 };
 
-export type PhotoTransform = MediaTransform & { slot: number };
-export type HolderTransform = MediaTransform & { slot: number };
+export type PhotoTransform = MediaTransform & { slot: number; holderId?: string };
+export type HolderTransform = MediaTransform & { slot: number; holderId?: string };
 
 export type SavedTemplate = {
   id: string;
@@ -61,6 +67,7 @@ export type SavedTemplate = {
   productId: string;
   layoutId: string;
   overlayId: string;
+  customSlots: PhotoSlot[] | null;
   frameTransform: MediaTransform;
   holderTransforms: HolderTransform[];
   photoTransforms: PhotoTransform[];
@@ -75,7 +82,7 @@ export type TemplateEditorState = {
 };
 
 export type BoothState = {
-  schemaVersion: 10;
+  schemaVersion: 11;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -90,6 +97,7 @@ export type BoothState = {
   savedTemplates: SavedTemplate[];
   selectedTemplateId: string | null;
   templateEditor: TemplateEditorState | null;
+  customSlots: PhotoSlot[] | null;
   frameTransform: MediaTransform;
   holderTransforms: HolderTransform[];
   photoTransforms: PhotoTransform[];
@@ -116,11 +124,15 @@ export type Command =
       productId: string;
       layoutId: string;
       overlayId: string;
+      initialHolderId?: string;
     }
   | { type: "BEGIN_TEMPLATE_EDIT"; templateId: string }
   | { type: "SAVE_TEMPLATE"; templateId: string; name: string }
   | { type: "CANCEL_TEMPLATE_EDIT" }
   | { type: "DELETE_TEMPLATE"; templateId: string }
+  | { type: "ADD_TEMPLATE_HOLDER"; holderId: string }
+  | { type: "REMOVE_TEMPLATE_HOLDER"; holderId: string }
+  | { type: "SET_TEMPLATE_HOLDER_CAPTURE"; holderId: string; captureSlot: number }
   | { type: "BEGIN_SESSION"; sessionId: string }
   | { type: "SELECT_TEMPLATE"; templateId: string }
   | { type: "SELECT_PRODUCT"; productId: string }
@@ -129,8 +141,18 @@ export type Command =
   | { type: "SELECT_DESIGN"; designId: string }
   | { type: "SELECT_OVERLAY"; overlayId: string }
   | { type: "UPDATE_FRAME_TRANSFORM"; transform: MediaTransform }
-  | { type: "UPDATE_HOLDER_TRANSFORM"; slot: number; transform: MediaTransform }
-  | { type: "UPDATE_PHOTO_TRANSFORM"; slot: number; transform: MediaTransform }
+  | {
+      type: "UPDATE_HOLDER_TRANSFORM";
+      slot: number;
+      holderId?: string;
+      transform: MediaTransform;
+    }
+  | {
+      type: "UPDATE_PHOTO_TRANSFORM";
+      slot: number;
+      holderId?: string;
+      transform: MediaTransform;
+    }
   | { type: "REGISTER_CUSTOM_OVERLAY"; overlay: CustomOverlay }
   | { type: "DELETE_CUSTOM_OVERLAY"; overlayId: string }
   | { type: "RECORD_CONSENT" }
@@ -154,7 +176,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 10,
+  schemaVersion: 11,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -169,6 +191,7 @@ export const initialBoothState = (): BoothState => ({
   savedTemplates: [],
   selectedTemplateId: null,
   templateEditor: null,
+  customSlots: null,
   frameTransform: identityMediaTransform(),
   holderTransforms: [],
   photoTransforms: [],
@@ -239,6 +262,9 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "SAVE_TEMPLATE":
     case "CANCEL_TEMPLATE_EDIT":
     case "DELETE_TEMPLATE":
+    case "ADD_TEMPLATE_HOLDER":
+    case "REMOVE_TEMPLATE_HOLDER":
+    case "SET_TEMPLATE_HOLDER_CAPTURE":
     case "RESET":
     case "CONFIRM_CASH":
     case "CAMERA_CAPTURE_FAILED":
@@ -294,6 +320,50 @@ const validatedTemplateName = (name: string) => {
   return trimmed;
 };
 
+const defaultCustomSlot = (layoutId: string, holderId: string, index: number): PhotoSlot => {
+  const layout = getLayout(layoutId);
+  if (!layout || !isCustomLayoutId(layout.id)) {
+    throw new CommandError("Choose a custom portrait or landscape layout first.");
+  }
+  if (!holderId.trim() || holderId.length > 100) {
+    throw new CommandError("The photo holder identifier is invalid.");
+  }
+  const width = Math.round(layout.canvasWidth * 0.42);
+  const height = Math.round(layout.canvasHeight * 0.24);
+  const columns = layout.canvasWidth > layout.canvasHeight ? 3 : 2;
+  const column = index % columns;
+  const row = Math.floor(index / columns);
+  const x = Math.round(
+    layout.canvasWidth * 0.08 + column * Math.min(width * 0.72, layout.canvasWidth * 0.25),
+  );
+  const y = Math.round(
+    layout.canvasHeight * 0.1 + row * Math.min(height * 0.78, layout.canvasHeight * 0.22),
+  );
+  return {
+    id: holderId,
+    captureIndex: Math.min(index, MAX_CUSTOM_HOLDERS - 1),
+    x,
+    y,
+    width,
+    height,
+    shape: "rectangle",
+  };
+};
+
+const normalizeCaptureLabels = (slots: PhotoSlot[]): PhotoSlot[] => {
+  const labels = [...new Set(slots.map((slot) => slot.captureIndex))].sort((a, b) => a - b);
+  const normalized = new Map(labels.map((label, index) => [label, index]));
+  return slots.map((slot) => ({
+    ...slot,
+    captureIndex: normalized.get(slot.captureIndex) ?? 0,
+  }));
+};
+
+const stateLayout = (state: BoothState) => resolveLayout(state.layoutId, state.customSlots);
+
+const holderMatches = (item: HolderTransform | PhotoTransform, holderId: string, slot: number) =>
+  item.holderId ? item.holderId === holderId : item.slot === slot;
+
 const clearedWorkspace = (): Partial<BoothState> => ({
   sessionId: null,
   productId: null,
@@ -303,6 +373,7 @@ const clearedWorkspace = (): Partial<BoothState> => ({
   overlayId: "none",
   selectedTemplateId: null,
   templateEditor: null,
+  customSlots: null,
   frameTransform: identityMediaTransform(),
   holderTransforms: [],
   photoTransforms: [],
@@ -342,12 +413,18 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       if (overlay?.kind !== "custom" || !overlaySupportsLayout(overlay, layout.id)) {
         throw new CommandError("Choose imported artwork made for this layout.");
       }
+      const customSlots = isCustomLayoutId(layout.id)
+        ? [defaultCustomSlot(layout.id, command.initialHolderId ?? "", 0)]
+        : null;
       return revised(state, {
         ...clearedWorkspace(),
         phase: "template_editing",
         productId: product.id,
         layoutId: layout.id,
-        requiredCaptureCount: layout.requiredCaptureCount,
+        customSlots,
+        requiredCaptureCount: customSlots
+          ? captureCountForSlots(customSlots)
+          : layout.requiredCaptureCount,
         frameMode: "custom",
         overlayId: overlay.id,
         templateEditor: { sourceTemplateId: null, startingName: name },
@@ -368,7 +445,9 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         phase: "template_editing",
         productId: product.id,
         layoutId: layout.id,
-        requiredCaptureCount: layout.requiredCaptureCount,
+        customSlots: template.customSlots,
+        requiredCaptureCount:
+          resolveLayout(layout.id, template.customSlots)?.requiredCaptureCount ?? 0,
         frameMode: "custom",
         overlayId: overlay.id,
         selectedTemplateId: template.id,
@@ -387,6 +466,9 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       if (!product || !layout || overlay?.kind !== "custom" || !state.templateEditor) {
         throw new CommandError("The template setup is incomplete.");
       }
+      if (isCustomLayoutId(layout.id) && !state.customSlots?.length) {
+        throw new CommandError("Add at least one photo holder before saving this template.");
+      }
       const existing = state.savedTemplates.find((item) => item.id === command.templateId);
       if (existing && existing.id !== state.templateEditor.sourceTemplateId) {
         throw new CommandError("Choose a new template name instead of replacing another template.");
@@ -398,6 +480,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         productId: product.id,
         layoutId: layout.id,
         overlayId: overlay.id,
+        customSlots: state.customSlots,
         frameTransform: state.frameTransform,
         holderTransforms: state.holderTransforms,
         photoTransforms: state.photoTransforms,
@@ -426,6 +509,77 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         savedTemplates: state.savedTemplates.filter((item) => item.id !== command.templateId),
       });
     }
+    case "ADD_TEMPLATE_HOLDER": {
+      requirePhase(state, ["template_editing"]);
+      if (!isCustomLayoutId(state.layoutId) || !state.customSlots) {
+        throw new CommandError("Photo holders can be added only to a custom layout.");
+      }
+      if (state.customSlots.length >= MAX_CUSTOM_HOLDERS) {
+        throw new CommandError(`Custom templates support up to ${MAX_CUSTOM_HOLDERS} holders.`);
+      }
+      if (state.customSlots.some((slot) => photoSlotId(slot) === command.holderId)) {
+        throw new CommandError("That photo holder already exists.");
+      }
+      const customSlots = [
+        ...state.customSlots,
+        defaultCustomSlot(state.layoutId ?? "", command.holderId, state.customSlots.length),
+      ];
+      return revised(state, {
+        customSlots,
+        requiredCaptureCount: captureCountForSlots(customSlots),
+      });
+    }
+    case "REMOVE_TEMPLATE_HOLDER": {
+      requirePhase(state, ["template_editing"]);
+      if (!isCustomLayoutId(state.layoutId) || !state.customSlots) {
+        throw new CommandError("Photo holders can be removed only from a custom layout.");
+      }
+      if (state.customSlots.length <= 1) {
+        throw new CommandError("A custom template needs at least one photo holder.");
+      }
+      const removed = state.customSlots.find((slot) => photoSlotId(slot) === command.holderId);
+      if (!removed) throw new CommandError("That photo holder is no longer available.");
+      const customSlots = normalizeCaptureLabels(
+        state.customSlots.filter((slot) => photoSlotId(slot) !== command.holderId),
+      );
+      return revised(state, {
+        customSlots,
+        requiredCaptureCount: captureCountForSlots(customSlots),
+        holderTransforms: state.holderTransforms.filter(
+          (item) => !holderMatches(item, command.holderId, removed.captureIndex + 1),
+        ),
+        photoTransforms: state.photoTransforms.filter(
+          (item) => !holderMatches(item, command.holderId, removed.captureIndex + 1),
+        ),
+      });
+    }
+    case "SET_TEMPLATE_HOLDER_CAPTURE": {
+      requirePhase(state, ["template_editing"]);
+      if (!isCustomLayoutId(state.layoutId) || !state.customSlots) {
+        throw new CommandError("Capture mapping is available only for a custom layout.");
+      }
+      if (
+        !Number.isInteger(command.captureSlot) ||
+        command.captureSlot < 1 ||
+        command.captureSlot > 8
+      ) {
+        throw new CommandError("Choose Capture 1 through Capture 8.");
+      }
+      if (!state.customSlots.some((slot) => photoSlotId(slot) === command.holderId)) {
+        throw new CommandError("That photo holder is no longer available.");
+      }
+      const customSlots = normalizeCaptureLabels(
+        state.customSlots.map((slot) =>
+          photoSlotId(slot) === command.holderId
+            ? { ...slot, captureIndex: command.captureSlot - 1 }
+            : slot,
+        ),
+      );
+      return revised(state, {
+        customSlots,
+        requiredCaptureCount: captureCountForSlots(customSlots),
+      });
+    }
     case "BEGIN_SESSION":
       requirePhase(state, ["idle"]);
       return revised(state, {
@@ -438,6 +592,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         overlayId: "none",
         selectedTemplateId: null,
         templateEditor: null,
+        customSlots: null,
         frameTransform: identityMediaTransform(),
         holderTransforms: [],
         photoTransforms: [],
@@ -457,22 +612,31 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       const product = getProduct(template.productId);
       const layout = getLayout(template.layoutId);
       const overlay = getOverlay(template.overlayId, state.customOverlays);
+      const resolvedLayout = resolveLayout(layout?.id ?? null, template.customSlots);
       if (
         !product ||
         !layout ||
+        !resolvedLayout ||
         !product.layoutIds.includes(layout.id) ||
         overlay?.kind !== "custom" ||
         !overlaySupportsLayout(overlay, layout.id)
       ) {
         throw new CommandError("That template is missing its layout or imported artwork.");
       }
-      if (state.phase === "reviewing" && state.layoutId !== layout.id) {
-        throw new CommandError("After capture, choose a template made for the current layout.");
+      if (
+        state.phase === "reviewing" &&
+        (state.layoutId !== layout.id ||
+          state.requiredCaptureCount !== resolvedLayout.requiredCaptureCount)
+      ) {
+        throw new CommandError(
+          "After capture, choose a template made for the current layout and capture count.",
+        );
       }
       return revised(state, {
         productId: product.id,
         layoutId: layout.id,
-        requiredCaptureCount: layout.requiredCaptureCount,
+        customSlots: template.customSlots,
+        requiredCaptureCount: resolvedLayout.requiredCaptureCount,
         frameMode: "custom",
         designId: null,
         overlayId: overlay.id,
@@ -485,11 +649,14 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
     case "SELECT_PRODUCT": {
       requirePhase(state, ["selecting"]);
       const product = getProduct(command.productId);
-      if (!product) throw new CommandError("That product is not available.");
+      if (!product || product.templateOnly) {
+        throw new CommandError("That product is available only through a saved template.");
+      }
       return revised(state, {
         productId: product.id,
         selectedTemplateId: null,
         layoutId: null,
+        customSlots: null,
         frameMode: null,
         designId: null,
         overlayId: "none",
@@ -508,6 +675,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       }
       return revised(state, {
         layoutId: layout.id,
+        customSlots: null,
         selectedTemplateId: null,
         frameMode: null,
         designId: null,
@@ -574,7 +742,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       }
       assertMediaTransform(command.transform);
       return revised(state, { frameTransform: command.transform });
-    case "UPDATE_HOLDER_TRANSFORM":
+    case "UPDATE_HOLDER_TRANSFORM": {
       requirePhase(state, ["reviewing", "template_editing"]);
       if (
         state.frameMode !== "custom" ||
@@ -588,19 +756,27 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       ) {
         throw new CommandError("Choose an existing photo holder to reposition.");
       }
+      const holderLayout = stateLayout(state);
+      const holderId = command.holderId ?? `capture-${command.slot}`;
       if (
-        state.phase === "template_editing" &&
-        !getLayout(state.layoutId)?.slots.some((slot) => slot.captureIndex + 1 === command.slot)
+        !holderLayout?.slots.some(
+          (slot) => photoSlotId(slot) === holderId && slot.captureIndex + 1 === command.slot,
+        )
       ) {
         throw new CommandError("Choose a placeholder in this template.");
       }
       assertMediaTransform(command.transform);
       return revised(state, {
         holderTransforms: [
-          ...state.holderTransforms.filter((item) => item.slot !== command.slot),
-          { slot: command.slot, ...command.transform },
-        ].sort((a, b) => a.slot - b.slot),
+          ...state.holderTransforms.filter((item) => !holderMatches(item, holderId, command.slot)),
+          {
+            slot: command.slot,
+            ...(command.holderId ? { holderId: command.holderId } : {}),
+            ...command.transform,
+          },
+        ].sort((a, b) => (a.holderId ?? `${a.slot}`).localeCompare(b.holderId ?? `${b.slot}`)),
       });
+    }
     case "UPDATE_PHOTO_TRANSFORM": {
       requirePhase(state, ["reviewing", "template_editing"]);
       if (
@@ -615,9 +791,12 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       ) {
         throw new CommandError("Choose an existing photo to reposition.");
       }
+      const photoLayout = stateLayout(state);
+      const holderId = command.holderId ?? `capture-${command.slot}`;
       if (
-        state.phase === "template_editing" &&
-        !getLayout(state.layoutId)?.slots.some((slot) => slot.captureIndex + 1 === command.slot)
+        !photoLayout?.slots.some(
+          (slot) => photoSlotId(slot) === holderId && slot.captureIndex + 1 === command.slot,
+        )
       ) {
         throw new CommandError("Choose a placeholder in this template.");
       }
@@ -625,9 +804,13 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       const photoTransform = normalizePhotoTransform(command.transform);
       return revised(state, {
         photoTransforms: [
-          ...state.photoTransforms.filter((item) => item.slot !== command.slot),
-          { slot: command.slot, ...photoTransform },
-        ].sort((a, b) => a.slot - b.slot),
+          ...state.photoTransforms.filter((item) => !holderMatches(item, holderId, command.slot)),
+          {
+            slot: command.slot,
+            ...(command.holderId ? { holderId: command.holderId } : {}),
+            ...photoTransform,
+          },
+        ].sort((a, b) => (a.holderId ?? `${a.slot}`).localeCompare(b.holderId ?? `${b.slot}`)),
       });
     }
     case "RECORD_CONSENT":

@@ -25,6 +25,31 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.6.0 — 2026-10-02
+
+### Added
+
+- Added blank custom 4×6 template canvases in portrait and landscape orientation.
+- Added a staff-only holder map that can add and remove up to eight photo holders inside a custom saved template.
+- Added a Capture 1–8 assignment for every holder. Multiple holders may reuse the same capture, such as `1, 1, 2, 3`, so four visible holders can require only three actual shots.
+- Added independent holder identities. Repeated copies of one capture keep separate holder position, size, rotation, image crop, and lock settings in both preview and final export.
+- Added schema version 11 for custom holder geometry, holder-to-capture mapping, and holder-keyed transforms.
+- Added ADR 0017 documenting the freeform custom-layout and repeated-capture model.
+
+### Changed
+
+- Custom capture labels are kept continuous automatically, preventing layouts that would request Capture 3 without first taking Captures 1 and 2.
+- Saved custom templates derive their automatic capture count from the highest normalized Capture label instead of from the number of visible holders.
+- Kept the blank custom canvas and its zero-slot base layouts out of the normal manual-product workflow. Customers and attendants use custom layouts only through an approved saved template.
+- Updated the full-resolution renderer so every holder resolves its own transform while still reading the shared captured photo assigned to it.
+
+### Verified
+
+- Added state-machine coverage for repeated Capture labels, independent transforms for holders showing the same photo, and the eight-holder maximum; all 37 automated tests pass.
+- Visually created a portrait custom template with four holders mapped as `1, 1, 2, 3`; confirmed the canvas labels, three-photo session count, saved gallery thumbnail, reusable session selection, simulator capture sequence, review preview, and final 1200×1800 export.
+- Confirmed formatting, type checks, Host build, and customer-app build pass.
+- Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.11.0-arm64.dmg` installation image (SHA-256 `5acdeeec9480f4f69f16243fadc8ac698456a2948182365aebe6f9e82ad3f715`).
+
 ## 1.5.0 — 2026-10-02
 
 ### Added

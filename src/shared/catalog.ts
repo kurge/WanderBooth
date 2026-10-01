@@ -4,11 +4,13 @@ export type Product = {
   description: string;
   layoutIds: string[];
   price: null;
+  templateOnly?: boolean;
 };
 
 export type SlotShape = "rectangle" | "rounded" | "heart";
 
 export type PhotoSlot = {
+  id?: string;
   captureIndex: number;
   x: number;
   y: number;
@@ -16,6 +18,18 @@ export type PhotoSlot = {
   height: number;
   shape: SlotShape;
 };
+
+export const MAX_CUSTOM_HOLDERS = 8;
+export const customLayoutIds = ["custom-portrait-4x6", "custom-landscape-4x6"] as const;
+
+export const isCustomLayoutId = (layoutId: string | null): boolean =>
+  customLayoutIds.includes(layoutId as (typeof customLayoutIds)[number]);
+
+export const photoSlotId = (slot: PhotoSlot): string =>
+  slot.id ?? `capture-${slot.captureIndex + 1}`;
+
+export const captureCountForSlots = (slots: PhotoSlot[]): number =>
+  slots.length === 0 ? 0 : Math.max(...slots.map((slot) => slot.captureIndex + 1));
 
 export type BrandArea = {
   x: number;
@@ -123,6 +137,14 @@ export const products: Product[] = [
     layoutIds: ["feature-portrait-4x6", "heart-portrait-4x6", "party-landscape-4x6"],
     price: null,
   },
+  {
+    id: "custom-photo-layout",
+    name: "Custom 4×6 layout",
+    description: "Start portrait or landscape, then place and map up to eight photo holders.",
+    layoutIds: [...customLayoutIds],
+    price: null,
+    templateOnly: true,
+  },
 ];
 
 export const layouts: Layout[] = [
@@ -210,6 +232,28 @@ export const layouts: Layout[] = [
     ],
     brandAreas: [{ x: 990, y: 565, width: 705, height: 470, align: "center" }],
   },
+  {
+    id: "custom-portrait-4x6",
+    name: "Custom portrait 4×6",
+    description: "A blank vertical canvas for a reusable custom template.",
+    requiredCaptureCount: 0,
+    printSize: "4x6",
+    canvasWidth: 1200,
+    canvasHeight: 1800,
+    slots: [],
+    brandAreas: [],
+  },
+  {
+    id: "custom-landscape-4x6",
+    name: "Custom landscape 4×6",
+    description: "A blank horizontal canvas for a reusable custom template.",
+    requiredCaptureCount: 0,
+    printSize: "4x6",
+    canvasWidth: 1800,
+    canvasHeight: 1200,
+    slots: [],
+    brandAreas: [],
+  },
 ];
 
 export const designs: Design[] = [
@@ -283,6 +327,17 @@ export const overlays: Overlay[] = [
 
 export const getLayout = (layoutId: string | null) =>
   layouts.find((layout) => layout.id === layoutId) ?? null;
+
+export const resolveLayout = (
+  layoutId: string | null,
+  customSlots: PhotoSlot[] | null = null,
+): Layout | null => {
+  const layout = getLayout(layoutId);
+  if (!layout) return null;
+  if (!isCustomLayoutId(layout.id)) return layout;
+  const slots = customSlots ?? [];
+  return { ...layout, slots, requiredCaptureCount: captureCountForSlots(slots) };
+};
 
 export const getDesign = (designId: string | null) =>
   designs.find((design) => design.id === designId) ?? null;

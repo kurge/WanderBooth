@@ -16,7 +16,7 @@ Shared product and interface code will remain cross-platform. Camera control, pr
 - Electron, React, TypeScript, and SQLite can provide a shared desktop foundation.
 - Manufacturer information shows the Fujifilm X-M5 tether application and Epson L8050 printing workflows on both target operating systems.
 - Certifying one concrete setup first limits the reliability risk of supporting two hardware environments at once.
-- The iPad remains a focused touch client and does not need camera or printer drivers.
+- The iPad remains the focused touch client and can also act as an optional camera source without desktop camera or printer drivers.
 
 ## Trade-offs
 

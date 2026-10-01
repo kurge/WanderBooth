@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 0.3.0
+document_version: 0.4.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -19,7 +19,7 @@ owner: Kurge
 # WanderBooth — Product Plan and Feature Specification
 
 > [!summary] The short version
-> WanderBooth will be an offline-first photo booth system for our own business. A Windows 11 or macOS Sequoia desktop or laptop will act as the **WanderBooth Host**, controlling the camera, image processing, local storage, cloud delivery, and Epson printer. An iPad Pro will provide the customer-facing touchscreen over the booth's local network. The first pilot will sell both branded digital photos and physical prints, use attendant-confirmed cash payments, and give the customer a private 30-day cloud QR link after the session. For a three-photo strip, that link will offer the branded strip, three branded individual photos, and a short looping slideshow video. Products, prices, designs, sessions, and sales will initially be managed locally. A full remote dashboard, electronic payments, and native mobile app can be added later.
+> WanderBooth will be an offline-first photo booth system for our own business. A Windows 11 or macOS Sequoia desktop or laptop will act as the **WanderBooth Host**, coordinating a selectable camera source, image processing, local storage, cloud delivery, and Epson printer. Supported source types will include certified DSLR/mirrorless cameras, standard webcams and built-in computer cameras, and the iPad camera. An iPad Pro will provide the customer-facing touchscreen and may also act as the selected camera. The first pilot will sell both branded digital photos and physical prints, use attendant-confirmed cash payments, and give the customer a private 30-day cloud QR link after the session. For a three-photo strip, that link will offer the branded strip, three branded individual photos, and a short looping slideshow video. Products, prices, designs, sessions, and sales will initially be managed locally. A full remote dashboard, electronic payments, and native mobile app can be added later.
 
 ## 1. Document purpose
 
@@ -58,8 +58,9 @@ The business should be able to keep serving customers during internet interrupti
 3. **Reliability before novelty:** a successful capture and delivery matters more than AI effects or 360 video.
 4. **Local ownership:** original photos and business data are stored locally first, then synchronized when appropriate.
 5. **Shared desktop core:** target Windows 11 and macOS Sequoia, while certifying one exact pilot computer before broad hardware support.
-6. **Understandable operations:** error messages, logs, and controls must be readable by a booth attendant who is not a developer.
-7. **Privacy by default:** customer photos are private, access links are difficult to guess, and files are automatically removed according to a documented retention policy.
+6. **Replaceable camera sources:** camera-specific behavior stays behind a common interface so the operator can choose among supported cameras without changing the rest of the booth workflow.
+7. **Understandable operations:** error messages, logs, and controls must be readable by a booth attendant who is not a developer.
+8. **Privacy by default:** customer photos are private, access links are difficult to guess, and files are automatically removed according to a documented retention policy.
 
 ## 3. Decisions and assumptions
 
@@ -86,6 +87,9 @@ The business should be able to keep serving customers during internet interrupti
 - Initial print formats are **4×6** and **2×6 photo strips**.
 - The first pilot will include approximately **5–10 layouts/designs**.
 - Available camera hardware: **Canon EOS 60D** and **Fujifilm X-M5**.
+- WanderBooth must offer a camera-source selector; staff-only access is the recommended first-pilot rule.
+- Supported source types must include dedicated DSLR/mirrorless cameras, USB/UVC webcams, built-in Windows/Mac laptop cameras, and the iPad camera.
+- The camera system must be extensible so additional brands and models can be added through adapters and tested compatibility profiles.
 - The first printer is an **Epson EcoTank L8050**.
 - A remote web dashboard is useful but is not required for the first release.
 - Product development must be carefully documented and version-controlled.
@@ -93,13 +97,15 @@ The business should be able to keep serving customers during internet interrupti
 - The public source repository is **[kurge/WanderBooth](https://github.com/kurge/WanderBooth)**.
 - The public repository remains under default copyright for now; an open-source license may be selected later.
 
-See [WanderBooth Hardware Baseline](docs/HARDWARE.md) for manufacturer compatibility evidence, risks, and the Phase 0 test matrix.
+See [WanderBooth Hardware Baseline](docs/HARDWARE.md) for manufacturer evidence and the test plan, and [Camera Compatibility Matrix](docs/CAMERA_COMPATIBILITY.md) for source-by-source status.
 
 ### Proposed decisions awaiting confirmation
 
 - The exact first-pilot Host computer and its operating system, processor, memory, and storage still need to be selected.
 - The Host will be an installable desktop application and will serve the touch-friendly booth interface to the iPad over a shared local connection.
-- The **Fujifilm X-M5 is the recommended first camera** because it is the newer tether-capable option. This recommendation requires owner confirmation and a time-boxed control prototype; the Canon EOS 60D remains a fallback.
+- The **Fujifilm X-M5 is the recommended first dedicated camera to certify** because it is the newer tether-capable option; the Canon EOS 60D remains an owned secondary target.
+- A generic webcam or built-in computer camera and the iPad camera will be used to prove that the shared camera-source interface is not tied to one camera brand.
+- Camera-source selection will be restricted to the owner/attendant area rather than offered to customers unless the owner decides otherwise.
 - Essential administration—products, prices, sessions, settings, and local sales—will be inside a PIN-protected owner area.
 - The Host and iPad may share venue Wi-Fi or a personal/mobile hotspot. A dedicated router is optional unless field testing shows it is needed for reliability.
 
@@ -109,8 +115,8 @@ A normal website running only on an iPad has limited control over desktop printe
 
 WanderBooth therefore separates the system into two cooperating parts:
 
-1. **WanderBooth Host on Windows or macOS:** controls the camera and Epson printer, processes photos, stores sessions, uploads deliverables, and serves the local application.
-2. **WanderBooth Touch on iPad:** shows the customer interface in a full-screen local web app and sends actions to the Host.
+1. **WanderBooth Host on Windows or macOS:** coordinates the active camera source, controls the Epson printer, processes photos, stores sessions, uploads deliverables, and serves the local application.
+2. **WanderBooth Touch on iPad:** shows the customer interface in a full-screen local web app, sends actions to the Host, and can capture through the iPad camera when that source is selected.
 
 This provides the touch experience we want without forcing the iPad to control desktop hardware. It also gives us a path to package the same interface as a native iPad application later if needed.
 
@@ -242,6 +248,8 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - Attendant override or assisted selection
 - Short privacy notice and consent action
 - Live camera preview
+- Staff-only camera-source selector with a friendly name and live test preview
+- Clear capability and readiness status for every detected camera source
 - Configurable countdown
 - Single-photo session
 - Three-photo vertical-strip session, with other configurable layouts
@@ -280,9 +288,15 @@ The iPad still needs a local connection to the Host for booth controls. This may
 
 #### Camera and photo processing
 
-- Support one agreed camera configuration
+- Present all detected and configured camera sources in a staff-only selector
+- Support at least one certified dedicated camera, one standard webcam or built-in computer camera, and the iPad camera in the first pilot
+- Keep dedicated-camera, webcam, built-in-camera, and iPad-camera behavior behind one common camera-source interface
+- Remember settings for each camera source and booth profile
+- Show whether a source supports live preview, remote trigger, focus control, flash, orientation, and expected capture resolution
+- Lock the selected source for an active paid session; switching during recovery requires an attendant action and an audit entry
 - Detect a missing camera before the customer pays
 - Reconnect after a temporary camera interruption
+- Never silently switch to a different camera after payment
 - Save the original photo before processing
 - Crop, rotate, and resize without distorting the image
 - Apply a branded frame or overlay
@@ -333,6 +347,8 @@ The iPad still needs a local connection to the Host for booth controls. This may
 
 ### P1 — important after the core pilot works
 
+- Additional certified camera adapters and compatibility profiles for other brands and models
+- Camera-profile import/export and per-camera color/crop calibration
 - Multiple branded templates
 - Color, black-and-white, and simple beauty filters
 - Background replacement
@@ -369,7 +385,7 @@ The iPad still needs a local connection to the Host for booth controls. This may
 
 ### Explicit non-goals for version 1
 
-- Supporting every camera and printer
+- Claiming automatic compatibility with every camera and printer; new devices require an adapter or a successful compatibility test
 - Building native iOS or Android booth applications; the iPad uses a web client
 - Certifying every Windows and Mac computer even though the shared Host is designed for both operating systems
 - Building the remote dashboard before the local booth works reliably
@@ -400,7 +416,7 @@ The iPad still needs a local connection to the Host for booth controls. This may
 ### Attendant screens
 
 1. Status overview
-2. Camera test
+2. Camera-source selection and test
 3. Printer test and queue
 4. Latest sessions
 5. Reprint and re-display QR
@@ -416,8 +432,9 @@ The iPad still needs a local connection to the Host for booth controls. This may
 4. Sessions and orders
 5. Sales summary and CSV export
 6. Storage and retention
-7. Device and network configuration
-8. Diagnostics and logs
+7. Camera sources, compatibility status, and test preview
+8. Device and network configuration
+9. Diagnostics and logs
 
 ## 9. Recommended first-release architecture
 
@@ -426,13 +443,15 @@ This architecture is a proposal, not a final commitment. Hardware decisions may 
 ```mermaid
 flowchart LR
     I["iPad Touch"] <-->|"local Wi-Fi or hotspot"| H["Desktop Host<br/>Windows or macOS"]
-    C["Camera"] <--> H
+    F["DSLR / mirrorless"] <--> H
+    W["USB or built-in webcam"] <--> H
+    I -.->|"iPad camera when selected"| H
     H --> P["Epson L8050"]
     H -->|"queued internet upload"| D["Private cloud delivery"]
     G["Guest phone"] -->|"30-day HTTPS QR link"| D
 ```
 
-The camera, printer, session database, and original files stay under Host control. Only approved branded deliverables are uploaded. The guest phone talks to the cloud—not to the booth computer.
+The Host remains the source of truth for the session regardless of which camera is selected. A desktop-connected source sends its capture directly to the Host; an iPad-camera capture crosses the local connection and is saved by the Host before processing continues. Only approved branded deliverables are uploaded. The guest phone talks to the cloud—not to the booth computer.
 
 ### WanderBooth Host on Windows and macOS
 
@@ -444,19 +463,38 @@ The camera, printer, session database, and original files stay under Host contro
 - **QR generation:** a maintained QR-code library
 - **Local web server:** a small HTTP server for the iPad interface, bound only to the booth's trusted local connection
 - **Live communication:** WebSocket connection between the Host and iPad
-- **Camera adapter:** one replaceable module for each supported camera workflow
+- **Camera-source layer:** one shared contract with adapters for vendor-controlled cameras, webcams/built-in cameras, watched-folder workflows, and the iPad client
 - **Cloud delivery client:** persistent upload queue, retry logic, and delivery-status tracking
 - **Print adapter:** operating-system-specific print integration configured for the Epson L8050
 - **Packaging:** Windows installer and notarized macOS application; automatic update support follows the pilot
 
-The Host can also display owner and diagnostic screens directly on the desktop computer. Hardware code must sit behind adapters because camera discovery, permissions, printing, startup, and file locations differ between Windows and macOS.
+The Host can also display owner and diagnostic screens directly on the desktop computer. Hardware code must sit behind adapters because camera discovery, permissions, capabilities, printing, startup, and file locations differ between devices and operating systems.
+
+### Camera-source contract
+
+Every camera adapter must present the same small set of operations to the rest of WanderBooth:
+
+- discover available sources and report a stable friendly name;
+- report capabilities and permission/readiness state;
+- open and close a preview;
+- capture one still image and return it to the Host;
+- report progress, errors, disconnects, and recovery options; and
+- expose only validated settings appropriate to that source.
+
+The first adapter families are:
+
+1. **Dedicated-camera adapter:** brand/model-specific SDK, tether integration, or a documented watched-folder bridge for cameras such as the Fujifilm X-M5 and Canon EOS 60D.
+2. **Standard video-device adapter:** USB/UVC webcams and built-in Windows/Mac cameras using operating-system media APIs.
+3. **iPad-camera adapter:** preview and capture run in WanderBooth Touch, then the original capture is transferred to the Host over the local connection before the session advances.
+
+Compatibility is explicit rather than implied. The owner screen will label a source **Planned**, **Certified**, **Experimental**, or **Unavailable**. Detecting a camera does not automatically mean that remote trigger, focus, flash, or full-resolution still capture is supported.
 
 ### WanderBooth Touch on iPad
 
 - The Host serves the customer interface over a shared local Wi-Fi or hotspot connection.
 - The iPad opens the interface in Safari or as an installed Progressive Web App.
 - iPad Guided Access keeps the customer inside WanderBooth.
-- Customer taps send commands to the Host; the Host remains responsible for camera capture and printing.
+- Customer taps send commands to the Host. The Host coordinates capture and always controls processing, storage, printing, and delivery; when the iPad camera is selected, the Touch client performs the physical capture and transfers it to the Host.
 - No App Store release is required for the first pilot.
 
 ### Why Electron plus a local web client is proposed
@@ -466,7 +504,7 @@ The Host can also display owner and diagnostic screens directly on the desktop c
 - It supports one shared codebase for Windows and macOS while allowing OS-specific hardware adapters.
 - It can access local files and SQLite.
 - It provides more printing control than a normal browser.
-- It lets the iPad act as a dedicated touch controller without trying to install desktop printer or camera drivers on it.
+- It lets the iPad act as a dedicated touch controller and optional camera source without installing desktop printer or vendor-camera drivers on it.
 - A large ecosystem makes the initial application easier to maintain than a custom native application.
 
 The trade-off is a larger installation size and higher memory usage. For a dedicated booth laptop or PC, that is acceptable if reliability tests pass.
@@ -508,6 +546,8 @@ These are the main records the application must understand.
 | Print job | A request to send a particular deliverable to a printer |
 | Share token | The private random key used in the QR download link |
 | Upload job | A persistent request to copy a session's approved deliverables to the cloud, with retry and status information |
+| Camera source | A detected or configured device capable of producing a capture, such as a Fujifilm camera, webcam, built-in camera, or iPad |
+| Camera profile | The saved adapter, crop, orientation, color, capability, and device settings for one camera source |
 | Layout | The arrangement and size of one or more photos on a digital image or printed sheet |
 | Design | The branded frame, colors, graphics, and text applied to a layout |
 | Device | The booth computer and its configuration |
@@ -553,17 +593,18 @@ Tasks:
 
 - Confirm initial products and PHP prices when the business is ready.
 - Choose the first pilot Host operating system and record its exact computer model, processor, memory, and storage.
-- Confirm the Fujifilm X-M5 as the recommended first camera, then test tethering, live view, trigger control, and transfer speed. Use the Canon EOS 60D only as a fallback unless the owner changes the selection.
+- Test the Fujifilm X-M5 as the recommended first dedicated camera: tethering, live view, trigger control, and transfer speed. Test the Canon EOS 60D next or use it as a fallback if the X-M5 path fails.
+- Define the shared camera-source contract and implement three feasibility adapters: dedicated camera, standard webcam/built-in camera, and iPad camera.
 - Test Epson L8050 print sizes, margins, speed, quality, paper handling, and failure recovery.
 - Test the confirmed iPad Pro 12.9-inch (6th generation) on iPadOS 18.2.
 - Test Host-to-iPad control over the expected venue Wi-Fi or mobile-hotspot setup.
-- Prototype camera capture.
+- Prototype camera selection, readiness checks, preview, capture, and source switching before a session starts.
 - Prototype the three individual branded photos, 2×6 composite strip, and looping MP4 slideshow.
 - Prototype the iPad-to-Host control connection.
 - Prototype queued upload to private cloud storage and a 30-day mobile download page.
 - Verify that capture and printing continue with internet disconnected and that the upload completes after reconnection.
 
-Exit condition: an iPad triggers the Host to capture three photos, the Host renders all approved deliverables, a phone downloads them from a private cloud QR page, and an interrupted upload resumes safely after reconnection.
+Exit condition: the same three-photo workflow can capture through the dedicated-camera adapter, a webcam/built-in camera, and the iPad-camera adapter; the Host renders all approved deliverables; a phone downloads them from a private cloud QR page; and an interrupted upload resumes safely after reconnection.
 
 ### Phase 1 — offline photo-session prototype
 
@@ -572,6 +613,7 @@ Tasks:
 - Create the Host application and iPad web client.
 - Add iPad Guided Access instructions and Host automatic startup.
 - Add attract, preview, countdown, capture, two-retake, review, processing, upload-status, and QR screens.
+- Add staff-only camera selection, per-source readiness tests, and safe recovery when a source disconnects.
 - Add session folders and SQLite records.
 - Add restart recovery.
 - Add a simple local owner area.
@@ -608,6 +650,7 @@ Exit condition: one cash-confirmed order reliably produces exactly one purchased
 Tasks:
 
 - Run power-loss, network-loss, camera-loss, and printer-loss tests.
+- Publish a tested camera-compatibility matrix and label every source Certified, Experimental, or Unavailable.
 - Complete 300-session reliability test.
 - Package the selected pilot operating system first, then validate the other desktop target.
 - Prepare operator setup and troubleshooting guides.
@@ -637,6 +680,7 @@ wanderbooth/
 ├── WanderBooth - Product Plan and Feature Specification.md
 ├── docs/
 │   ├── HARDWARE.md
+│   ├── CAMERA_COMPATIBILITY.md
 │   ├── ARCHITECTURE.md
 │   ├── RUNBOOK.md
 │   └── decisions/
@@ -697,13 +741,15 @@ test: cover session recovery after restart
 | Cloud upload or mobile data fails | Customer cannot immediately open the 30-day QR page | Preserve all deliverables locally, queue retries, show an honest pending state, and re-display the QR after recovery |
 | Camera disconnects | Cash-confirmed customer cannot take a photo | Detect readiness before cash confirmation and implement reconnect/recovery |
 | Camera cannot be controlled from our app | The selected camera may tether only through manufacturer software | Run a time-boxed Fujifilm X-M5 integration spike and keep the Canon 60D or a watched-folder workflow as fallback |
+| A detected camera lacks required capabilities | Preview may work while full-resolution capture, flash, focus, or remote trigger does not | Use capability reporting, compatibility labels, and source-specific acceptance tests before marking a device Certified |
+| iPad or webcam quality is too low for a paid print | A technically successful capture may produce an unacceptable product | Show expected resolution, calibrate crop/orientation, warn the attendant, and certify sources separately for digital-only versus print products |
 | iPad loses its Host connection | Customer interface cannot trigger or observe the session | Test the actual shared network/hotspot, show connection status, reconnect automatically, and recover the session safely |
 | Printer fails after cash confirmation | Customer paid but receives nothing | Persistent print queue, staff recovery, reprint protection, refund state |
 | Power loss | Session or order may be lost | Persist every state transition in SQLite and save files before moving forward |
 | Repeated tap or staff action | Duplicate order or print | Idempotent commands and unique fulfillment constraints |
 | Storage fills | New sessions fail or old files remain indefinitely | Capacity warnings, retention cleanup, and backups |
 | Supporting Windows and macOS too early | OS-specific camera and printing work can double the first milestone | Keep shared application code, isolate adapters, and certify one exact pilot computer before validating the second OS |
-| Supporting too much hardware | Development becomes unpredictable | Certify one camera, printer, computer, and network setup first |
+| Supporting too much hardware | Development becomes unpredictable | Build a replaceable adapter system, but certify camera sources and exact configurations incrementally |
 | Privacy mistake | Customer trust and legal exposure | Private tokens, clear notice, minimum collection, and automatic deletion |
 
 ## 16. Remaining Phase 0 questions for the owner
@@ -712,21 +758,22 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 ### Hardware
 
-1. Confirm the **Fujifilm X-M5** as the first camera to integrate, with the Canon EOS 60D kept as a fallback.
-2. Should the first pilot Host run Windows 11 or macOS Sequoia 15.7.5+?
-3. What is the exact first-pilot computer model, processor, memory, and available storage?
-4. Will the Host and iPad normally share venue Wi-Fi, a dedicated mobile hotspot, or a phone hotspot?
+1. Confirm that camera-source selection is **staff-only**. This is recommended so a customer cannot accidentally change the booth hardware.
+2. Confirm the Fujifilm X-M5 as the first dedicated camera to certify, followed by the Canon EOS 60D. Webcam/built-in and iPad-camera adapters will be tested alongside it.
+3. Should the first pilot Host run Windows 11 or macOS Sequoia 15.7.5+?
+4. What is the exact first-pilot computer model, processor, memory, and available storage?
+5. Will the Host and iPad normally share venue Wi-Fi, a dedicated mobile hotspot, or a phone hotspot?
 
 ### Products and design
 
-5. What will the first products and print quantities be? PHP prices may remain blank until the business decides them.
-6. Is the three-photo vertical 2×6 strip the default multi-photo product, and what arrangement should the first 4×6 product use?
-7. Who will supply the first 5–10 layout/design assets and WanderBooth branding?
-8. Confirm the working assumption that each separately downloadable individual photo also carries WanderBooth/event branding.
+6. What will the first products and print quantities be? PHP prices may remain blank until the business decides them.
+7. Is the three-photo vertical 2×6 strip the default multi-photo product, and what arrangement should the first 4×6 product use?
+8. Who will supply the first 5–10 layout/design assets and WanderBooth branding?
+9. Confirm the working assumption that each separately downloadable individual photo also carries WanderBooth/event branding.
 
 ### Pilot timing
 
-9. Replace “a few months from now” with a target month or event once it is known.
+10. Replace “a few months from now” with a target month or event once it is known.
 
 ## 17. Plain-language glossary
 
@@ -734,6 +781,9 @@ The repository and product baseline now exist. Most workflow decisions are confi
 |---|---|
 | Desktop application | A program installed on the computer, like Spotify or Photoshop, rather than a website opened in a browser |
 | Host | The Windows or macOS part of WanderBooth that controls hardware, storage, processing, printing, cloud uploads, and the local iPad service |
+| Camera source | The currently selected device that supplies photos, such as a dedicated camera, webcam, built-in computer camera, or the iPad camera |
+| Camera adapter | A small integration layer that translates one kind of camera's controls and results into WanderBooth's shared camera-source interface |
+| Certified camera | A camera/source configuration that passed WanderBooth's preview, capture, quality, recovery, and reliability tests |
 | Web client | The touch interface loaded by the iPad from the WanderBooth Host over their shared local connection |
 | Offline first | Core work succeeds locally even when internet is unavailable |
 | Local network | The shared Wi-Fi or hotspot connection used by the iPad to control the booth Host; guest phones do not need to join it |
@@ -752,6 +802,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 0.4.0 | 2026-10-02 | Replaced the single-camera assumption with an operator-selectable camera-source system covering dedicated cameras, webcams, built-in computer cameras, and the iPad camera, with adapters and explicit compatibility levels. |
 | 0.3.0 | 2026-10-02 | Confirmed Windows 11 and macOS Sequoia targets, iPad hardware, cash-before-capture, two retakes, 4×6 and 2×6 formats, 5–10 designs, and cloud QR delivery containing individual branded photos, a composite, and a looping slideshow. |
 | 0.2.0 | 2026-10-02 | Confirmed digital and print products, cash-only pilot, iPad touchscreen, owned Canon/Fujifilm/Epson hardware, 30-day retention, branded-only delivery, public GitHub repository, and Host-plus-iPad architecture. |
 | 0.1.0 | 2026-10-01 | Initial product plan covering offline-first operation, QR photo delivery, first-release features, proposed architecture, roadmap, version control, risks, and blocking questions. |

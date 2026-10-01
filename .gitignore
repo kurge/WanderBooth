@@ -1,0 +1,38 @@
+# Dependencies and generated application output
+node_modules/
+dist/
+out/
+release/
+coverage/
+.cache/
+
+# Environment variables and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Customer, session, and business data — never commit
+data/
+sessions/
+captures/
+deliverables/
+exports/
+backups/
+diagnostics/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

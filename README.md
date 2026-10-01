@@ -29,7 +29,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **1.2.0 — Independent Holder and Image Alignment**
+- Product-plan version: **1.3.0 — Direct Composition Canvas**
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
 - Current catalog: **two product families and five layouts, with a mutually exclusive choice of a fixed colored frame or locally imported event frame**, iPad customer screen, no on-screen price
@@ -54,7 +54,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Rectangle, rounded, heart-shaped, repeated-capture, portrait, and landscape rendering.
 - Cash confirmation before capture, with no price shown in the application.
 - Two retakes, full uncropped source-photo review, a final composed-layout preview, and final approval.
-- Operator-only composition controls for imported frames: independently choose the frame artwork, each photo holder, or the image inside that holder; drag, zoom from 50–300%, reset, and render the exact stored adjustment into the final file.
+- Operator-only direct composition canvas for imported frames: click the artwork or a photo frame, drag it in place, resize it from corner handles, or enter Crop image mode to move and zoom the capture inside the frame. The precise stored adjustment is rendered into the final file.
 - Local SQLite state and event history so the Host remains authoritative.
 - Three branded individual PNGs, a 600×1800-pixel 2×6 strip at 300 DPI, and an MP4 slideshow.
 - Synthetic camera output for safe development without customer images.
@@ -69,7 +69,7 @@ The prototype now controls the starting MacBook camera, renders a reusable templ
 
 ## Open the app on this Mac
 
-The current local installation image is generated at `release/WanderBooth-0.7.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
+The current local installation image is generated at `release/WanderBooth-0.8.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

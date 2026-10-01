@@ -25,6 +25,35 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.3.0 — 2026-10-02
+
+### Changed
+
+- Replaced the abstract Frame/Holder/Image target panel with a Canva-style direct composition canvas for imported custom frames.
+- A click or tap on a photo now selects its complete photo frame. The operator can drag it in place and resize it from four visible corner handles.
+- A double-click on a photo enters Crop image mode. The contextual **Crop image** control provides the same action for touchscreens, where dragging moves the capture inside its frame and the handles or Zoom slider scale it.
+- Clicking outside the photo openings or choosing **Artwork** selects the imported design for direct movement and resizing.
+- Kept the normalized Host-owned frame, holder, and image transforms, so direct manipulation persists across refreshes and reaches the full-resolution export.
+
+### Added
+
+- Added canvas selection bounds, corner handles, selected-object labels, a contextual mode bar, and direct mouse/touch pointer handling.
+- Added a four-pixel movement threshold so selection clicks do not accidentally nudge an object.
+- Added safe interaction cleanup for pointer cancellation, lost pointer capture, and released mouse buttons.
+- Added ADR 0013 documenting the direct-manipulation model, permissions, rendering invariants, and postponed editor features.
+
+### Preserved
+
+- Transparent imported artwork remains above every photo in the on-screen composition and the final 300-DPI output.
+- Editor outlines, labels, handles, and hints are never included in the saved or printed image.
+- Repeated photo slots continue to share their frame and crop transforms, so the two halves of a double strip remain synchronized.
+
+### Verified
+
+- Confirmed all 22 automated tests, formatting, type checks, Host build, and customer-app build pass.
+- Verified direct photo-frame selection and Crop image mode against a synthetic transparent frame in an isolated private runtime.
+- Built and validated the unsigned Apple-silicon `WanderBooth-0.8.0-arm64.dmg` installation image.
+
 ## 1.2.0 — 2026-10-02
 
 ### Changed

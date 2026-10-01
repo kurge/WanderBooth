@@ -6,6 +6,8 @@
 
 **Supersedes:** The ADR 0011 assumption that arbitrary slot editing would wait for a future template-authoring tool. Rotation, perspective, freeform masks, and per-copy double-strip editing remain postponed.
 
+**Interaction update:** ADR 0013 supersedes the button-first interaction described below. The transform and rendering model in this record remains authoritative.
+
 ## Context
 
 A captured image can be panned and zoomed inside a fixed layout slot, but this is not enough when an imported frame's transparent opening is offset from the built-in slot. Scaling only the image changes its crop while leaving the clipped photo area in the wrong place. The operator needs to correct both layers without editing the raw capture or modifying the transparent artwork during a paid session.
@@ -36,7 +38,7 @@ BoothState
 └── photoTransforms[]:  { slot, offsetX, offsetY, scale }
 ```
 
-The operator review screen labels the two photo targets **Holder** and **Image**. Drag moves the selected target, Zoom scales it, and Reset resets only that target. These controls remain staff-only, review-only, and custom-frame-only.
+The original operator review used separate **Holder** and **Image** target buttons. ADR 0013 replaces that presentation with direct canvas selection and manipulation while retaining the same Host commands and transforms. These controls remain staff-only, review-only, and custom-frame-only.
 
 Transforms are keyed by unique capture number rather than visible layout-slot identity. If Photo 1 appears twice on a double strip, both copies use the same holder and image transforms.
 

@@ -2,7 +2,7 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 
 **Updated:** 2026-10-02
 
@@ -71,16 +71,17 @@ Only the operator screen exposes the import control. In Self-Service mode, a gue
 
 ## Aligning a custom frame after capture
 
-The review screen places the final composed layout beside the full uncropped capture images. On the operator screen:
+The review screen places the final composed layout beside the full uncropped capture images. On the operator screen, the composition preview behaves like a direct design canvas:
 
-1. choose **Frame** to adjust the complete transparent artwork;
-2. choose **Holder** beside a photo to move or resize that photo's entire masked area;
-3. choose **Image** beside a photo to move or zoom the captured image inside its holder;
-4. drag the selected target directly inside the final-layout preview;
-5. use **Zoom** to scale it between 50% and 300%; and
-6. use **Reset** to return only that selected target to its centered 100% position.
+1. click or tap a photo to select its frame;
+2. drag the selected frame directly to move the complete masked photo area;
+3. pull any corner handle to resize it while preserving its aspect ratio;
+4. double-click the photo, or choose **Crop image** on a touchscreen, to edit the captured image inside the frame;
+5. drag in Crop image mode to reposition the image and use the corner handles or **Zoom** slider to scale it;
+6. choose **Artwork** or click outside the photo openings to select, move, or resize the imported design; and
+7. use **Reset** to return only the selected object to its centered 100% position.
 
-Frame movement adjusts the imported design. Holder movement changes where the whole clipped photo area sits behind the frame, while Image movement changes only the crop inside that area. On a double strip, changing Photo 1's holder or image updates both copies. The transparent frame remains above the photos in both preview and export. These normalized offsets and scales are stored in the Host's session state and used by the final full-resolution renderer, so the preview is not a cosmetic-only adjustment.
+Moving the artwork adjusts the imported design. Moving or resizing a photo frame changes where the complete clipped photo area sits behind that artwork, while Crop image mode changes only the image inside the area. On a double strip, changing Photo 1 updates both copies. Selection outlines, labels, and corner handles are editor guides only and never appear in the exported file. The transparent artwork remains above the photos in both preview and export. These normalized offsets and scales are stored in the Host's session state and used by the final full-resolution renderer, so the preview is not a cosmetic-only adjustment.
 
 Only staff can reposition the frame or photos. A Self-Service guest may select an owner-approved imported frame and review the result, but the attendant performs detailed alignment.
 

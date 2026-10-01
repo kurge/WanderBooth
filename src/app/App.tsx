@@ -311,7 +311,7 @@ const compositionTargetLabel = (target: CompositionTarget) => {
   const description = describeCompositionTarget(target);
   if (description.kind === "frame") return "frame artwork";
   return description.kind === "holder"
-    ? `photo ${description.slot} holder`
+    ? `photo ${description.slot} frame`
     : `photo ${description.slot} image`;
 };
 
@@ -336,11 +336,16 @@ function LayoutPreview({
   const [photoDrafts, setPhotoDrafts] = useState<Record<number, MediaTransform>>(
     slotTransformMap(state.photoTransforms),
   );
-  const dragRef = useRef<{
+  const composerRef = useRef<HTMLDivElement>(null);
+  const interactionRef = useRef<{
+    kind: "move" | "resize";
     initial: MediaTransform;
     latest: MediaTransform;
     startX: number;
     startY: number;
+    startDistance: number;
+    centerX: number;
+    centerY: number;
     target: CompositionTarget;
   } | null>(null);
 
@@ -388,49 +393,135 @@ function LayoutPreview({
     transform: `translate(${frameDraft.offsetX * 100}%, ${frameDraft.offsetY * 100}%) scale(${frameDraft.scale})`,
   };
 
-  const beginDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+  const targetGeometry = (target: CompositionTarget, bounds: DOMRect) => {
+    const description = describeCompositionTarget(target);
+    if (description.kind === "frame") {
+      return {
+        width: bounds.width,
+        height: bounds.height,
+        centerX: bounds.left + bounds.width / 2 + frameDraft.offsetX * bounds.width,
+        centerY: bounds.top + bounds.height / 2 + frameDraft.offsetY * bounds.height,
+      };
+    }
+    const slot = layout.slots.find((item) => item.captureIndex + 1 === description.slot);
+    if (!slot) return null;
+    const holderTransform = holderDrafts[description.slot] ?? identityMediaTransform();
+    const width = bounds.width * (slot.width / layout.canvasWidth);
+    const height = bounds.height * (slot.height / layout.canvasHeight);
+    return {
+      width,
+      height,
+      centerX:
+        bounds.left +
+        bounds.width * ((slot.x + slot.width / 2) / layout.canvasWidth) +
+        holderTransform.offsetX * width,
+      centerY:
+        bounds.top +
+        bounds.height * ((slot.y + slot.height / 2) / layout.canvasHeight) +
+        holderTransform.offsetY * height,
+    };
+  };
+
+  const beginInteraction = (
+    event: React.PointerEvent<HTMLDivElement>,
+    target: CompositionTarget,
+    kind: "move" | "resize",
+  ) => {
     if (!editable || !customOverlay) return;
-    const initial = transformFor(activeTarget);
-    dragRef.current = {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const geometry = targetGeometry(target, bounds);
+    if (!geometry) return;
+    const initial = transformFor(target);
+    setActiveTarget(target);
+    interactionRef.current = {
+      kind,
       initial,
       latest: initial,
       startX: event.clientX,
       startY: event.clientY,
-      target: activeTarget,
+      startDistance: Math.max(
+        1,
+        Math.hypot(event.clientX - geometry.centerX, event.clientY - geometry.centerY),
+      ),
+      centerX: geometry.centerX,
+      centerY: geometry.centerY,
+      target,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
-  const continueDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const targetDescription = describeCompositionTarget(drag.target);
-    const targetSlot =
-      targetDescription.kind === "frame"
-        ? null
-        : layout.slots.find((slot) => slot.captureIndex + 1 === targetDescription.slot);
-    const displayWidth = targetSlot
-      ? bounds.width * (targetSlot.width / layout.canvasWidth)
-      : bounds.width;
-    const displayHeight = targetSlot
-      ? bounds.height * (targetSlot.height / layout.canvasHeight)
-      : bounds.height;
-    const next = clampTransform({
-      ...drag.initial,
-      offsetX: drag.initial.offsetX + (event.clientX - drag.startX) / displayWidth,
-      offsetY: drag.initial.offsetY + (event.clientY - drag.startY) / displayHeight,
-    });
-    drag.latest = next;
-    updateDraft(drag.target, next);
+
+  const beginCanvasInteraction = (event: React.PointerEvent<HTMLDivElement>) => {
+    const targetElement = event.target as HTMLElement;
+    const resizeTarget = targetElement.dataset.resizeTarget as CompositionTarget | undefined;
+    if (resizeTarget) {
+      event.preventDefault();
+      beginInteraction(event, resizeTarget, "resize");
+      return;
+    }
+    const slotElement = targetElement.closest<HTMLElement>("[data-capture-slot]");
+    if (slotElement) {
+      const slot = Number(slotElement.dataset.captureSlot);
+      const imageTarget: CompositionTarget = `image:${slot}`;
+      const target: CompositionTarget =
+        activeTarget === imageTarget ? imageTarget : `holder:${slot}`;
+      beginInteraction(event, target, "move");
+      return;
+    }
+    beginInteraction(event, "frame", "move");
   };
-  const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    dragRef.current = null;
+
+  const continueInteraction = (event: React.PointerEvent<HTMLDivElement>) => {
+    const interaction = interactionRef.current;
+    if (!interaction) return;
+    if (event.pointerType !== "touch" && event.buttons === 0) {
+      interactionRef.current = null;
+      commitTransform(interaction.target, interaction.latest);
+      return;
+    }
+    const pointerMovement = Math.hypot(
+      event.clientX - interaction.startX,
+      event.clientY - interaction.startY,
+    );
+    if (pointerMovement < 4) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const geometry = targetGeometry(interaction.target, bounds);
+    if (!geometry) return;
+    const next =
+      interaction.kind === "resize"
+        ? clampTransform({
+            ...interaction.initial,
+            scale:
+              interaction.initial.scale *
+              (Math.hypot(
+                event.clientX - interaction.centerX,
+                event.clientY - interaction.centerY,
+              ) /
+                interaction.startDistance),
+          })
+        : clampTransform({
+            ...interaction.initial,
+            offsetX:
+              interaction.initial.offsetX + (event.clientX - interaction.startX) / geometry.width,
+            offsetY:
+              interaction.initial.offsetY + (event.clientY - interaction.startY) / geometry.height,
+          });
+    interaction.latest = next;
+    updateDraft(interaction.target, next);
+  };
+  const endInteraction = (event: React.PointerEvent<HTMLDivElement>) => {
+    const interaction = interactionRef.current;
+    if (!interaction) return;
+    interactionRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    commitTransform(drag.target, drag.latest);
+    commitTransform(interaction.target, interaction.latest);
+  };
+  const enterCropMode = (event: React.MouseEvent<HTMLDivElement>) => {
+    const slotElement = (event.target as HTMLElement).closest<HTMLElement>("[data-capture-slot]");
+    if (!slotElement) return;
+    event.preventDefault();
+    setActiveTarget(`image:${Number(slotElement.dataset.captureSlot)}`);
   };
   const updateZoom = (scale: number) => {
     const next = clampTransform({ ...activeTransform, scale });
@@ -441,6 +532,10 @@ function LayoutPreview({
     const reset = identityMediaTransform();
     updateDraft(activeTarget, reset);
     commitTransform(activeTarget, reset);
+  };
+  const selectActivePhotoMode = (kind: "holder" | "image") => {
+    const description = describeCompositionTarget(activeTarget);
+    if (description.slot !== null) setActiveTarget(`${kind}:${description.slot}`);
   };
 
   return (
@@ -453,16 +548,21 @@ function LayoutPreview({
         <small>{layout.printSize.replace("x", "×")} output</small>
       </div>
       <div
+        ref={composerRef}
+        role="application"
+        aria-label={editable ? "Direct layout editor" : "Final layout"}
         className={`layout-composer ${editable ? "layout-composer--editable" : ""}`}
         style={{
           aspectRatio: `${layout.canvasWidth} / ${layout.canvasHeight}`,
           background: state.frameMode === "color" ? design.background : "#fffaf2",
           maxWidth: layout.canvasWidth > layout.canvasHeight ? "680px" : "420px",
         }}
-        onPointerDown={beginDrag}
-        onPointerMove={continueDrag}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerDown={beginCanvasInteraction}
+        onPointerMove={continueInteraction}
+        onPointerUp={endInteraction}
+        onPointerCancel={endInteraction}
+        onLostPointerCapture={endInteraction}
+        onDoubleClick={enterCropMode}
       >
         {customOverlay?.importMode === "flat_template" && customSource && (
           <img
@@ -484,6 +584,7 @@ function LayoutPreview({
               className={`layout-composer__slot layout-composer__slot--${slot.shape} ${
                 holderIsActive ? "layout-composer__slot--active-holder" : ""
               } ${imageIsActive ? "layout-composer__slot--active-image" : ""}`}
+              data-capture-slot={captureSlot}
               key={`${captureSlot}-${slot.x}-${slot.y}`}
               style={{
                 left: `${(slot.x / layout.canvasWidth) * 100}%`,
@@ -535,44 +636,94 @@ function LayoutPreview({
             alt=""
           />
         )}
+        {editable && customOverlay && activeTarget === "frame" && (
+          <div
+            className="layout-composer__selection layout-composer__selection--frame"
+            style={customTransformStyle}
+            aria-hidden="true"
+          >
+            {(["nw", "ne", "sw", "se"] as const).map((corner) => (
+              <i
+                className={`layout-composer__handle layout-composer__handle--${corner}`}
+                data-resize-target="frame"
+                key={corner}
+              />
+            ))}
+          </div>
+        )}
+        {editable &&
+          customOverlay &&
+          describeCompositionTarget(activeTarget).kind !== "frame" &&
+          layout.slots
+            .filter(
+              (slot) => slot.captureIndex + 1 === describeCompositionTarget(activeTarget).slot,
+            )
+            .map((slot) => {
+              const captureSlot = slot.captureIndex + 1;
+              const holderTransform = holderDrafts[captureSlot] ?? identityMediaTransform();
+              const mode = describeCompositionTarget(activeTarget).kind;
+              return (
+                <div
+                  className={`layout-composer__selection layout-composer__selection--${mode}`}
+                  key={`selection-${captureSlot}-${slot.x}-${slot.y}`}
+                  style={{
+                    left: `${(slot.x / layout.canvasWidth) * 100}%`,
+                    top: `${(slot.y / layout.canvasHeight) * 100}%`,
+                    width: `${(slot.width / layout.canvasWidth) * 100}%`,
+                    height: `${(slot.height / layout.canvasHeight) * 100}%`,
+                    transform: `translate(${holderTransform.offsetX * 100}%, ${holderTransform.offsetY * 100}%) scale(${holderTransform.scale})`,
+                  }}
+                  aria-hidden="true"
+                >
+                  <b>{mode === "image" ? "Crop photo" : `Photo ${captureSlot} frame`}</b>
+                  {(["nw", "ne", "sw", "se"] as const).map((corner) => (
+                    <i
+                      className={`layout-composer__handle layout-composer__handle--${corner}`}
+                      data-resize-target={activeTarget}
+                      key={corner}
+                    />
+                  ))}
+                </div>
+              );
+            })}
         {editable && (
           <span className="layout-composer__drag-hint">
-            Drag to move {compositionTargetLabel(activeTarget)}
+            {describeCompositionTarget(activeTarget).kind === "image"
+              ? "Crop mode · drag the image"
+              : `Drag to move ${compositionTargetLabel(activeTarget)}`}
           </span>
         )}
       </div>
       {editable && customOverlay && (
         <div className="composition-editor">
-          <div className="composition-editor__targets">
-            <span>Adjust</span>
+          <div className="composition-editor__selection-bar">
+            <span>Selected</span>
+            <strong>{compositionTargetLabel(activeTarget)}</strong>
             <button
               type="button"
               aria-pressed={activeTarget === "frame"}
               onClick={() => setActiveTarget("frame")}
             >
-              Frame
+              Artwork
             </button>
-          </div>
-          <div className="composition-editor__photo-targets">
-            {state.captures.map((capture) => (
-              <div className="composition-editor__photo-target" key={capture.slot}>
-                <span>Photo {capture.slot}</span>
+            {describeCompositionTarget(activeTarget).slot && (
+              <>
                 <button
                   type="button"
-                  aria-pressed={activeTarget === `holder:${capture.slot}`}
-                  onClick={() => setActiveTarget(`holder:${capture.slot}`)}
+                  aria-pressed={describeCompositionTarget(activeTarget).kind === "holder"}
+                  onClick={() => selectActivePhotoMode("holder")}
                 >
-                  Holder
+                  Move frame
                 </button>
                 <button
                   type="button"
-                  aria-pressed={activeTarget === `image:${capture.slot}`}
-                  onClick={() => setActiveTarget(`image:${capture.slot}`)}
+                  aria-pressed={describeCompositionTarget(activeTarget).kind === "image"}
+                  onClick={() => selectActivePhotoMode("image")}
                 >
-                  Image
+                  Crop image
                 </button>
-              </div>
-            ))}
+              </>
+            )}
           </div>
           <div className="composition-editor__zoom">
             <label className="composition-editor__zoom-label" htmlFor="composition-zoom">
@@ -598,8 +749,9 @@ function LayoutPreview({
             </button>
           </div>
           <p>
-            Holder moves or resizes the whole photo area. Image adjusts the crop inside that holder.
-            The transparent frame always stays above the photos.
+            Click a photo to select its frame. Drag it to move it, or pull a corner handle to
+            resize. Double-click the photo—or choose Crop image—to reposition the image inside the
+            frame.
           </p>
         </div>
       )}

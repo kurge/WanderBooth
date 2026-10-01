@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.2.0
+document_version: 1.3.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -104,7 +104,7 @@ The business should be able to keep serving customers during internet interrupti
 - Initial slot shapes include rectangles, rounded rectangles, and a heart-shaped feature photo.
 - The owner or attendant can import event-frame artwork from the Mac operator screen after selecting a layout. New imports use a transparent PNG whose photo openings are prepared before import; the artwork is always layered above the photos. Previously imported flat templates remain readable for backward compatibility, but automatic cutout creation is no longer part of the normal operator flow.
 - Imported frames are stored locally, persist across application restarts, are limited to their selected layout, and are not added to the public repository.
-- During review, the finished composed layout is shown beside full-aspect, uncropped source captures. Only the owner or attendant can independently drag or zoom the imported frame artwork, a photo holder, or the image inside that holder. Those adjustments are stored and applied to the final render; repeated double-strip copies stay synchronized by capture number.
+- During review, the finished composed layout is shown beside full-aspect, uncropped source captures. Only the owner or attendant can use the direct canvas: click the imported artwork or a photo frame, drag it in place, resize it with corner handles, or enter Crop image mode to move and zoom the capture inside its frame. Those adjustments are stored and applied to the final render; repeated double-strip copies stay synchronized by capture number.
 - One tap starts the complete three-photo sequence, with a **three-second countdown before each photo**.
 - The customer preview is mirrored for natural posing, while saved and delivered photos are not mirrored.
 - The first pilot will include approximately **5–10 layouts/designs**.
@@ -152,7 +152,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - The renderer now reads data-driven canvas, slot, shape, repeated-capture, branding-area, frame, and overlay definitions instead of one hard-coded strip.
 - Synthetic rendering checks passed for the repeated 4×6 double strip with film overlay and the four-photo heart layout with heart overlay.
 - The operator imports a transparent PNG whose photo openings have already been prepared. The Host validates, normalizes, stores, and registers the frame locally; the old flat-template format remains renderable for previously imported records.
-- Fixed colored and imported custom frames use separate selection modes. The review screen previews the actual composition, preserves full source images without stretching their cards, and gives staff independent persistent drag/zoom controls for frame artwork, photo holders, and the images inside them. The final renderer reuses those exact values.
+- Fixed colored and imported custom frames use separate selection modes. The review screen previews the actual composition, preserves full source images without stretching their cards, and gives staff a Canva-style direct canvas for selecting, moving, and resizing artwork or photo frames and cropping the images inside them. The final renderer reuses those exact stored values.
 - The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
@@ -346,7 +346,7 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - Menu of compatible 2×6 and 4×6 portrait/landscape layouts
 - Mutually exclusive fixed-color and imported-custom frame modes, with compatible built-in decorations available only for fixed colors
 - Final composed-layout review beside full-aspect, uncropped source captures
-- Staff-only drag, zoom, and reset controls for custom-frame artwork, each photo holder, and the image crop inside each holder
+- Staff-only direct canvas for selecting, dragging, corner-resizing, and resetting custom-frame artwork and each photo frame, plus a crop mode for moving and zooming the image inside it
 - Repeated-capture layouts, including two identical 2×6 strips on one 4×6 sheet
 - Rectangle, rounded-rectangle, and heart-shaped photo slots
 - Up to two configured retake or photo-replacement actions
@@ -972,6 +972,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.3.0 | 2026-10-02 | Replaced the target-button alignment panel with a Canva-style direct composition canvas: click/tap to select, drag to move, resize from corner handles, and enter Crop image mode to position a capture inside its frame. |
 | 1.2.0 | 2026-10-02 | Split each custom-frame photo into an independently movable/scalable holder and image crop, kept transparent artwork above all photos, made transparent PNG the standard import path, and removed stretched whitespace from captured-photo previews. |
 | 1.1.0 | 2026-10-02 | Separated fixed-color and imported-custom frame modes, added the final composition preview, removed source-review cropping, and added persistent staff-only drag/zoom alignment for the custom frame and each unique photo. |
 | 1.0.0 | 2026-10-02 | Added the staff-only local event-frame importer for PNG, JPEG, and WebP artwork, including automatic photo cutouts for flattened templates, persistent layout compatibility, validation, previews, and final rendering above captured photos. |

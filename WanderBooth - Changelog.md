@@ -24,13 +24,27 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Exact first pilot computer model, CPU, memory, and storage
 - Confirmation that the Fujifilm X-M5 is the first dedicated camera to certify, followed by the Canon EOS 60D
 - Normal Host/iPad connection: venue Wi-Fi, mobile hotspot, or phone hotspot
-- First-pilot attended customer display: second monitor, iPad in display-only mode, or both
-- Whether attended customers see captured-photo review on the read-only display
-- Initial Self-Service photo-count options and whether count is chosen directly or inherited from the product/layout
 - Initial products, quantities, and PHP prices
 - Exact 4×6 layout and confirmation that the three-photo vertical 2×6 strip is the default strip product
 - Source of the first 5–10 design assets and branding
 - Exact first live-pilot month or event
+
+## 0.5.1 — 2026-10-02
+
+### Confirmed
+
+- The iPad is the first Self-Service touchscreen; a future dedicated touchscreen will use the same responsive customer interface.
+- Attendant-Operated mode supports either the iPad/touchscreen in display-only mode or a normal second monitor.
+- Captured photos are shown on the attended customer display.
+- A customer may verbally request a replacement, but only the operator performs the photo replacement or retake.
+- Required photo count comes automatically from the selected product/layout and is not a separate operator or customer choice.
+
+### Changed
+
+- Removed photo-count selection screens and commands from both operation modes.
+- Added product/layout capture-count configuration and a required-photo summary before payment and capture.
+- Generalized the customer client so it is not tied to the current iPad's exact screen size.
+- Removed the three resolved operation-mode questions from the Phase 0 decision list.
 
 ## 0.5.0 — 2026-10-02
 

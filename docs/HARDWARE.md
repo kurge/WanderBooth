@@ -2,7 +2,7 @@
 
 **Status:** Discovery
 
-**Version:** 0.3.0
+**Version:** 0.3.1
 
 **Updated:** 2026-10-02
 
@@ -13,7 +13,8 @@ This document records the hardware already available for WanderBooth, the suppor
 | Role | Device | Current decision |
 |---|---|---|
 | Host computer | Exact computer, CPU, memory, and storage not yet supplied | Must choose Windows 11 or macOS Sequoia 15.7.5+ for the first pilot |
-| Customer touchscreen/camera | iPad Pro 12.9-inch (6th generation), iPadOS 18.2 | Confirmed web client and optional camera source |
+| Self-Service touchscreen/camera | iPad Pro 12.9-inch (6th generation), iPadOS 18.2 | Confirmed interactive client, optional display-only client, and optional camera source |
+| Attendant-Operated customer display | Second monitor connected to the Host and/or iPad in display-only mode | Exact first-pilot display setup not yet selected |
 | Dedicated camera | Canon EOS 60D | Owned secondary integration target |
 | Recommended first dedicated camera | Fujifilm X-M5 | Run the first brand/model-specific Phase 0 control test |
 | Host built-in camera | Depends on the selected Windows/Mac computer | Treat through the standard webcam adapter |
@@ -151,6 +152,7 @@ The L8050 is an ink-tank photo printer rather than a dye-sublimation event print
 ### iPad and network test
 
 - Load WanderBooth Touch from the Host with internet disconnected.
+- Run the customer presentation in both interactive Self-Service and read-only Attendant-Operated modes.
 - Run the iPad in Guided Access.
 - Reconnect automatically after Wi-Fi interruption.
 - Confirm touch-to-capture response time.

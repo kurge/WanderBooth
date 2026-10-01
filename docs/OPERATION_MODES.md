@@ -1,0 +1,114 @@
+# WanderBooth Operation Modes
+
+**Status:** Confirmed product behavior
+
+**Version:** 0.1.0
+
+**Updated:** 2026-10-02
+
+WanderBooth supports two staff-selected workflows. The difference is who controls the session—not whether the booth has staff nearby. In this document, **operator** and **attendant** refer to the same staff role. Because the first release accepts cash, an attendant still confirms payment in both modes.
+
+## At a glance
+
+| Area | Attendant-Operated | Self-Service |
+|---|---|---|
+| Primary controller | Operator console on the Host laptop | Customer touchscreen |
+| Customer screen | Display-only | Interactive kiosk |
+| Product, layout, photo count, and design | Chosen by operator | Chosen by customer from owner-approved options |
+| Capture start | Operator | Customer after cash approval |
+| Photo review | Shown to operator and optionally on customer display | Interactive on customer touchscreen |
+| Replace photo / retake | Operator only | Customer within configured limits |
+| Change design/style before approval | Operator only | Customer from compatible allowed choices |
+| Final approval | Operator | Customer |
+| Cash confirmation | Attendant | Attendant |
+| Camera-source selection | Owner or attendant | Owner or attendant |
+| Recovery, refund, reprint | Owner or attendant | Owner or attendant |
+| QR scanning and downloads | Customer | Customer |
+
+## Mode selection
+
+- The owner or attendant selects a mode from the PIN-protected operator console.
+- A booth/event profile can define the default mode.
+- The active mode is always visible on the operator console.
+- The mode is copied onto every new session record.
+- The mode cannot change while a session is active.
+- Switching modes requires the booth to be idle or the current session to be explicitly cancelled or recovered with an audit entry.
+- Customers never receive a mode-selection control.
+
+## Attendant-Operated workflow
+
+### Physical setup
+
+- The operator uses the Host laptop and its operator console.
+- The customer sees a separate read-only screen. It may be a second monitor attached to the Host or an iPad/browser in display-only mode.
+- The customer display can show the live preview, countdown, captured images, waiting states, processing, print status, QR code, and completion message.
+- The customer display does not provide session-choice buttons.
+
+### Control flow
+
+1. The operator chooses the product.
+2. The operator chooses a compatible layout, photo count, and design/style.
+3. The operator explains the privacy notice and records the customer's consent.
+4. The operator confirms cash received.
+5. The operator starts capture; the customer display shows preview and countdown.
+6. The operator reviews the captured images with the customer.
+7. The operator may select a photo slot to replace, use an allowed retake, or change to a compatible layout/design.
+8. The operator approves the final result.
+9. WanderBooth renders, prints, uploads, and shows the QR code.
+
+Even when the customer display shows captured images, only the operator can submit replacement, retake, design, or approval actions.
+
+## Self-Service workflow
+
+### Physical setup
+
+- The customer uses the iPad or another supported touchscreen running the interactive kiosk.
+- The operator console remains available for cash confirmation, status, overrides, and recovery.
+- If the iPad camera is the active camera source, the same client supplies the preview and captures before sending them to the Host.
+
+### Control flow
+
+1. The customer chooses an enabled product.
+2. WanderBooth offers only layouts, photo counts, and designs compatible with that product.
+3. The customer accepts the privacy notice.
+4. The interface waits while the attendant confirms cash.
+5. The customer starts the countdown and capture flow.
+6. The customer reviews captured images.
+7. Within the configured limit, the customer may replace a selected photo or retake.
+8. Before final approval, the customer may change to another compatible enabled design/style.
+9. The customer approves the result.
+10. WanderBooth renders, prints, uploads, and shows the QR code.
+
+Self-Service does not grant access to camera selection, payment confirmation, refunds, reprints, diagnostics, mode changes, or owner settings.
+
+## Photo replacement and style rules
+
+- A photo-count choice represents the number of final capture slots required by the selected product/layout.
+- A replacement chooses one existing slot, captures a new photo, and replaces only that slot after confirmation.
+- The initial rule remains up to two retake/replacement actions per session; whether that limit is shared across all slots remains configurable until finalized.
+- Changing a compatible design or style re-renders existing accepted captures and does not consume a retake.
+- Changing to a layout requiring a different photo count must be blocked or must explicitly request the missing captures; it can never discard paid-session work silently.
+- Once the result is finally approved, further changes require staff recovery.
+- Once printed, a changed result is a staff-authorized reprint and must be audited to prevent accidental duplicates.
+
+## Permission enforcement
+
+The Host enforces these rules even if a hidden URL or malformed command is used:
+
+- customer connections receive only the permissions allowed by the session's fixed mode;
+- display-only connections cannot submit choices or mutations;
+- staff actions require an authenticated staff session;
+- commands include the session identifier, expected state, actor, and an idempotency key;
+- invalid actor/action/state combinations are rejected and logged; and
+- reconnecting screens reload the current persisted session rather than assuming local state is current.
+
+## Acceptance checks
+
+- Both modes can complete the same product from selection through QR delivery.
+- Attendant-Operated mode can run without any touch input on the customer display.
+- Customer-side selection, retake, replacement, style, approval, and mode-change commands are rejected during an Attendant-Operated session.
+- Self-Service never displays products or combinations disabled by the owner.
+- Cash confirmation remains staff-only in both modes.
+- A mode cannot change during an active session.
+- Operator and customer screens recover to the same state after a connection or application restart.
+- The session history shows its mode and the actor for every important decision.

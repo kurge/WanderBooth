@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 0.4.1
+document_version: 0.5.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -19,7 +19,7 @@ owner: Kurge
 # WanderBooth — Product Plan and Feature Specification
 
 > [!summary] The short version
-> WanderBooth will be an offline-first photo booth system for our own business. A Windows 11 or macOS Sequoia desktop or laptop will act as the **WanderBooth Host**, coordinating a selectable camera source, image processing, local storage, cloud delivery, and Epson printer. Supported source types will include certified DSLR/mirrorless cameras, standard webcams and built-in computer cameras, and the iPad camera. An iPad Pro will provide the customer-facing touchscreen and may also act as the selected camera. The first pilot will sell both branded digital photos and physical prints, use attendant-confirmed cash payments, and give the customer a private 30-day cloud QR link after the session. For a three-photo strip, that link will offer the branded strip, three branded individual photos, and a short looping slideshow video. Products, prices, designs, sessions, and sales will initially be managed locally. A full remote dashboard, electronic payments, and native mobile app can be added later.
+> WanderBooth will be an offline-first photo booth system for our own business with two staff-selected workflows. In **Attendant-Operated mode**, an operator controls products, layouts, photo counts, designs, capture, photo replacement, and approval from the laptop while the customer sees a read-only display. In **Self-Service mode**, the customer makes those permitted choices on the touchscreen while staff retain payment, camera, recovery, and administrative controls. A Windows 11 or macOS Sequoia desktop or laptop will act as the **WanderBooth Host**, coordinating a selectable camera source, image processing, local storage, cloud delivery, and Epson printer. Supported source types will include certified DSLR/mirrorless cameras, standard webcams and built-in computer cameras, and the iPad camera. The first pilot will sell both branded digital photos and physical prints, use attendant-confirmed cash payments, and give the customer a private 30-day cloud QR link after the session. For a three-photo strip, that link will offer the branded strip, three branded individual photos, and a short looping slideshow video. A full remote dashboard, electronic payments, and native mobile app can be added later.
 
 ## 1. Document purpose
 
@@ -59,8 +59,9 @@ The business should be able to keep serving customers during internet interrupti
 4. **Local ownership:** original photos and business data are stored locally first, then synchronized when appropriate.
 5. **Shared desktop core:** target Windows 11 and macOS Sequoia, while certifying one exact pilot computer before broad hardware support.
 6. **Replaceable camera sources:** camera-specific behavior stays behind a common interface so the operator can choose among supported cameras without changing the rest of the booth workflow.
-7. **Understandable operations:** error messages, logs, and controls must be readable by a booth attendant who is not a developer.
-8. **Privacy by default:** customer photos are private, access links are difficult to guess, and files are automatically removed according to a documented retention policy.
+7. **Explicit control ownership:** every action is assigned to the operator or customer according to the active operation mode; hidden controls are enforced as permissions, not merely removed visually.
+8. **Understandable operations:** error messages, logs, and controls must be readable by a booth attendant who is not a developer.
+9. **Privacy by default:** customer photos are private, access links are difficult to guess, and files are automatically removed according to a documented retention policy.
 
 ## 3. Decisions and assumptions
 
@@ -70,12 +71,16 @@ The business should be able to keep serving customers during internet interrupti
 - WanderBooth is initially for our own business.
 - The application must be offline-first.
 - The desktop Host will target **Windows 11** and **macOS Sequoia 15.7.5 or later**.
-- An **iPad Pro 12.9-inch (6th generation) running iPadOS 18.2** will be the customer-facing touchscreen for the first booth.
+- An **iPad Pro 12.9-inch (6th generation) running iPadOS 18.2** is available as the Self-Service touchscreen, an attended display-only screen, or an optional camera source. Attendant-Operated mode may instead use a normal second monitor.
 - The first pilot will sell **both branded digital photos and physical prints**.
 - The first pilot will accept **cash only**, confirmed by a booth attendant.
 - Cash must be collected and confirmed **before capture**.
-- WanderBooth should support both attended and eventually unattended operation, but the cash-only pilot requires an attendant.
-- Customers can choose their product, print layout, and design; the attendant can assist or make the selection for them.
+- WanderBooth will provide **Attendant-Operated** and **Self-Service** operation modes.
+- The owner or attendant selects and starts the operation mode before serving customers. Customers cannot change modes.
+- In Attendant-Operated mode, staff control product, layout, photo count, design/style, capture, photo replacement/retake, and final approval from the operator console. The customer-facing screen is display-only.
+- In Self-Service mode, customers can choose only owner-approved products, layouts, photo counts, and designs and can use configured review/replacement/retake actions from the touchscreen.
+- Staff retain camera-source selection, cash confirmation, refunds, reprints, recovery, and administrative controls in both modes.
+- Because version 1 accepts cash only, Self-Service mode still needs an attendant to confirm payment. Fully unattended operation requires a future electronic-payment flow.
 - A customer must be able to retrieve the finished photo through a QR code after the session.
 - QR access will expire after **30 days**.
 - The QR link must work away from the booth for the full 30 days, using private cloud delivery.
@@ -98,6 +103,8 @@ The business should be able to keep serving customers during internet interrupti
 - The public repository remains under default copyright for now; an open-source license may be selected later.
 
 See [WanderBooth Hardware Baseline](docs/HARDWARE.md) for manufacturer evidence and the test plan, and [Camera Compatibility Matrix](docs/CAMERA_COMPATIBILITY.md) for source-by-source status.
+
+See [Operation Modes](docs/OPERATION_MODES.md) for the detailed permissions and screen behavior of both workflows.
 
 ### Proposed decisions awaiting confirmation
 
@@ -127,7 +134,7 @@ The person taking and buying the photo. They need a short, obvious, touch-friend
 
 ### Booth attendant
 
-The person helping customers, checking the camera and printer, restarting failed sessions, approving cash transactions, and reprinting when authorized.
+The staff member—also called the **operator** in Attendant-Operated mode—who helps customers, controls attended sessions, checks the camera and printer, restarts failed sessions, approves cash transactions, and reprints when authorized.
 
 ### Business owner
 
@@ -135,16 +142,45 @@ The person configuring prices and products, reviewing sales, exporting records, 
 
 ## 5. Core customer journey
 
-The first pilot uses an attendant-confirmed cash flow. The recommended default is to confirm cash before capture so there is no dispute about whether the session was purchased. The application can support a manager-authorized complimentary session for testing or customer recovery.
+The owner or attendant chooses an operation mode while the booth is idle. The selected mode is PIN-protected, clearly visible on the operator console, recorded on every session, and locked until the current session finishes or is safely cancelled.
+
+The first pilot uses an attendant-confirmed cash flow in both modes. Cash is confirmed before capture so there is no dispute about whether the session was purchased. A manager-authorized complimentary session remains available for testing or customer recovery.
+
+### Attendant-Operated mode
+
+The operator controls the complete session from the Host laptop. The customer-facing screen is read-only: it can show instructions, live preview, countdown, captured photos, processing, print status, QR delivery, and thank-you messages, but it has no product, layout, design, photo-count, retake, or approval controls.
+
+```text
+Operator chooses product, layout, allowed photo count, and design
+     ↓
+Operator explains privacy notice and records customer consent
+     ↓
+Operator confirms cash received
+     ↓
+Customer display shows live preview and countdown
+     ↓
+Operator starts capture
+     ↓
+Operator reviews the photos with the customer
+     ↓
+Operator alone replaces a selected photo, uses an allowed retake,
+changes the layout/design, or approves the final result
+     ↓
+WanderBooth renders, prints, uploads, and displays the QR code
+```
+
+### Self-Service mode
+
+The touchscreen is interactive. The customer controls only the choices that the owner enabled for the selected product. Staff remain responsible for cash approval, camera configuration, exceptions, recovery, refunds, reprints, and administrative settings.
 
 ```text
 Attract screen
      ↓
-Choose product/package
+Customer chooses product/package
      ↓
-Choose layout and design, independently or with attendant help
+Customer chooses an allowed layout, photo count, and design
      ↓
-Read privacy notice and continue
+Customer reads the privacy notice and continues
      ↓
 Attendant confirms cash received
      ↓
@@ -152,7 +188,8 @@ Live preview and countdown
      ↓
 Capture photo(s), with up to two retakes
      ↓
-Review and limited retake
+Customer reviews, replaces a selected photo, changes style/design,
+or uses an allowed retake before final approval
      ↓
 Create final branded photo
      ↓
@@ -165,6 +202,8 @@ Customer saves photo
 Session clears and returns to attract screen
 ```
 
+Owner-defined rules determine which products, layouts, photo counts, designs, and retake/replacement actions appear in Self-Service mode. A customer cannot create an unsupported combination. After final approval or printing, further changes require staff recovery and, if applicable, an audited reprint.
+
 ### Session states
 
 The application must always know the current state of a session. This prevents duplicate charges, missing photos, and duplicate prints.
@@ -172,12 +211,15 @@ The application must always know the current state of a session. This prevents d
 ```text
 IDLE
   → PRODUCT_SELECTED
+  → LAYOUT_SELECTED
+  → PHOTO_COUNT_SELECTED
   → DESIGN_SELECTED
   → CONSENTED
   → CASH_PENDING
   → CASH_CONFIRMED
   → CAPTURING
   → REVIEWING
+  → FINAL_APPROVED
   → PROCESSING
   → PRINT_QUEUED (when applicable)
   → UPLOAD_QUEUED
@@ -187,7 +229,7 @@ IDLE
   → RESET
 ```
 
-Every state must also have a clear failure path, such as `CASH_CANCELLED`, `CAMERA_FAILED`, `PRINT_FAILED`, `UPLOAD_PENDING`, `REFUND_REQUIRED`, or `RECOVERY_REQUIRED`. An upload outage must not prevent local printing or erase a session. Electronic-payment states will be added only when online payments enter scope.
+Every session records its operation mode and the actor responsible for selections, replacements, approval, payment confirmation, and recovery actions. Every state must also have a clear failure path, such as `CASH_CANCELLED`, `CAMERA_FAILED`, `PRINT_FAILED`, `UPLOAD_PENDING`, `REFUND_REQUIRED`, or `RECOVERY_REQUIRED`. An upload outage must not prevent local printing or erase a session. Electronic-payment states will be added only when online payments enter scope.
 
 ## 6. Cloud QR photo delivery with offline recovery
 
@@ -236,27 +278,18 @@ The iPad still needs a local connection to the Host for booth controls. This may
 
 ### P0 — required for the first real pilot
 
-#### Customer-facing booth
+#### Operation modes and customer-facing presentation
 
-- Full-screen attract screen with WanderBooth branding
-- Large touch-friendly controls
-- Product/package selection
-- Clear price display
-- Customer-selectable print layout
-- Customer-selectable design/theme
-- Attendant override or assisted selection
-- Short privacy notice and consent action
-- Live camera preview
-- Staff-only camera-source selector with a friendly name and live test preview
-- No camera-source controls in the customer-facing flow
-- Clear capability and readiness status for every detected camera source
-- Configurable countdown
-- Single-photo session
+- PIN-protected Attendant-Operated/Self-Service mode selector available only while the booth is idle
+- Configurable default mode for an event or booth profile
+- Active mode displayed clearly on the operator console and recorded on every session
+- Mode cannot change during an active session
+- Full-screen customer display with WanderBooth branding
+- Live preview, countdown, captured-photo review, processing, print status, QR delivery, and thank-you presentation
+- No camera-source, cash, reprint, refund, recovery, or administrative controls on the customer-facing screen in either mode
+- Single-photo session and owner-approved variable photo counts
 - Three-photo vertical-strip session, with other configurable layouts
-- Photo review
-- Up to two retakes
-- Processing screen
-- Final photo preview
+- Up to two configured retake or photo-replacement actions
 - Cloud QR delivery that works away from the booth for 30 days
 - Three separate branded-photo downloads for a three-photo session
 - Final composite-strip download
@@ -265,14 +298,37 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - Automatic timeout and safe reset
 - English interface; additional languages can follow
 
+#### Attendant-Operated mode
+
+- Operator console on the Host laptop controls product, layout, photo count, design/style, consent, capture, review, retake/replacement, and final approval
+- Customer-facing screen operates in display-only mode and cannot accept session choices
+- Operator can select a captured-photo slot and replace it using an allowed retake
+- Operator can change the layout or design before final approval without repeating successful captures when the new combination is compatible
+- Every operator choice and override is recorded in the audit trail
+
+#### Self-Service mode
+
+- Large touch-friendly controls on the customer touchscreen
+- Customer-selectable product/package with clear price display
+- Customer-selectable owner-approved layout, photo count, and design/theme
+- Privacy notice and consent action
+- Customer-controlled capture, review, allowed photo replacement/retake, style change, and final approval
+- Attendant cash-confirmation gate before capture
+- Attendant override and recovery controls remain outside the customer interface
+- Customer options are filtered so incompatible product, photo-count, layout, and design combinations cannot be selected
+
 #### Local owner and attendant area
 
 - PIN-protected access
+- Select the operation mode and configure the default for each booth/event profile
+- Configure which products, layouts, photo counts, designs, and review actions are available in each mode
+- Open the display-only customer screen or the interactive Self-Service screen
+- Staff-only camera-source selector with a friendly name, live test preview, and capability/readiness status
 - Create, edit, enable, and disable products
 - Set local currency and prices
 - Assign a layout to each product
 - Create, import, enable, and disable branded designs
-- Decide which layouts and designs customers may choose
+- Decide which products, layouts, photo counts, designs, and review actions customers may use in Self-Service mode
 - Configure countdown and retake rules
 - Configure QR-access expiration
 - View upload status and retry a failed cloud delivery
@@ -396,39 +452,60 @@ The iPad still needs a local connection to the Host for booth controls. This may
 
 ## 8. Application screens
 
-### Customer screens
+### Self-Service customer screens
 
 1. Attract/welcome
 2. Product selection
 3. Layout selection
-4. Design selection
-5. Privacy notice
-6. Waiting for attendant cash confirmation
-7. Get ready/live preview
-8. Countdown
-9. Capture confirmation
-10. Review and retake
-11. Processing
-12. Print status
-13. Upload status and QR download
-14. Thank you/reset
+4. Photo-count selection, when the product permits it
+5. Design/style selection
+6. Privacy notice
+7. Waiting for attendant cash confirmation
+8. Get ready/live preview
+9. Countdown
+10. Capture confirmation
+11. Review, replace photo, change style, or retake
+12. Final approval
+13. Processing
+14. Print status
+15. Upload status and QR download
+16. Thank you/reset
+
+### Attendant-Operated customer display
+
+1. Welcome/waiting
+2. Selected-product summary, when enabled
+3. Get ready/live preview
+4. Countdown and capture feedback
+5. Read-only captured-photo review
+6. Waiting for operator decision
+7. Processing
+8. Print status
+9. Upload status and QR download
+10. Thank you/reset
+
+This display has no interactive product, layout, photo-count, design, retake, replacement, approval, or administrative controls.
 
 ### Attendant screens
 
-1. Status overview
-2. Camera-source selection and test
-3. Printer test and queue
-4. Latest sessions
-5. Reprint and re-display QR
-6. Cash approval
-7. Error recovery
-8. End-of-day summary
+1. Status overview and active operation mode
+2. Start or switch mode while the booth is idle
+3. Attendant-Operated session controller
+4. Product, layout, photo-count, and design selection
+5. Capture, review, photo replacement/retake, style change, and final approval
+6. Camera-source selection and test
+7. Cash approval
+8. Printer test and queue
+9. Latest sessions
+10. Reprint and re-display QR
+11. Error recovery
+12. End-of-day summary
 
 ### Owner screens
 
 1. Products and prices
 2. Layouts and branding
-3. Customer-flow settings
+3. Operation-mode and customer-flow settings
 4. Sessions and orders
 5. Sales summary and CSV export
 6. Storage and retention
@@ -442,10 +519,10 @@ This architecture is a proposal, not a final commitment. Hardware decisions may 
 
 ```mermaid
 flowchart LR
-    I["iPad Touch"] <-->|"local Wi-Fi or hotspot"| H["Desktop Host<br/>Windows or macOS"]
+    S["Customer screen<br/>Display-only or Self-Service"] <-->|"local connection or second display"| H["Desktop Host + Operator Console<br/>Windows or macOS"]
     F["DSLR / mirrorless"] <--> H
     W["USB or built-in webcam"] <--> H
-    I -.->|"iPad camera when selected"| H
+    I["iPad camera"] -.->|"when selected"| H
     H --> P["Epson L8050"]
     H -->|"queued internet upload"| D["Private cloud delivery"]
     G["Guest phone"] -->|"30-day HTTPS QR link"| D
@@ -463,12 +540,25 @@ The Host remains the source of truth for the session regardless of which camera 
 - **QR generation:** a maintained QR-code library
 - **Local web server:** a small HTTP server for the iPad interface, bound only to the booth's trusted local connection
 - **Live communication:** WebSocket connection between the Host and iPad
+- **Operation-mode coordinator:** records Attendant-Operated or Self-Service mode, enforces actor permissions, and routes session actions to the correct screen
+- **Operator console:** staff controls for attended sessions, cash approval, camera setup, recovery, and fulfillment
 - **Camera-source layer:** one shared contract with adapters for vendor-controlled cameras, webcams/built-in cameras, watched-folder workflows, and the iPad client
 - **Cloud delivery client:** persistent upload queue, retry logic, and delivery-status tracking
 - **Print adapter:** operating-system-specific print integration configured for the Epson L8050
 - **Packaging:** Windows installer and notarized macOS application; automatic update support follows the pilot
 
 The Host can also display owner and diagnostic screens directly on the desktop computer. Hardware code must sit behind adapters because camera discovery, permissions, capabilities, printing, startup, and file locations differ between devices and operating systems.
+
+### Operation-mode enforcement
+
+Operation mode is a server-side session policy, not only a visual layout:
+
+- staff authenticate to the operator console with a PIN or staff session;
+- customer commands are accepted only when Self-Service mode allows that action;
+- Attendant-Operated customer displays receive session state but cannot submit selection, retake, replacement, style, or approval commands;
+- switching modes is allowed only while the booth is idle or after an explicitly audited cancellation/recovery;
+- every session stores its mode, and every important action stores whether the actor was the customer, attendant, or owner; and
+- both displays subscribe to the same persisted session state so they cannot disagree about payment, capture, approval, printing, or delivery.
 
 ### Camera-source contract
 
@@ -489,12 +579,12 @@ The first adapter families are:
 
 Compatibility is explicit rather than implied. The owner screen will label a source **Planned**, **Certified**, **Experimental**, or **Unavailable**. Detecting a camera does not automatically mean that remote trigger, focus, flash, or full-resolution still capture is supported.
 
-### WanderBooth Touch on iPad
+### Customer display and WanderBooth Touch
 
-- The Host serves the customer interface over a shared local Wi-Fi or hotspot connection.
-- The iPad opens the interface in Safari or as an installed Progressive Web App.
-- iPad Guided Access keeps the customer inside WanderBooth.
-- Customer taps send commands to the Host. The Host coordinates capture and always controls processing, storage, printing, and delivery; when the iPad camera is selected, the Touch client performs the physical capture and transfers it to the Host.
+- In Attendant-Operated mode, the customer presentation may run as a read-only window on a second monitor or in a browser on the iPad.
+- In Self-Service mode, the Host serves the interactive touch interface to the iPad over a shared local Wi-Fi or hotspot connection.
+- The iPad opens the interface in Safari or as an installed Progressive Web App, and Guided Access keeps the customer inside WanderBooth.
+- In Self-Service mode, customer taps send permitted commands to the Host; in Attendant-Operated mode, equivalent commands come only from the operator console. The Host coordinates capture and always controls processing, storage, printing, and delivery. When the iPad camera is selected, the Touch client performs the physical capture and transfers it to the Host.
 - No App Store release is required for the first pilot.
 
 ### Why Electron plus a local web client is proposed
@@ -537,8 +627,8 @@ These are the main records the application must understand.
 
 | Record | Plain-language meaning |
 |---|---|
-| Product | Something a customer can buy, such as one digital photo or a 4×6 print package |
-| Session | One customer's complete booth interaction |
+| Product | Something a customer can buy, including its allowed layouts, photo counts, designs, print quantity, price, and mode availability |
+| Session | One customer's complete booth interaction, including its fixed operation mode |
 | Capture | An original photo taken during a session |
 | Deliverable | The final branded image, strip, print file, or phone-download image |
 | Order | The selected product, price, payment state, and fulfillment state |
@@ -548,6 +638,8 @@ These are the main records the application must understand.
 | Upload job | A persistent request to copy a session's approved deliverables to the cloud, with retry and status information |
 | Camera source | A detected or configured device capable of producing a capture, such as a Fujifilm camera, webcam, built-in camera, or iPad |
 | Camera profile | The saved adapter, crop, orientation, color, capability, and device settings for one camera source |
+| Operation mode | The staff-selected control policy for a session: Attendant-Operated or Self-Service |
+| Action actor | Whether an important action was performed by the customer, attendant, owner, or system |
 | Layout | The arrangement and size of one or more photos on a digital image or printed sheet |
 | Design | The branded frame, colors, graphics, and text applied to a layout |
 | Device | The booth computer and its configuration |
@@ -578,6 +670,9 @@ Before WanderBooth accepts paying customers, it must demonstrate:
 - at least 99% successful print completion when printing is included;
 - a median capture-to-delivery time below 45 seconds;
 - a visible, understandable recovery instruction for every expected failure;
+- complete end-to-end tests for both Attendant-Operated and Self-Service modes;
+- rejection of customer-issued selection, replacement, style, approval, and mode-change commands during Attendant-Operated sessions;
+- synchronized session state across the operator console and customer screen after disconnect and restart;
 - successful QR downloads on current iPhone and Android devices;
 - successful cloud upload and QR download over venue internet and mobile data;
 - successful capture, processing, saving, and printing with internet disconnected, followed by automatic upload recovery; and
@@ -592,6 +687,7 @@ Before WanderBooth accepts paying customers, it must demonstrate:
 Tasks:
 
 - Confirm initial products and PHP prices when the business is ready.
+- Confirm the first-pilot customer-display hardware and which self-service photo-count options are allowed.
 - Choose the first pilot Host operating system and record its exact computer model, processor, memory, and storage.
 - Test the Fujifilm X-M5 as the recommended first dedicated camera: tethering, live view, trigger control, and transfer speed. Test the Canon EOS 60D next or use it as a fallback if the X-M5 path fails.
 - Define the shared camera-source contract and implement three feasibility adapters: dedicated camera, standard webcam/built-in camera, and iPad camera.
@@ -599,21 +695,24 @@ Tasks:
 - Test the confirmed iPad Pro 12.9-inch (6th generation) on iPadOS 18.2.
 - Test Host-to-iPad control over the expected venue Wi-Fi or mobile-hotspot setup.
 - Prototype camera selection, readiness checks, preview, capture, and source switching before a session starts.
+- Prototype operation-mode selection, the laptop operator console, the read-only customer display, and the interactive Self-Service touch flow.
 - Prototype the three individual branded photos, 2×6 composite strip, and looping MP4 slideshow.
 - Prototype the iPad-to-Host control connection.
 - Prototype queued upload to private cloud storage and a 30-day mobile download page.
 - Verify that capture and printing continue with internet disconnected and that the upload completes after reconnection.
 
-Exit condition: the same three-photo workflow can capture through the dedicated-camera adapter, a webcam/built-in camera, and the iPad-camera adapter; the Host renders all approved deliverables; a phone downloads them from a private cloud QR page; and an interrupted upload resumes safely after reconnection.
+Exit condition: both operation modes complete the same persisted three-photo workflow; Attendant-Operated choices work only from the operator console; Self-Service choices work from the touchscreen; all three camera adapter families can provide the captures; a phone downloads the results from a private cloud QR page; and an interrupted upload resumes safely after reconnection.
 
 ### Phase 1 — offline photo-session prototype
 
 Tasks:
 
 - Create the Host application and iPad web client.
+- Add the operation-mode coordinator, operator console, display-only presentation, and Self-Service presentation.
 - Add iPad Guided Access instructions and Host automatic startup.
 - Add attract, preview, countdown, capture, two-retake, review, processing, upload-status, and QR screens.
 - Add staff-only camera selection, per-source readiness tests, and safe recovery when a source disconnects.
+- Add action permissions and actor audit records for product, layout, photo count, design, capture, replacement/retake, and final approval.
 - Add session folders and SQLite records.
 - Add restart recovery.
 - Add a simple local owner area.
@@ -650,6 +749,7 @@ Exit condition: one cash-confirmed order reliably produces exactly one purchased
 Tasks:
 
 - Run power-loss, network-loss, camera-loss, and printer-loss tests.
+- Run identical acceptance scenarios in Attendant-Operated and Self-Service modes, including forbidden customer actions in attended sessions.
 - Publish a tested camera-compatibility matrix and label every source Certified, Experimental, or Unavailable.
 - Complete 300-session reliability test.
 - Package the selected pilot operating system first, then validate the other desktop target.
@@ -681,6 +781,7 @@ wanderbooth/
 ├── docs/
 │   ├── HARDWARE.md
 │   ├── CAMERA_COMPATIBILITY.md
+│   ├── OPERATION_MODES.md
 │   ├── ARCHITECTURE.md
 │   ├── RUNBOOK.md
 │   └── decisions/
@@ -747,6 +848,9 @@ test: cover session recovery after restart
 | Printer fails after cash confirmation | Customer paid but receives nothing | Persistent print queue, staff recovery, reprint protection, refund state |
 | Power loss | Session or order may be lost | Persist every state transition in SQLite and save files before moving forward |
 | Repeated tap or staff action | Duplicate order or print | Idempotent commands and unique fulfillment constraints |
+| Wrong operation mode is active | Customers may see controls they should not have, or staff may be unable to run the session | Show the active mode prominently, PIN-protect changes, lock it during sessions, and record it on every session |
+| Customer bypasses display-only restrictions | A customer could change choices or approve a result in Attendant-Operated mode | Enforce permissions on the Host, reject unauthorized commands, and do not rely only on hiding buttons |
+| Operator and customer screens disagree | The wrong photo, design, or payment state could be shown | Use one persisted session state, ordered events, reconnection synchronization, and visible stale/offline status |
 | Storage fills | New sessions fail or old files remain indefinitely | Capacity warnings, retention cleanup, and backups |
 | Supporting Windows and macOS too early | OS-specific camera and printing work can double the first milestone | Keep shared application code, isolate adapters, and certify one exact pilot computer before validating the second OS |
 | Supporting too much hardware | Development becomes unpredictable | Build a replaceable adapter system, but certify camera sources and exact configurations incrementally |
@@ -763,16 +867,22 @@ The repository and product baseline now exist. Most workflow decisions are confi
 3. What is the exact first-pilot computer model, processor, memory, and available storage?
 4. Will the Host and iPad normally share venue Wi-Fi, a dedicated mobile hotspot, or a phone hotspot?
 
+### Operation modes
+
+5. In Attendant-Operated mode, will the customer display usually be a normal second monitor connected to the laptop, the iPad running in display-only mode, or should we support both from the first pilot?
+6. Should the attended customer display show captured-photo review while only the operator can make changes? The current plan assumes yes.
+7. Which photo-count choices should Self-Service offer initially—for example 1 photo and 3 photos—or should photo count always come from the selected product/layout?
+
 ### Products and design
 
-5. What will the first products and print quantities be? PHP prices may remain blank until the business decides them.
-6. Is the three-photo vertical 2×6 strip the default multi-photo product, and what arrangement should the first 4×6 product use?
-7. Who will supply the first 5–10 layout/design assets and WanderBooth branding?
-8. Confirm the working assumption that each separately downloadable individual photo also carries WanderBooth/event branding.
+8. What will the first products and print quantities be? PHP prices may remain blank until the business decides them.
+9. Is the three-photo vertical 2×6 strip the default multi-photo product, and what arrangement should the first 4×6 product use?
+10. Who will supply the first 5–10 layout/design assets and WanderBooth branding?
+11. Confirm the working assumption that each separately downloadable individual photo also carries WanderBooth/event branding.
 
 ### Pilot timing
 
-9. Replace “a few months from now” with a target month or event once it is known.
+12. Replace “a few months from now” with a target month or event once it is known.
 
 ## 17. Plain-language glossary
 
@@ -780,6 +890,11 @@ The repository and product baseline now exist. Most workflow decisions are confi
 |---|---|
 | Desktop application | A program installed on the computer, like Spotify or Photoshop, rather than a website opened in a browser |
 | Host | The Windows or macOS part of WanderBooth that controls hardware, storage, processing, printing, cloud uploads, and the local iPad service |
+| Attendant-Operated mode | Staff controls the session from the operator console while the customer-facing screen only displays progress and results |
+| Self-Service mode | The customer controls owner-approved session choices on the touchscreen while staff retain payment and administrative controls |
+| Unattended operation | A booth that can complete payment and fulfillment without staff; this is not part of the cash-only first release |
+| Operator console | The staff-only interface on the Host laptop used to control attended sessions and recover either mode |
+| Display-only screen | A customer-facing screen that shows session information but cannot submit choices or changes |
 | Camera source | The currently selected device that supplies photos, such as a dedicated camera, webcam, built-in computer camera, or the iPad camera |
 | Camera adapter | A small integration layer that translates one kind of camera's controls and results into WanderBooth's shared camera-source interface |
 | Certified camera | A camera/source configuration that passed WanderBooth's preview, capture, quality, recovery, and reliability tests |
@@ -801,6 +916,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 0.5.0 | 2026-10-02 | Added Attendant-Operated and Self-Service modes with distinct control ownership, screen behavior, permissions, photo replacement/style rules, and operator/customer workflows. |
 | 0.4.1 | 2026-10-02 | Confirmed that camera-source selection is restricted to the owner or attendant and is not shown in the customer-facing flow. |
 | 0.4.0 | 2026-10-02 | Replaced the single-camera assumption with an operator-selectable camera-source system covering dedicated cameras, webcams, built-in computer cameras, and the iPad camera, with adapters and explicit compatibility levels. |
 | 0.3.0 | 2026-10-02 | Confirmed Windows 11 and macOS Sequoia targets, iPad hardware, cash-before-capture, two retakes, 4×6 and 2×6 formats, 5–10 designs, and cloud QR delivery containing individual branded photos, a composite, and a looping slideshow. |

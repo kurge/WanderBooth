@@ -13,7 +13,7 @@ updated: 2026-10-02
 
 # WanderBooth
 
-WanderBooth is an offline-first photo booth application being developed for our own photo business. The desktop Host will target Windows 11 and macOS Sequoia 15.7.5 or later, while an iPad provides the customer-facing touchscreen. Operators can select among supported dedicated cameras, USB webcams, the computer's built-in camera, or the iPad camera. WanderBooth will sell both branded digital photos and physical prints, accept attendant-confirmed cash payments, and let customers retrieve their completed photos and looping slideshow from a private 30-day cloud link by scanning a QR code.
+WanderBooth is an offline-first photo booth application being developed for our own photo business. It supports two staff-selected workflows: **Attendant-Operated**, where staff control the session from the laptop and the customer display is read-only, and **Self-Service**, where the customer chooses from owner-approved products, layouts, photo counts, and designs on the touchscreen. The desktop Host will target Windows 11 and macOS Sequoia 15.7.5 or later. Operators can select among supported dedicated cameras, USB webcams, the computer's built-in camera, or the iPad camera. WanderBooth will sell both branded digital photos and physical prints, accept attendant-confirmed cash payments, and let customers retrieve their completed photos and looping slideshow from a private 30-day cloud link by scanning a QR code.
 
 ## Project documents
 
@@ -21,12 +21,13 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - [Changelog](<WanderBooth - Changelog.md>) — chronological record of material documentation and product-plan changes.
 - [Hardware baseline](docs/HARDWARE.md) — owned devices, known compatibility, risks, and the Phase 0 hardware test plan.
 - [Camera compatibility matrix](docs/CAMERA_COMPATIBILITY.md) — camera sources, adapter types, test status, and product-level approval.
+- [Operation modes](docs/OPERATION_MODES.md) — control ownership, screen behavior, permissions, and workflows for Attendant-Operated and Self-Service use.
 - [Architecture decision records](docs/decisions/) — short records explaining why major technical and product choices were made.
 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **0.4.1 — Staff-Only Camera Selection**
+- Product-plan version: **0.5.0 — Dual Operation Modes**
 - Development status: **Discovery; coding has not started**
 - Immediate next step: confirm the first pilot computer, then prove the shared capture interface with the Fujifilm X-M5, a generic webcam/built-in camera, and the iPad camera.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**

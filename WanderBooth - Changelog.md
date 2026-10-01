@@ -24,10 +24,39 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Exact first pilot computer model, CPU, memory, and storage
 - Confirmation that the Fujifilm X-M5 is the first dedicated camera to certify, followed by the Canon EOS 60D
 - Normal Host/iPad connection: venue Wi-Fi, mobile hotspot, or phone hotspot
+- First-pilot attended customer display: second monitor, iPad in display-only mode, or both
+- Whether attended customers see captured-photo review on the read-only display
+- Initial Self-Service photo-count options and whether count is chosen directly or inherited from the product/layout
 - Initial products, quantities, and PHP prices
 - Exact 4×6 layout and confirmation that the three-photo vertical 2×6 strip is the default strip product
 - Source of the first 5–10 design assets and branding
 - Exact first live-pilot month or event
+
+## 0.5.0 — 2026-10-02
+
+### Confirmed
+
+- WanderBooth supports Attendant-Operated and Self-Service modes.
+- The owner or attendant chooses the mode while the booth is idle; customers cannot change it.
+- In Attendant-Operated mode, the laptop operator controls product, layout, photo count, design/style, capture, photo replacement/retake, and final approval.
+- The attended customer-facing screen is read-only.
+- In Self-Service mode, customers can choose owner-approved products, layouts, photo counts, and designs and can perform allowed review actions.
+- Camera selection, cash confirmation, refunds, reprints, recovery, and administration remain staff-only in both modes.
+- Self-Service still requires staff cash confirmation in version 1 and is not yet fully unattended.
+
+### Added
+
+- Separate operator-console, display-only, and interactive Self-Service screen definitions.
+- Server-enforced actor permissions and per-action audit ownership.
+- Safe mode switching only while idle or after audited cancellation/recovery.
+- Photo-slot replacement, compatible style changes, final approval, and post-print reprint rules.
+- Dual-mode acceptance tests and synchronization requirements.
+- Operation-mode guide and ADR 0007.
+
+### Changed
+
+- Replaced the earlier generic “customer selection with attendant assistance” flow with two explicit control models.
+- Clarified that “Self-Service” describes creative-flow control, not unattended cash handling.
 
 ## 0.4.1 — 2026-10-02
 

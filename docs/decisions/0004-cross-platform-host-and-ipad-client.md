@@ -6,7 +6,7 @@
 
 ## Decision
 
-WanderBooth will use an installable desktop Host targeting Windows 11 and macOS Sequoia 15.7.5 or later. The iPad Pro will run the customer-facing web interface over a shared local Wi-Fi or hotspot connection. One exact computer and operating system will be certified for the first pilot before the second desktop target is validated.
+WanderBooth will use an installable desktop Host targeting Windows 11 and macOS Sequoia 15.7.5 or later. In Self-Service mode, the iPad Pro will run the interactive customer web interface over a shared local Wi-Fi or hotspot connection. In Attendant-Operated mode, the customer presentation may run read-only on a second monitor or on the iPad. One exact computer and operating system will be certified for the first pilot before the second desktop target is validated.
 
 Shared product and interface code will remain cross-platform. Camera control, printing, startup, permissions, and file locations will use operating-system-specific adapters.
 

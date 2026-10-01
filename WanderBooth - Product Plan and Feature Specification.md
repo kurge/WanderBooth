@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 0.4.0
+document_version: 0.4.1
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -87,7 +87,7 @@ The business should be able to keep serving customers during internet interrupti
 - Initial print formats are **4×6** and **2×6 photo strips**.
 - The first pilot will include approximately **5–10 layouts/designs**.
 - Available camera hardware: **Canon EOS 60D** and **Fujifilm X-M5**.
-- WanderBooth must offer a camera-source selector; staff-only access is the recommended first-pilot rule.
+- WanderBooth must offer a camera-source selector that is available only to the owner or attendant. Customers cannot change the active camera source.
 - Supported source types must include dedicated DSLR/mirrorless cameras, USB/UVC webcams, built-in Windows/Mac laptop cameras, and the iPad camera.
 - The camera system must be extensible so additional brands and models can be added through adapters and tested compatibility profiles.
 - The first printer is an **Epson EcoTank L8050**.
@@ -105,7 +105,6 @@ See [WanderBooth Hardware Baseline](docs/HARDWARE.md) for manufacturer evidence 
 - The Host will be an installable desktop application and will serve the touch-friendly booth interface to the iPad over a shared local connection.
 - The **Fujifilm X-M5 is the recommended first dedicated camera to certify** because it is the newer tether-capable option; the Canon EOS 60D remains an owned secondary target.
 - A generic webcam or built-in computer camera and the iPad camera will be used to prove that the shared camera-source interface is not tied to one camera brand.
-- Camera-source selection will be restricted to the owner/attendant area rather than offered to customers unless the owner decides otherwise.
 - Essential administration—products, prices, sessions, settings, and local sales—will be inside a PIN-protected owner area.
 - The Host and iPad may share venue Wi-Fi or a personal/mobile hotspot. A dedicated router is optional unless field testing shows it is needed for reliability.
 
@@ -249,6 +248,7 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - Short privacy notice and consent action
 - Live camera preview
 - Staff-only camera-source selector with a friendly name and live test preview
+- No camera-source controls in the customer-facing flow
 - Clear capability and readiness status for every detected camera source
 - Configurable countdown
 - Single-photo session
@@ -758,22 +758,21 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 ### Hardware
 
-1. Confirm that camera-source selection is **staff-only**. This is recommended so a customer cannot accidentally change the booth hardware.
-2. Confirm the Fujifilm X-M5 as the first dedicated camera to certify, followed by the Canon EOS 60D. Webcam/built-in and iPad-camera adapters will be tested alongside it.
-3. Should the first pilot Host run Windows 11 or macOS Sequoia 15.7.5+?
-4. What is the exact first-pilot computer model, processor, memory, and available storage?
-5. Will the Host and iPad normally share venue Wi-Fi, a dedicated mobile hotspot, or a phone hotspot?
+1. Confirm the Fujifilm X-M5 as the first dedicated camera to certify, followed by the Canon EOS 60D. Webcam/built-in and iPad-camera adapters will be tested alongside it.
+2. Should the first pilot Host run Windows 11 or macOS Sequoia 15.7.5+?
+3. What is the exact first-pilot computer model, processor, memory, and available storage?
+4. Will the Host and iPad normally share venue Wi-Fi, a dedicated mobile hotspot, or a phone hotspot?
 
 ### Products and design
 
-6. What will the first products and print quantities be? PHP prices may remain blank until the business decides them.
-7. Is the three-photo vertical 2×6 strip the default multi-photo product, and what arrangement should the first 4×6 product use?
-8. Who will supply the first 5–10 layout/design assets and WanderBooth branding?
-9. Confirm the working assumption that each separately downloadable individual photo also carries WanderBooth/event branding.
+5. What will the first products and print quantities be? PHP prices may remain blank until the business decides them.
+6. Is the three-photo vertical 2×6 strip the default multi-photo product, and what arrangement should the first 4×6 product use?
+7. Who will supply the first 5–10 layout/design assets and WanderBooth branding?
+8. Confirm the working assumption that each separately downloadable individual photo also carries WanderBooth/event branding.
 
 ### Pilot timing
 
-10. Replace “a few months from now” with a target month or event once it is known.
+9. Replace “a few months from now” with a target month or event once it is known.
 
 ## 17. Plain-language glossary
 
@@ -802,6 +801,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 0.4.1 | 2026-10-02 | Confirmed that camera-source selection is restricted to the owner or attendant and is not shown in the customer-facing flow. |
 | 0.4.0 | 2026-10-02 | Replaced the single-camera assumption with an operator-selectable camera-source system covering dedicated cameras, webcams, built-in computer cameras, and the iPad camera, with adapters and explicit compatibility levels. |
 | 0.3.0 | 2026-10-02 | Confirmed Windows 11 and macOS Sequoia targets, iPad hardware, cash-before-capture, two retakes, 4×6 and 2×6 formats, 5–10 designs, and cloud QR delivery containing individual branded photos, a composite, and a looping slideshow. |
 | 0.2.0 | 2026-10-02 | Confirmed digital and print products, cash-only pilot, iPad touchscreen, owned Canon/Fujifilm/Epson hardware, 30-day retention, branded-only delivery, public GitHub repository, and Host-plus-iPad architecture. |

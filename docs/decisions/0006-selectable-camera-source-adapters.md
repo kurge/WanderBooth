@@ -24,7 +24,7 @@ Sources are labeled **Planned**, **Certified**, **Experimental**, or **Unavailab
 
 ## Required behavior
 
-- Camera selection is staff-only unless a later product decision changes it.
+- Camera selection is restricted to the owner or attendant and is never presented in the customer-facing flow.
 - The selected source is checked before cash is accepted.
 - The source is locked for the paid session.
 - WanderBooth never silently switches cameras after payment.

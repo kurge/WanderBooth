@@ -22,13 +22,19 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 - First pilot Host OS: Windows 11 or macOS Sequoia 15.7.5+
 - Exact first pilot computer model, CPU, memory, and storage
-- Confirmation that camera-source selection is staff-only
 - Confirmation that the Fujifilm X-M5 is the first dedicated camera to certify, followed by the Canon EOS 60D
 - Normal Host/iPad connection: venue Wi-Fi, mobile hotspot, or phone hotspot
 - Initial products, quantities, and PHP prices
 - Exact 4×6 layout and confirmation that the three-photo vertical 2×6 strip is the default strip product
 - Source of the first 5–10 design assets and branding
 - Exact first live-pilot month or event
+
+## 0.4.1 — 2026-10-02
+
+### Confirmed
+
+- Camera-source selection is available only to the owner or attendant.
+- Customers cannot view or change the active camera source; they see only the normal preview, countdown, and capture flow.
 
 ## 0.4.0 — 2026-10-02
 

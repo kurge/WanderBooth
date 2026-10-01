@@ -2,7 +2,7 @@
 
 **Status:** Discovery
 
-**Version:** 0.1.0
+**Version:** 0.1.1
 
 **Updated:** 2026-10-02
 
@@ -64,5 +64,7 @@ Required setup:
 - Certification applies only to the tested combination of camera, adapter, operating system, connection, and required settings.
 - A source can be certified for digital delivery but not for physical prints.
 - WanderBooth must show the actual selected source and readiness before cash confirmation.
+- Only the owner or attendant can choose or change the active camera source.
+- The customer interface never displays camera-source selection controls.
 - A paid session never falls back silently to another source.
 - New brands and models enter as Planned or Experimental and become Certified only after the recorded test passes.

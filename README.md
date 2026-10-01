@@ -26,7 +26,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **0.4.0 — Selectable Camera Sources**
+- Product-plan version: **0.4.1 — Staff-Only Camera Selection**
 - Development status: **Discovery; coding has not started**
 - Immediate next step: confirm the first pilot computer, then prove the shared capture interface with the Fujifilm X-M5, a generic webcam/built-in camera, and the iPad camera.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**

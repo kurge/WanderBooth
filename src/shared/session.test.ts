@@ -171,7 +171,7 @@ describe("WanderBooth session rules", () => {
     expect(state.designId).toBeNull();
   });
 
-  it("lets staff align a custom frame and its photos during review", () => {
+  it("lets staff align a custom frame, photo holders, and photo images during review", () => {
     const capture = {
       capturedAt: "2026-10-02T00:00:00.000Z",
       mediaUrl: "/media/test.jpg",
@@ -196,6 +196,15 @@ describe("WanderBooth session rules", () => {
     state = reduceCommand(
       state,
       {
+        type: "UPDATE_HOLDER_TRANSFORM",
+        slot: 1,
+        transform: { offsetX: 0.1, offsetY: 0.2, scale: 1.15 },
+      },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      {
         type: "UPDATE_PHOTO_TRANSFORM",
         slot: 1,
         transform: { offsetX: -0.2, offsetY: 0.25, scale: 1.35 },
@@ -203,6 +212,7 @@ describe("WanderBooth session rules", () => {
       "attendant",
     );
     expect(state.frameTransform).toEqual({ offsetX: 0.15, offsetY: -0.1, scale: 1.2 });
+    expect(state.holderTransforms).toEqual([{ slot: 1, offsetX: 0.1, offsetY: 0.2, scale: 1.15 }]);
     expect(state.photoTransforms).toEqual([{ slot: 1, offsetX: -0.2, offsetY: 0.25, scale: 1.35 }]);
     expect(() =>
       reduceCommand(

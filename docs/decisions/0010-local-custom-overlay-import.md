@@ -1,6 +1,6 @@
 # ADR 0010: Import custom event frames into the local Host
 
-**Status:** Accepted; rendering-mode details partially superseded by [ADR 0011](0011-review-composition-editor.md)
+**Status:** Accepted; rendering details partially superseded by [ADR 0011](0011-review-composition-editor.md), and the normal import-mode choice superseded by [ADR 0012](0012-independent-photo-holder-and-image-transforms.md)
 
 **Date:** 2026-10-02
 

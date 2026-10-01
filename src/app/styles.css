@@ -1116,6 +1116,16 @@ p {
   background: white;
 }
 
+.overlay-importer__file-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 11px;
+  color: #595f79;
+  background: rgba(255, 255, 255, 0.68);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
 .file-picker {
   display: grid;
   min-height: 48px;
@@ -1531,6 +1541,7 @@ p {
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  align-items: start;
   gap: 13px;
 }
 
@@ -1566,6 +1577,7 @@ p {
 
 .photo-card--filled {
   aspect-ratio: auto;
+  align-self: start;
 }
 
 .photo-card__empty {
@@ -1708,6 +1720,7 @@ p {
   color: #9b9eae;
   background: #ece9e3;
   overflow: hidden;
+  transform-origin: center;
 }
 
 .layout-composer__slot--rounded {
@@ -1729,8 +1742,12 @@ p {
   );
 }
 
-.layout-composer__slot--active {
+.layout-composer__slot--active-holder {
   box-shadow: inset 0 0 0 4px var(--yellow);
+}
+
+.layout-composer__slot--active-image {
+  box-shadow: inset 0 0 0 4px var(--blue);
 }
 
 .layout-composer__slot img {
@@ -1815,6 +1832,7 @@ p {
 }
 
 .composition-editor__targets,
+.composition-editor__photo-targets,
 .composition-editor__zoom {
   display: flex;
   flex-wrap: wrap;
@@ -1831,6 +1849,7 @@ p {
 }
 
 .composition-editor__targets button,
+.composition-editor__photo-target button,
 .review-frame-settings__modes button {
   padding: 7px 10px;
   border: 1px solid var(--line);
@@ -1842,10 +1861,32 @@ p {
 }
 
 .composition-editor__targets button[aria-pressed="true"],
+.composition-editor__photo-target button[aria-pressed="true"],
 .review-frame-settings__modes button[aria-pressed="true"] {
   color: white;
   border-color: var(--blue);
   background: var(--blue);
+}
+
+.composition-editor__photo-targets {
+  margin-top: 10px;
+}
+
+.composition-editor__photo-target {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid rgba(53, 114, 196, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.45);
+  gap: 5px;
+}
+
+.composition-editor__photo-target > span {
+  padding: 0 4px;
+  color: #656a83;
+  font-size: 0.65rem;
+  font-weight: 850;
 }
 
 .composition-editor__zoom {

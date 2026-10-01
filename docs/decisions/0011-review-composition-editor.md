@@ -1,6 +1,6 @@
 # ADR 0011: Review the final composition and persist custom-frame alignment
 
-**Status:** Accepted
+**Status:** Accepted; fixed-holder details superseded by [ADR 0012](0012-independent-photo-holder-and-image-transforms.md)
 
 **Date:** 2026-10-02
 
@@ -19,7 +19,7 @@ The editor must remain understandable to a non-developer, must not alter raw cap
 - Imported-frame alignment is an attendant/owner action even during Self-Service sessions.
 - The original capture files remain unchanged; alignment is non-destructive rendering metadata.
 - One transform belongs to each unique capture, not each repeated visible slot. A double strip therefore adjusts both copies of Photo 1 together.
-- Phase 0 needs pan and uniform scale, not rotation, perspective distortion, freeform masks, or arbitrary slot editing.
+- Phase 0 needs pan and uniform scale, not rotation, perspective distortion, freeform masks, or arbitrary mask drawing. ADR 0012 adds movement and scaling for each existing holder.
 
 ## Decision
 

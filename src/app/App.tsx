@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import wanderPressSplashLogo from "../../assets/brand/source/wander-press-splash-shadow.png";
 import {
   type CustomOverlay,
-  type CustomOverlayMode,
   designs,
   getDesign,
   getLayout,
@@ -18,7 +17,14 @@ import {
   overlays,
   products,
 } from "../shared/catalog";
-import type { Actor, BoothState, Command, OperationMode, PhotoTransform } from "../shared/session";
+import type {
+  Actor,
+  BoothState,
+  Command,
+  HolderTransform,
+  OperationMode,
+  PhotoTransform,
+} from "../shared/session";
 import { createId } from "./createId";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
 import { type CameraStatus, useMacBookCamera } from "./useMacBookCamera";
@@ -187,7 +193,6 @@ function OverlayImporter({
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
-  const [mode, setMode] = useState<CustomOverlayMode>("flat_template");
   const [status, setStatus] = useState<{ kind: "error" | "success"; message: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -202,7 +207,7 @@ function OverlayImporter({
         headers: {
           "Content-Type": file.type || "image/png",
           "X-WanderBooth-Layout-Id": layout.id,
-          "X-WanderBooth-Overlay-Mode": mode,
+          "X-WanderBooth-Overlay-Mode": "transparent_artwork",
           "X-WanderBooth-Overlay-Name": encodeURIComponent(name.trim()),
         },
         body: file,
@@ -238,11 +243,11 @@ function OverlayImporter({
       </div>
       <div className="overlay-importer__fields">
         <label className="file-picker">
-          <span>{file ? file.name : "Choose PNG, JPEG, or WebP"}</span>
+          <span>{file ? file.name : "Choose transparent PNG or WebP"}</span>
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/png,image/webp"
             onChange={(event) => {
               const selected = event.target.files?.[0] ?? null;
               setFile(selected);
@@ -261,39 +266,10 @@ function OverlayImporter({
             onChange={(event) => setName(event.target.value)}
           />
         </label>
-        <fieldset>
-          <legend>How should WanderBooth prepare it?</legend>
-          <label>
-            <input
-              type="radio"
-              name="overlay-mode"
-              value="flat_template"
-              checked={mode === "flat_template"}
-              onChange={() => setMode("flat_template")}
-            />
-            <span>
-              <strong className="overlay-importer__option-title">Flat template</strong>
-              <small className="overlay-importer__option-help">
-                Best for the sample images. Automatically removes the photo areas.
-              </small>
-            </span>
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="overlay-mode"
-              value="transparent_artwork"
-              checked={mode === "transparent_artwork"}
-              onChange={() => setMode("transparent_artwork")}
-            />
-            <span>
-              <strong className="overlay-importer__option-title">Transparent artwork</strong>
-              <small className="overlay-importer__option-help">
-                Uses an exported PNG that already has transparent photo openings.
-              </small>
-            </span>
-          </label>
-        </fieldset>
+        <p className="overlay-importer__file-note">
+          Use a transparent PNG with the photo openings already cut out. WanderBooth keeps the
+          artwork above the photos and does not create the openings for you.
+        </p>
         <button
           className="button button--dark"
           type="button"
@@ -318,10 +294,26 @@ const clampTransform = (value: MediaTransform): MediaTransform => ({
   scale: Math.max(0.5, Math.min(3, value.scale)),
 });
 
-const photoTransformMap = (transforms: PhotoTransform[]) =>
+const slotTransformMap = (transforms: Array<HolderTransform | PhotoTransform>) =>
   Object.fromEntries(
     transforms.map(({ slot, offsetX, offsetY, scale }) => [slot, { offsetX, offsetY, scale }]),
   ) as Record<number, MediaTransform>;
+
+type CompositionTarget = "frame" | `holder:${number}` | `image:${number}`;
+
+const describeCompositionTarget = (target: CompositionTarget) => {
+  if (target === "frame") return { kind: "frame" as const, slot: null };
+  const [kind, slot] = target.split(":");
+  return { kind: kind as "holder" | "image", slot: Number(slot) };
+};
+
+const compositionTargetLabel = (target: CompositionTarget) => {
+  const description = describeCompositionTarget(target);
+  if (description.kind === "frame") return "frame artwork";
+  return description.kind === "holder"
+    ? `photo ${description.slot} holder`
+    : `photo ${description.slot} image`;
+};
 
 function LayoutPreview({
   state,
@@ -336,36 +328,57 @@ function LayoutPreview({
   const design = getDesign(state.designId) ?? getDesign("wander-splash");
   const overlay = getOverlay(state.overlayId, state.customOverlays);
   const customOverlay = overlay?.kind === "custom" ? overlay : null;
-  const [activeTarget, setActiveTarget] = useState<"frame" | number>("frame");
+  const [activeTarget, setActiveTarget] = useState<CompositionTarget>("frame");
   const [frameDraft, setFrameDraft] = useState(state.frameTransform);
+  const [holderDrafts, setHolderDrafts] = useState<Record<number, MediaTransform>>(
+    slotTransformMap(state.holderTransforms),
+  );
   const [photoDrafts, setPhotoDrafts] = useState<Record<number, MediaTransform>>(
-    photoTransformMap(state.photoTransforms),
+    slotTransformMap(state.photoTransforms),
   );
   const dragRef = useRef<{
     initial: MediaTransform;
     latest: MediaTransform;
     startX: number;
     startY: number;
-    target: "frame" | number;
+    target: CompositionTarget;
   } | null>(null);
 
   useEffect(() => setFrameDraft(state.frameTransform), [state.frameTransform]);
   useEffect(
-    () => setPhotoDrafts(photoTransformMap(state.photoTransforms)),
-    [state.photoTransforms],
+    () => setHolderDrafts(slotTransformMap(state.holderTransforms)),
+    [state.holderTransforms],
   );
+  useEffect(() => setPhotoDrafts(slotTransformMap(state.photoTransforms)), [state.photoTransforms]);
 
   if (!layout || !design || !overlay) return null;
 
-  const transformFor = (target: "frame" | number) =>
-    target === "frame" ? frameDraft : (photoDrafts[target] ?? identityMediaTransform());
-  const updateDraft = (target: "frame" | number, transform: MediaTransform) => {
-    if (target === "frame") setFrameDraft(transform);
-    else setPhotoDrafts((current) => ({ ...current, [target]: transform }));
+  const transformFor = (target: CompositionTarget) => {
+    const description = describeCompositionTarget(target);
+    if (description.kind === "frame") return frameDraft;
+    if (description.kind === "holder") {
+      return holderDrafts[description.slot] ?? identityMediaTransform();
+    }
+    return photoDrafts[description.slot] ?? identityMediaTransform();
   };
-  const commitTransform = (target: "frame" | number, transform: MediaTransform) => {
-    if (target === "frame") sendCommand({ type: "UPDATE_FRAME_TRANSFORM", transform });
-    else sendCommand({ type: "UPDATE_PHOTO_TRANSFORM", slot: target, transform });
+  const updateDraft = (target: CompositionTarget, transform: MediaTransform) => {
+    const description = describeCompositionTarget(target);
+    if (description.kind === "frame") setFrameDraft(transform);
+    else if (description.kind === "holder") {
+      setHolderDrafts((current) => ({ ...current, [description.slot]: transform }));
+    } else {
+      setPhotoDrafts((current) => ({ ...current, [description.slot]: transform }));
+    }
+  };
+  const commitTransform = (target: CompositionTarget, transform: MediaTransform) => {
+    const description = describeCompositionTarget(target);
+    if (description.kind === "frame") {
+      sendCommand({ type: "UPDATE_FRAME_TRANSFORM", transform });
+    } else if (description.kind === "holder") {
+      sendCommand({ type: "UPDATE_HOLDER_TRANSFORM", slot: description.slot, transform });
+    } else {
+      sendCommand({ type: "UPDATE_PHOTO_TRANSFORM", slot: description.slot, transform });
+    }
   };
   const activeTransform = transformFor(activeTarget);
   const customSource = customOverlay
@@ -391,10 +404,11 @@ function LayoutPreview({
     const drag = dragRef.current;
     if (!drag) return;
     const bounds = event.currentTarget.getBoundingClientRect();
+    const targetDescription = describeCompositionTarget(drag.target);
     const targetSlot =
-      drag.target === "frame"
+      targetDescription.kind === "frame"
         ? null
-        : layout.slots.find((slot) => slot.captureIndex + 1 === drag.target);
+        : layout.slots.find((slot) => slot.captureIndex + 1 === targetDescription.slot);
     const displayWidth = targetSlot
       ? bounds.width * (targetSlot.width / layout.canvasWidth)
       : bounds.width;
@@ -461,25 +475,29 @@ function LayoutPreview({
         {layout.slots.map((slot) => {
           const captureSlot = slot.captureIndex + 1;
           const capture = state.captures.find((item) => item.slot === captureSlot);
-          const transform = photoDrafts[captureSlot] ?? identityMediaTransform();
+          const holderTransform = holderDrafts[captureSlot] ?? identityMediaTransform();
+          const photoTransform = photoDrafts[captureSlot] ?? identityMediaTransform();
+          const holderIsActive = activeTarget === `holder:${captureSlot}` && editable;
+          const imageIsActive = activeTarget === `image:${captureSlot}` && editable;
           return (
             <div
               className={`layout-composer__slot layout-composer__slot--${slot.shape} ${
-                activeTarget === captureSlot && editable ? "layout-composer__slot--active" : ""
-              }`}
+                holderIsActive ? "layout-composer__slot--active-holder" : ""
+              } ${imageIsActive ? "layout-composer__slot--active-image" : ""}`}
               key={`${captureSlot}-${slot.x}-${slot.y}`}
               style={{
                 left: `${(slot.x / layout.canvasWidth) * 100}%`,
                 top: `${(slot.y / layout.canvasHeight) * 100}%`,
                 width: `${(slot.width / layout.canvasWidth) * 100}%`,
                 height: `${(slot.height / layout.canvasHeight) * 100}%`,
+                transform: `translate(${holderTransform.offsetX * 100}%, ${holderTransform.offsetY * 100}%) scale(${holderTransform.scale})`,
               }}
             >
               {capture ? (
                 <img
                   src={mediaSource(capture.mediaUrl)}
                   style={{
-                    transform: `translate(${transform.offsetX * 100}%, ${transform.offsetY * 100}%) scale(${transform.scale})`,
+                    transform: `translate(${photoTransform.offsetX * 100}%, ${photoTransform.offsetY * 100}%) scale(${photoTransform.scale})`,
                   }}
                   alt=""
                 />
@@ -519,7 +537,7 @@ function LayoutPreview({
         )}
         {editable && (
           <span className="layout-composer__drag-hint">
-            Drag to move {activeTarget === "frame" ? "frame" : `photo ${activeTarget}`}
+            Drag to move {compositionTargetLabel(activeTarget)}
           </span>
         )}
       </div>
@@ -534,15 +552,26 @@ function LayoutPreview({
             >
               Frame
             </button>
+          </div>
+          <div className="composition-editor__photo-targets">
             {state.captures.map((capture) => (
-              <button
-                type="button"
-                aria-pressed={activeTarget === capture.slot}
-                key={capture.slot}
-                onClick={() => setActiveTarget(capture.slot)}
-              >
-                Photo {capture.slot}
-              </button>
+              <div className="composition-editor__photo-target" key={capture.slot}>
+                <span>Photo {capture.slot}</span>
+                <button
+                  type="button"
+                  aria-pressed={activeTarget === `holder:${capture.slot}`}
+                  onClick={() => setActiveTarget(`holder:${capture.slot}`)}
+                >
+                  Holder
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={activeTarget === `image:${capture.slot}`}
+                  onClick={() => setActiveTarget(`image:${capture.slot}`)}
+                >
+                  Image
+                </button>
+              </div>
             ))}
           </div>
           <div className="composition-editor__zoom">
@@ -569,7 +598,8 @@ function LayoutPreview({
             </button>
           </div>
           <p>
-            Choose the frame or a photo, drag it in the preview, then use Zoom to fit the cutout.
+            Holder moves or resizes the whole photo area. Image adjusts the crop inside that holder.
+            The transparent frame always stays above the photos.
           </p>
         </div>
       )}

@@ -2,7 +2,7 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 
 **Updated:** 2026-10-02
 
@@ -54,18 +54,18 @@ The six PNGs in `/Users/kurgegarcia/Downloads/Sample Templates` were inspected a
 - they demonstrate repeated double strips, four-photo collages, a large feature photo, and a heart-shaped slot; and
 - all six are flattened RGB PNGs with no alpha channel.
 
-Because the white, black, pink, or red photo placeholders and example subjects are baked into the pixels, these files cannot be used unchanged as transparent overlays. WanderBooth offers **Flat template** import: it scales a compatible file to the selected canvas and automatically removes the layout's photo-slot shapes for its rendered preview. The normalized source is also retained locally so the operator can reposition or scale the design later without repeatedly editing an already-cut image. Sample Template 1 was verified end to end with the Double strip 4×6 layout. Source sample files remain outside the public repository.
+Because the white, black, pink, or red photo placeholders and example subjects are baked into the pixels, these files cannot be used unchanged as transparent overlays. They remain useful references for composing production artwork, but the owner will prepare the transparent photo openings before importing a frame. Source sample files remain outside the public repository.
 
-Automatic cutouts remove everything inside a photo slot, including any decoration that overlaps that slot. For exact control over overlapping borders, names, dates, or illustrations, export proper transparent artwork instead.
+The Host still understands the earlier **Flat template** records so previously imported test assets do not break. The operator interface no longer offers automatic cutout creation for new imports; transparent artwork is the single production path.
 
 ## Importing an event frame
 
 1. Start a session from the Mac operator screen.
 2. Choose the product and layout first.
-3. Choose **Imported custom frame**, then open **Import an event frame** and choose a PNG, JPEG, or WebP file up to 25 MB.
-4. Give the design a recognizable event name.
-5. Choose **Flat template** for an opaque or flattened design like the supplied samples, or **Transparent artwork** for a file that already has clear photo openings.
-6. Select **Import and select**. WanderBooth validates the aspect ratio, stores a normalized source and rendered preview at the exact layout dimensions, and adds it to that layout's custom-frame menu.
+3. Export a PNG at the layout's exact pixel dimensions, with transparent pixels wherever photos should show.
+4. Choose **Imported custom frame**, then open **Import an event frame** and choose that PNG file up to 25 MB.
+5. Give the design a recognizable event name.
+6. Select **Import and select**. WanderBooth verifies that the image contains transparency, validates the aspect ratio, stores a normalized source and rendered preview at the exact layout dimensions, and adds it to that layout's custom-frame menu.
 
 Only the operator screen exposes the import control. In Self-Service mode, a guest may select a frame that the operator already imported, but cannot add files.
 
@@ -73,18 +73,20 @@ Only the operator screen exposes the import control. In Self-Service mode, a gue
 
 The review screen places the final composed layout beside the full uncropped capture images. On the operator screen:
 
-1. choose **Frame**, **Photo 1**, **Photo 2**, and so on;
-2. drag the selected item directly inside the final-layout preview;
-3. use **Zoom** to scale it between 50% and 300%; and
-4. use **Reset** to return that item to its centered 100% position.
+1. choose **Frame** to adjust the complete transparent artwork;
+2. choose **Holder** beside a photo to move or resize that photo's entire masked area;
+3. choose **Image** beside a photo to move or zoom the captured image inside its holder;
+4. drag the selected target directly inside the final-layout preview;
+5. use **Zoom** to scale it between 50% and 300%; and
+6. use **Reset** to return only that selected target to its centered 100% position.
 
-Frame movement adjusts the imported design while keeping the layout's photo openings fixed. Photo movement adjusts the crop inside every layout slot that uses that capture; on a double strip, changing Photo 1 updates both copies. These normalized offsets and scales are stored in the Host's session state and used by the final full-resolution renderer, so the preview is not a cosmetic-only adjustment.
+Frame movement adjusts the imported design. Holder movement changes where the whole clipped photo area sits behind the frame, while Image movement changes only the crop inside that area. On a double strip, changing Photo 1's holder or image updates both copies. The transparent frame remains above the photos in both preview and export. These normalized offsets and scales are stored in the Host's session state and used by the final full-resolution renderer, so the preview is not a cosmetic-only adjustment.
 
 Only staff can reposition the frame or photos. A Self-Service guest may select an owner-approved imported frame and review the result, but the attendant performs detailed alignment.
 
 ## Production-ready transparent artwork
 
-A custom artwork overlay should be exported as a transparent PNG with:
+A custom artwork overlay must be exported as a transparent PNG with:
 
 - exactly the same pixel dimensions as its target layout;
 - transparent pixels everywhere a customer photo must remain visible;

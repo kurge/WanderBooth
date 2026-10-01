@@ -25,6 +25,31 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.2.0 — 2026-10-02
+
+### Changed
+
+- Split every custom-frame photo adjustment into **Holder** and **Image** controls. Holder moves and scales the entire masked photo area; Image changes only the crop inside it.
+- Made transparent PNG/WebP artwork with owner-prepared photo openings the normal import path. The frame stays above the photos, and the operator is no longer asked to create automatic cutouts during import.
+- Kept the legacy flat-template format readable so existing local test designs continue to work.
+
+### Added
+
+- Added authoritative per-capture holder transforms alongside the existing frame and image transforms. Repeated double-strip copies share the same holder and image adjustments.
+- Added full-resolution holder positioning and clipping in the Host renderer, including safe cropping when a moved or enlarged holder extends past the canvas.
+- Added ADR 0012 documenting the holder/image model, transparent-frame rendering order, permissions, and backward-compatibility decision.
+
+### Fixed
+
+- Stopped filled landscape capture cards from stretching to the height of empty portrait placeholders, removing the large white area below captured photos.
+- Kept the final transparent artwork above every transformed photo in both the responsive preview and 300-DPI export.
+
+### Verified
+
+- Confirmed all 22 automated tests, formatting, type checks, Host build, and customer-app build pass.
+- Imported a synthetic 1200×1800 transparent frame in an isolated runtime, completed a three-photo Double strip session, and verified separate Photo 1 Holder (120%) and Image (110%) values.
+- Rendered and visually inspected the resulting 1200×1800 PNG, confirming that the transparent frame remained above both repeated photo copies and that the independent transforms reached the final file.
+
 ## 1.1.0 — 2026-10-02
 
 ### Changed

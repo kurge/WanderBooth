@@ -16,7 +16,12 @@ import {
   type OverlayKind,
   type PhotoSlot,
 } from "../shared/catalog.js";
-import type { BoothState, Deliverable, PhotoTransform } from "../shared/session.js";
+import type {
+  BoothState,
+  Deliverable,
+  HolderTransform,
+  PhotoTransform,
+} from "../shared/session.js";
 import { renderCustomOverlay } from "./customOverlay.js";
 
 const publicMediaUrl = (dataDirectory: string, absolutePath: string) =>
@@ -144,6 +149,48 @@ async function renderSlot(photoPath: string, slot: PhotoSlot, transform: MediaTr
     .toBuffer();
 }
 
+type PositionedLayer = { input: Buffer; left: number; top: number };
+
+async function positionHolder(
+  input: Buffer,
+  slot: PhotoSlot,
+  transform: MediaTransform,
+  canvasWidth: number,
+  canvasHeight: number,
+): Promise<PositionedLayer | null> {
+  const scaledWidth = Math.max(1, Math.round(slot.width * transform.scale));
+  const scaledHeight = Math.max(1, Math.round(slot.height * transform.scale));
+  const desiredLeft = Math.round(
+    slot.x + (slot.width - scaledWidth) / 2 + transform.offsetX * slot.width,
+  );
+  const desiredTop = Math.round(
+    slot.y + (slot.height - scaledHeight) / 2 + transform.offsetY * slot.height,
+  );
+  const cropLeft = Math.max(0, -desiredLeft);
+  const cropTop = Math.max(0, -desiredTop);
+  const outputLeft = Math.max(0, desiredLeft);
+  const outputTop = Math.max(0, desiredTop);
+  const visibleWidth = Math.min(scaledWidth - cropLeft, canvasWidth - outputLeft);
+  const visibleHeight = Math.min(scaledHeight - cropTop, canvasHeight - outputTop);
+  if (visibleWidth <= 0 || visibleHeight <= 0) return null;
+
+  const scaled = await sharp(input)
+    .resize(scaledWidth, scaledHeight, { fit: "fill" })
+    .png()
+    .toBuffer();
+  const visible =
+    cropLeft === 0 &&
+    cropTop === 0 &&
+    visibleWidth === scaledWidth &&
+    visibleHeight === scaledHeight
+      ? scaled
+      : await sharp(scaled)
+          .extract({ left: cropLeft, top: cropTop, width: visibleWidth, height: visibleHeight })
+          .png()
+          .toBuffer();
+  return { input: visible, left: outputLeft, top: outputTop };
+}
+
 const slotOutline = (slot: PhotoSlot, accent: string, strokeWidth: number) => {
   if (slot.shape === "heart") {
     return `<svg x="${slot.x}" y="${slot.y}" width="${slot.width}" height="${slot.height}" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${heartPath}" fill="none" stroke="${accent}" stroke-width="${strokeWidth / 6}" /></svg>`;
@@ -218,21 +265,29 @@ async function createComposite(input: {
   customOverlayPath: string | null;
   customOverlayMode: CustomOverlayMode | null;
   frameTransform: MediaTransform;
+  holderTransforms: HolderTransform[];
   photoTransforms: PhotoTransform[];
 }) {
   const { canvasWidth: width, canvasHeight: height } = input.layout;
   const strokeWidth = Math.max(6, Math.round(Math.min(width, height) * 0.012));
-  const photos = await Promise.all(
-    input.layout.slots.map((slot) => {
-      const photoPath = input.capturePaths[slot.captureIndex];
-      if (!photoPath)
-        throw new Error(`Layout references missing capture ${slot.captureIndex + 1}.`);
-      const captureSlot = slot.captureIndex + 1;
-      const transform =
-        input.photoTransforms.find((item) => item.slot === captureSlot) ?? identityMediaTransform();
-      return renderSlot(photoPath, slot, transform);
-    }),
-  );
+  const photos = (
+    await Promise.all(
+      input.layout.slots.map(async (slot) => {
+        const photoPath = input.capturePaths[slot.captureIndex];
+        if (!photoPath)
+          throw new Error(`Layout references missing capture ${slot.captureIndex + 1}.`);
+        const captureSlot = slot.captureIndex + 1;
+        const photoTransform =
+          input.photoTransforms.find((item) => item.slot === captureSlot) ??
+          identityMediaTransform();
+        const holderTransform =
+          input.holderTransforms.find((item) => item.slot === captureSlot) ??
+          identityMediaTransform();
+        const photo = await renderSlot(photoPath, slot, photoTransform);
+        return positionHolder(photo, slot, holderTransform, width, height);
+      }),
+    )
+  ).filter((photo): photo is PositionedLayer => photo !== null);
   const replacesGeneratedFrame = Boolean(input.customOverlayPath);
   const brandMarkup = input.layout.brandAreas
     .map((brandArea) => {
@@ -284,15 +339,7 @@ async function createComposite(input: {
       background: input.background,
     },
   })
-    .composite([
-      ...photos.map((photo, index) => ({
-        input: photo,
-        top: input.layout.slots[index].y,
-        left: input.layout.slots[index].x,
-      })),
-      { input: frame, top: 0, left: 0 },
-      ...customOverlayLayer,
-    ])
+    .composite([...photos, { input: frame, top: 0, left: 0 }, ...customOverlayLayer])
     .withMetadata({ density: 300 })
     .png()
     .toFile(input.outputPath);
@@ -393,6 +440,7 @@ export async function buildDeliverables(
         : null,
     customOverlayMode: overlay.kind === "custom" ? overlay.importMode : null,
     frameTransform: state.frameTransform,
+    holderTransforms: state.holderTransforms,
     photoTransforms: state.photoTransforms,
   });
 

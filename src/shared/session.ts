@@ -50,9 +50,10 @@ export type Deliverable = {
 };
 
 export type PhotoTransform = MediaTransform & { slot: number };
+export type HolderTransform = MediaTransform & { slot: number };
 
 export type BoothState = {
-  schemaVersion: 6;
+  schemaVersion: 7;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -65,6 +66,7 @@ export type BoothState = {
   overlayId: string;
   customOverlays: CustomOverlay[];
   frameTransform: MediaTransform;
+  holderTransforms: HolderTransform[];
   photoTransforms: PhotoTransform[];
   requiredCaptureCount: number;
   captures: Capture[];
@@ -88,6 +90,7 @@ export type Command =
   | { type: "SELECT_DESIGN"; designId: string }
   | { type: "SELECT_OVERLAY"; overlayId: string }
   | { type: "UPDATE_FRAME_TRANSFORM"; transform: MediaTransform }
+  | { type: "UPDATE_HOLDER_TRANSFORM"; slot: number; transform: MediaTransform }
   | { type: "UPDATE_PHOTO_TRANSFORM"; slot: number; transform: MediaTransform }
   | { type: "REGISTER_CUSTOM_OVERLAY"; overlay: CustomOverlay }
   | { type: "RECORD_CONSENT" }
@@ -111,7 +114,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 6,
+  schemaVersion: 7,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -124,6 +127,7 @@ export const initialBoothState = (): BoothState => ({
   overlayId: "none",
   customOverlays: [],
   frameTransform: identityMediaTransform(),
+  holderTransforms: [],
   photoTransforms: [],
   requiredCaptureCount: 0,
   captures: [],
@@ -179,6 +183,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "CONFIRM_CASH":
     case "CAMERA_CAPTURE_FAILED":
     case "UPDATE_FRAME_TRANSFORM":
+    case "UPDATE_HOLDER_TRANSFORM":
     case "UPDATE_PHOTO_TRANSFORM":
       if (!isStaff(actor)) throw new CommandError("This action is staff-only.");
       return;
@@ -238,6 +243,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         designId: null,
         overlayId: "none",
         frameTransform: identityMediaTransform(),
+        holderTransforms: [],
         photoTransforms: [],
         requiredCaptureCount: 0,
         captures: [],
@@ -259,6 +265,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         designId: null,
         overlayId: "none",
         frameTransform: identityMediaTransform(),
+        holderTransforms: [],
         photoTransforms: [],
         requiredCaptureCount: 0,
       });
@@ -277,6 +284,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         requiredCaptureCount: layout.requiredCaptureCount,
         overlayId: "none",
         frameTransform: identityMediaTransform(),
+        holderTransforms: [],
         photoTransforms: [],
       });
     }
@@ -333,6 +341,24 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       }
       assertMediaTransform(command.transform);
       return revised(state, { frameTransform: command.transform });
+    case "UPDATE_HOLDER_TRANSFORM":
+      requirePhase(state, ["reviewing"]);
+      if (
+        state.frameMode !== "custom" ||
+        getOverlay(state.overlayId, state.customOverlays)?.kind !== "custom"
+      ) {
+        throw new CommandError("Photo-holder positioning is available with a custom frame.");
+      }
+      if (!state.captures.some((capture) => capture.slot === command.slot)) {
+        throw new CommandError("Choose an existing photo holder to reposition.");
+      }
+      assertMediaTransform(command.transform);
+      return revised(state, {
+        holderTransforms: [
+          ...state.holderTransforms.filter((item) => item.slot !== command.slot),
+          { slot: command.slot, ...command.transform },
+        ].sort((a, b) => a.slot - b.slot),
+      });
     case "UPDATE_PHOTO_TRANSFORM":
       requirePhase(state, ["reviewing"]);
       if (

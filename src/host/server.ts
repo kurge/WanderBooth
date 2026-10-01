@@ -47,7 +47,7 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 6,
+      schemaVersion: 7,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
@@ -56,6 +56,7 @@ let state: BoothState = savedState
       frameMode: savedFrameMode,
       designId: savedFrameMode === "custom" ? null : savedState.designId,
       frameTransform: savedState.frameTransform ?? identityMediaTransform(),
+      holderTransforms: savedState.holderTransforms ?? [],
       photoTransforms: savedState.photoTransforms ?? [],
     }
   : defaultState;

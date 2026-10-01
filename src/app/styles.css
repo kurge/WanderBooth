@@ -948,6 +948,164 @@ p {
   opacity: 0.46;
 }
 
+.overlay-thumbnail--custom img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.overlay-thumbnail--custom b {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: white;
+  background: rgba(41, 9, 66, 0.78);
+  font-size: 0.52rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.overlay-importer {
+  display: grid;
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px dashed rgba(53, 114, 196, 0.42);
+  border-radius: 19px;
+  background: rgba(238, 242, 255, 0.72);
+  grid-template-columns: minmax(210px, 0.72fr) minmax(320px, 1.28fr);
+  gap: 24px;
+}
+
+.overlay-importer__copy > span {
+  color: var(--blue);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.overlay-importer__copy h3 {
+  margin: 7px 0 8px;
+  font-size: 1.18rem;
+}
+
+.overlay-importer__copy p {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.overlay-importer__fields {
+  display: grid;
+  gap: 11px;
+}
+
+.overlay-importer__fields > label:not(.file-picker) {
+  display: grid;
+  gap: 5px;
+  color: #656a83;
+  font-size: 0.69rem;
+  font-weight: 800;
+}
+
+.overlay-importer__fields input[type="text"] {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--blue-dark);
+  background: white;
+}
+
+.file-picker {
+  display: grid;
+  min-height: 48px;
+  place-items: center;
+  padding: 10px 14px;
+  border: 1px solid rgba(53, 114, 196, 0.34);
+  border-radius: 12px;
+  color: var(--blue);
+  background: white;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.file-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.overlay-importer fieldset {
+  display: grid;
+  margin: 0;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.62);
+  gap: 9px;
+}
+
+.overlay-importer legend {
+  padding: 0 5px;
+  color: #656a83;
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.overlay-importer fieldset label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  cursor: pointer;
+}
+
+.overlay-importer fieldset input {
+  margin-top: 3px;
+}
+
+.overlay-importer__option-title,
+.overlay-importer__option-help {
+  display: block;
+}
+
+.overlay-importer__option-title {
+  font-size: 0.76rem;
+}
+
+.overlay-importer__option-help {
+  margin-top: 2px;
+  color: #73778f;
+  font-size: 0.66rem;
+  line-height: 1.38;
+}
+
+.overlay-importer__status {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.overlay-importer__status--success {
+  color: #176943;
+  background: rgba(191, 232, 209, 0.58);
+}
+
+.overlay-importer__status--error {
+  color: #8f3020;
+  background: #ffe3dc;
+}
+
 .design-card small {
   min-height: 34px;
   margin-top: 5px;
@@ -1615,6 +1773,10 @@ p {
   .layout-grid,
   .overlay-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .overlay-importer {
+    grid-template-columns: 1fr;
   }
 }
 

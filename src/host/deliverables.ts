@@ -6,6 +6,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import sharp from "sharp";
 
 import {
+  type CustomOverlayMode,
   getDesign,
   getLayout,
   getOverlay,
@@ -105,7 +106,7 @@ const slotOutline = (slot: PhotoSlot, accent: string, strokeWidth: number) => {
 
 const overlayMarkup = (kind: OverlayKind, layout: Layout, accent: string) => {
   const { canvasWidth: width, canvasHeight: height } = layout;
-  if (kind === "none") return "";
+  if (kind === "none" || kind === "custom") return "";
   if (kind === "film") {
     const holeWidth = Math.max(14, Math.round(Math.min(width, height) * 0.025));
     const holeHeight = Math.round(holeWidth * 0.7);
@@ -165,6 +166,8 @@ async function createComposite(input: {
   layout: Layout;
   overlayKind: OverlayKind;
   overlayName: string;
+  customOverlayPath: string | null;
+  customOverlayMode: CustomOverlayMode | null;
 }) {
   const { canvasWidth: width, canvasHeight: height } = input.layout;
   const strokeWidth = Math.max(6, Math.round(Math.min(width, height) * 0.012));
@@ -176,6 +179,7 @@ async function createComposite(input: {
       return renderSlot(photoPath, slot);
     }),
   );
+  const replacesGeneratedFrame = input.customOverlayMode === "flat_template";
   const brandMarkup = input.layout.brandAreas
     .map((brandArea) => {
       const brandX = brandArea.align === "center" ? brandArea.x + brandArea.width / 2 : brandArea.x;
@@ -194,12 +198,16 @@ async function createComposite(input: {
     .join("");
   const frame = Buffer.from(`
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      ${input.layout.slots.map((slot) => slotOutline(slot, input.accent, strokeWidth)).join("")}
-      ${input.layout.id === "double-strip-4x6" ? `<path d="M600 28 V1772" stroke="${input.accent}" stroke-width="3" stroke-dasharray="14 14" opacity="0.55" />` : ""}
-      ${overlayMarkup(input.overlayKind, input.layout, input.accent)}
-      ${brandMarkup}
+      ${replacesGeneratedFrame ? "" : input.layout.slots.map((slot) => slotOutline(slot, input.accent, strokeWidth)).join("")}
+      ${replacesGeneratedFrame || input.layout.id !== "double-strip-4x6" ? "" : `<path d="M600 28 V1772" stroke="${input.accent}" stroke-width="3" stroke-dasharray="14 14" opacity="0.55" />`}
+      ${replacesGeneratedFrame ? "" : overlayMarkup(input.overlayKind, input.layout, input.accent)}
+      ${replacesGeneratedFrame ? "" : brandMarkup}
     </svg>
   `);
+
+  const customOverlayLayer = input.customOverlayPath
+    ? [{ input: input.customOverlayPath, top: 0, left: 0 }]
+    : [];
 
   await mkdir(dirname(input.outputPath), { recursive: true });
   await sharp({
@@ -217,6 +225,7 @@ async function createComposite(input: {
         left: input.layout.slots[index].x,
       })),
       { input: frame, top: 0, left: 0 },
+      ...customOverlayLayer,
     ])
     .withMetadata({ density: 300 })
     .png()
@@ -273,7 +282,7 @@ export async function buildDeliverables(
   if (!state.sessionId) throw new Error("A session is required to build deliverables.");
   const design = getDesign(state.designId);
   const layout = getLayout(state.layoutId);
-  const overlay = getOverlay(state.overlayId);
+  const overlay = getOverlay(state.overlayId, state.customOverlays);
   if (!design || !layout || !overlay) {
     throw new Error("A valid layout, frame, and overlay are required to build deliverables.");
   }
@@ -307,6 +316,9 @@ export async function buildDeliverables(
     layout,
     overlayKind: overlay.kind,
     overlayName: overlay.name,
+    customOverlayPath:
+      overlay.kind === "custom" ? mediaUrlToPath(dataDirectory, overlay.mediaUrl) : null,
+    customOverlayMode: overlay.kind === "custom" ? overlay.importMode : null,
   });
 
   const deliverables: Deliverable[] = individualPaths.map((absolutePath, index) => ({

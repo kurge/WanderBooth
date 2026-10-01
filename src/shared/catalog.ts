@@ -45,15 +45,27 @@ export type Design = {
   background: string;
 };
 
-export type OverlayKind = "none" | "film" | "confetti" | "hearts";
+export type OverlayKind = "none" | "film" | "confetti" | "hearts" | "custom";
 
-export type Overlay = {
+export type CustomOverlayMode = "transparent_artwork" | "flat_template";
+
+type OverlayBase = {
   id: string;
   name: string;
   description: string;
-  kind: OverlayKind;
   layoutIds: string[] | "all";
 };
+
+export type CustomOverlay = OverlayBase & {
+  kind: "custom";
+  layoutIds: [string];
+  mediaUrl: string;
+  importMode: CustomOverlayMode;
+  pixelWidth: number;
+  pixelHeight: number;
+};
+
+export type Overlay = (OverlayBase & { kind: Exclude<OverlayKind, "custom"> }) | CustomOverlay;
 
 export const products: Product[] = [
   {
@@ -234,8 +246,10 @@ export const getLayout = (layoutId: string | null) =>
 export const getDesign = (designId: string | null) =>
   designs.find((design) => design.id === designId) ?? null;
 
-export const getOverlay = (overlayId: string | null) =>
-  overlays.find((overlay) => overlay.id === overlayId) ?? null;
+export const getOverlay = (overlayId: string | null, customOverlays: CustomOverlay[] = []) =>
+  overlays.find((overlay) => overlay.id === overlayId) ??
+  customOverlays.find((overlay) => overlay.id === overlayId) ??
+  null;
 
 export const getProduct = (productId: string | null) =>
   products.find((product) => product.id === productId) ?? null;

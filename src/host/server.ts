@@ -7,6 +7,7 @@ import { extname, resolve } from "node:path";
 import WebSocket, { WebSocketServer } from "ws";
 
 import { takeSimulatedPhoto } from "../camera/simulator.js";
+import { type CustomOverlayMode, getLayout } from "../shared/catalog.js";
 import type { ClientMessage, ServerMessage } from "../shared/protocol.js";
 import {
   type Actor,
@@ -16,6 +17,7 @@ import {
   initialBoothState,
   reduceCommand,
 } from "../shared/session.js";
+import { importCustomOverlay } from "./customOverlay.js";
 import { BoothDatabase } from "./database.js";
 import { buildDeliverables } from "./deliverables.js";
 
@@ -33,11 +35,12 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 4,
+      schemaVersion: 5,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
       overlayId: savedState.overlayId ?? "none",
+      customOverlays: savedState.customOverlays ?? [],
     }
   : defaultState;
 database.saveState(state);
@@ -90,7 +93,11 @@ const serveFile = (response: ServerResponse, absolutePath: string) => {
   createReadStream(absolutePath).pipe(response);
 };
 
-const readImageBody = async (request: IncomingMessage, maximumBytes = 15 * 1024 * 1024) => {
+const readImageBody = async (
+  request: IncomingMessage,
+  maximumBytes = 15 * 1024 * 1024,
+  label = "image",
+) => {
   const chunks: Buffer[] = [];
   let totalBytes = 0;
 
@@ -98,12 +105,12 @@ const readImageBody = async (request: IncomingMessage, maximumBytes = 15 * 1024 
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     totalBytes += buffer.length;
     if (totalBytes > maximumBytes) {
-      throw new CommandError("The captured photo is larger than 15 MB.");
+      throw new CommandError(`The ${label} is too large.`);
     }
     chunks.push(buffer);
   }
 
-  if (totalBytes === 0) throw new CommandError("The camera did not send a photo.");
+  if (totalBytes === 0) throw new CommandError(`The ${label} file is empty.`);
   return Buffer.concat(chunks);
 };
 
@@ -190,12 +197,60 @@ const receiveCameraCapture = async (request: IncomingMessage, response: ServerRe
   sendJson(response, 201, { ok: true });
 };
 
+const headerValue = (request: IncomingMessage, name: string) => {
+  const value = request.headers[name];
+  return Array.isArray(value) ? value[0] : value;
+};
+
+const receiveOverlayImport = async (request: IncomingMessage, response: ServerResponse) => {
+  if (!["idle", "selecting", "reviewing"].includes(state.phase)) {
+    throw new CommandError("Import designs before payment, or while reviewing the photos.");
+  }
+
+  const contentType = request.headers["content-type"]?.split(";")[0] ?? "";
+  if (!["image/png", "image/jpeg", "image/webp"].includes(contentType)) {
+    throw new CommandError("Choose a PNG, JPEG, or WebP design file.");
+  }
+
+  const layoutId = headerValue(request, "x-wanderbooth-layout-id") ?? "";
+  const layout = getLayout(layoutId);
+  if (!layout) throw new CommandError("Choose a valid layout before importing the design.");
+
+  const mode = headerValue(request, "x-wanderbooth-overlay-mode");
+  if (mode !== "transparent_artwork" && mode !== "flat_template") {
+    throw new CommandError("Choose how WanderBooth should prepare this design.");
+  }
+
+  let name = "";
+  try {
+    name = decodeURIComponent(headerValue(request, "x-wanderbooth-overlay-name") ?? "");
+  } catch {
+    throw new CommandError("The design name could not be read.");
+  }
+
+  const source = await readImageBody(request, 25 * 1024 * 1024, "design");
+  const overlay = await importCustomOverlay({
+    source,
+    dataDirectory,
+    layout,
+    importMode: mode as CustomOverlayMode,
+    name,
+  }).catch((error: unknown) => {
+    throw new CommandError(
+      error instanceof Error ? error.message : "The design could not be prepared.",
+    );
+  });
+  systemCommit({ type: "REGISTER_CUSTOM_OVERLAY", overlay });
+  sendJson(response, 201, { overlay });
+};
+
 const httpServer = createServer((request, response) => {
   const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
   if (request.method === "OPTIONS") {
     response.writeHead(204, {
-      "Access-Control-Allow-Headers": "Content-Type, X-Session-Id",
+      "Access-Control-Allow-Headers":
+        "Content-Type, X-Session-Id, X-WanderBooth-Layout-Id, X-WanderBooth-Overlay-Mode, X-WanderBooth-Overlay-Name",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Origin": "*",
     });
@@ -208,6 +263,17 @@ const httpServer = createServer((request, response) => {
       .then(() => receiveCameraCapture(request, response))
       .catch((error) => {
         const message = error instanceof Error ? error.message : "The photo could not be saved.";
+        sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
+      });
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/api/overlays") {
+    commandQueue = commandQueue
+      .then(() => receiveOverlayImport(request, response))
+      .catch((error) => {
+        const message =
+          error instanceof Error ? error.message : "The design could not be imported.";
         sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
       });
     return;

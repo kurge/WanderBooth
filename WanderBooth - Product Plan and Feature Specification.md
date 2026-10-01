@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 0.9.0
+document_version: 1.0.0
 created: 2026-10-01
 updated: 2026-10-02
 owner: Kurge
@@ -102,6 +102,8 @@ The business should be able to keep serving customers during internet interrupti
 - The first catalog includes **two product families, five layouts, five frame palettes, and four overlay choices**.
 - Layouts may repeat a capture in more than one visible slot; the double-strip layout therefore needs three unique captures, not six.
 - Initial slot shapes include rectangles, rounded rectangles, and a heart-shaped feature photo.
+- The owner or attendant can import a PNG, JPEG, or WebP event frame from the Mac operator screen after selecting a layout. Transparent artwork is layered directly; a flattened template can be converted by automatically clearing the selected layout's photo slots.
+- Imported frames are stored locally, persist across application restarts, are limited to their selected layout, and are not added to the public repository.
 - One tap starts the complete three-photo sequence, with a **three-second countdown before each photo**.
 - The customer preview is mirrored for natural posing, while saved and delivered photos are not mirrored.
 - The first pilot will include approximately **5–10 layouts/designs**.
@@ -148,6 +150,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - The selection menu now offers three-photo strips and four-photo cards, with the required automatic capture count changing from the selected layout.
 - The renderer now reads data-driven canvas, slot, shape, repeated-capture, branding-area, frame, and overlay definitions instead of one hard-coded strip.
 - Synthetic rendering checks passed for the repeated 4×6 double strip with film overlay and the four-photo heart layout with heart overlay.
+- The operator can import transparent artwork or a flat template without editing code. The Host validates, normalizes, stores, and registers the frame locally; Sample Template 1 passed an end-to-end double-strip session using automatic photo cutouts.
 - The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
@@ -416,7 +419,7 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - Generate an H.264 MP4 slideshow for multi-photo sessions
 - Generate Epson L8050 layouts for 4×6 prints and 2×6 strips
 - Keep photo-slot geometry separate from frame colors and transparent foreground overlays
-- Validate imported overlay dimensions, transparency, file size, and declared layout compatibility before use
+- Validate imported artwork aspect ratio, transparency mode, file size, type, and declared layout compatibility before use
 - Ship with approximately 5–10 selectable initial layouts/designs
 - Store every session in a predictable local folder structure
 
@@ -756,7 +759,7 @@ Tasks:
 - Refine the working prototype for three individual branded photos, a 2×6 composite strip, and an MP4 slideshow.
 - Render a print-ready 4×6 sheet containing two identical copies of the current 2×6 strip.
 - Use the working data-driven catalog to test multiple three- and four-photo layouts, frame palettes, overlays, repeated slots, and a shaped slot.
-- Define the staff-only workflow for importing production-ready transparent PNG overlays without editing code.
+- Test the implemented staff-only transparent-artwork and flat-template importer with the final production designs.
 - Test the working browser-to-Host control connection from the physical iPad.
 - Prototype queued upload to private cloud storage and a 30-day mobile download page.
 - Verify that capture and printing continue with internet disconnected and that the upload completes after reconnection.
@@ -965,6 +968,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.0.0 | 2026-10-02 | Added the staff-only local event-frame importer for PNG, JPEG, and WebP artwork, including automatic photo cutouts for flattened templates, persistent layout compatibility, validation, previews, and final rendering above captured photos. |
 | 0.9.0 | 2026-10-02 | Replaced the fixed template assumption with a product-compatible catalog of five layouts, five frame palettes, and four optional overlays, including repeated double strips, four-photo portrait/landscape cards, and a heart-shaped slot. |
 | 0.8.0 | 2026-10-02 | Added the synchronized one-tap three-photo sequence, three-second countdowns, relayed mirrored customer preview, unmirrored saved captures, staff cancellation, and the first 4×6 double-strip print decision. |
 | 0.7.0 | 2026-10-02 | Implemented the Experimental MacBook camera source, verified a packaged three-photo session, served the customer screen from the packaged Host, and documented Safari versus Sidecar iPad setup. |

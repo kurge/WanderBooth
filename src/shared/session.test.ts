@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { products } from "./catalog";
+import { type CustomOverlay, products } from "./catalog";
 import { type BoothState, CommandError, initialBoothState, reduceCommand } from "./session";
 
 const beginSelection = (mode: "attendant" | "self_service" = "attendant") => {
@@ -61,6 +61,47 @@ describe("WanderBooth session rules", () => {
       reduceCommand(state, { type: "SELECT_OVERLAY", overlayId: "love-hearts" }, "attendant")
         .overlayId,
     ).toBe("love-hearts");
+  });
+
+  it("registers an imported overlay and limits it to its chosen layout", () => {
+    const customOverlay: CustomOverlay = {
+      id: "custom-test-overlay",
+      name: "Test Event",
+      description: "Imported test frame.",
+      kind: "custom",
+      layoutIds: ["double-strip-4x6"],
+      mediaUrl: "/media/overlays/custom-test-overlay.png",
+      importMode: "flat_template",
+      pixelWidth: 1200,
+      pixelHeight: 1800,
+    };
+    let state = reduceCommand(
+      initialBoothState(),
+      { type: "REGISTER_CUSTOM_OVERLAY", overlay: customOverlay },
+      "system",
+    );
+    state = reduceCommand(
+      state,
+      { type: "BEGIN_SESSION", sessionId: "test-session-custom" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_PRODUCT", productId: "three-photo-strip" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_LAYOUT", layoutId: "double-strip-4x6" },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      { type: "SELECT_OVERLAY", overlayId: customOverlay.id },
+      "attendant",
+    );
+    expect(state.overlayId).toBe(customOverlay.id);
+    expect(state.customOverlays).toEqual([customOverlay]);
   });
 
   it("keeps pricing out of the first product catalog", () => {

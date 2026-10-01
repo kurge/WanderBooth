@@ -1,6 +1,7 @@
 import WebSocket from "ws";
 
-const socket = new WebSocket("ws://127.0.0.1:4174/ws");
+const hostPort = process.env.WANDERBOOTH_SMOKE_HOST_PORT ?? "4174";
+const socket = new WebSocket(`ws://127.0.0.1:${hostPort}/ws`);
 const clientId = `smoke-${crypto.randomUUID()}`;
 const acknowledgements = new Map();
 const stateWaiters = new Set();

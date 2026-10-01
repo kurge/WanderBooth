@@ -25,6 +25,28 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.0.0 — 2026-10-02
+
+### Added
+
+- Added an operator-only **Import an event frame** tool after layout selection.
+- Added PNG, JPEG, and WebP uploads up to 25 MB with local persistence across app restarts.
+- Added **Flat template** mode, which automatically clears the selected layout's rectangle, rounded, or heart-shaped photo openings from opaque artwork.
+- Added **Transparent artwork** mode for production overlays that already contain clear photo openings.
+- Added imported-frame thumbnails, layout compatibility filtering, immediate selection after import, and review-time selection.
+- Added ADR 0010 documenting local storage, validation, rendering order, and current authentication trade-offs.
+
+### Verified
+
+- Confirmed all 18 automated tests, formatting, type checks, Host build, and customer-app build pass.
+- Imported the supplied 1200×1800 Sample Template 1 as a flat Double strip 4×6 frame in an isolated runtime.
+- Completed a full three-photo session and visually confirmed that both repeated strips appear inside the automatically cut openings while the imported black/red artwork remains above the photos.
+
+### Safety
+
+- Imported designs stay under private ignored runtime data and are never copied into the public repository.
+- Wrong aspect ratios, unsupported types, empty uploads, oversized files, and opaque images submitted in transparent-artwork mode are rejected with readable messages.
+
 ## 0.9.0 — 2026-10-02
 
 ### Added

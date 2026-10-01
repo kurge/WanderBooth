@@ -1,4 +1,11 @@
-import { getDesign, getLayout, getOverlay, getProduct, overlaySupportsLayout } from "./catalog.js";
+import {
+  type CustomOverlay,
+  getDesign,
+  getLayout,
+  getOverlay,
+  getProduct,
+  overlaySupportsLayout,
+} from "./catalog.js";
 
 export type Actor = "owner" | "attendant" | "customer" | "system";
 export type OperationMode = "attendant" | "self_service";
@@ -40,7 +47,7 @@ export type Deliverable = {
 };
 
 export type BoothState = {
-  schemaVersion: 4;
+  schemaVersion: 5;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -50,6 +57,7 @@ export type BoothState = {
   layoutId: string | null;
   designId: string | null;
   overlayId: string;
+  customOverlays: CustomOverlay[];
   requiredCaptureCount: number;
   captures: Capture[];
   pendingCapture: PendingCapture | null;
@@ -70,6 +78,7 @@ export type Command =
   | { type: "SELECT_LAYOUT"; layoutId: string }
   | { type: "SELECT_DESIGN"; designId: string }
   | { type: "SELECT_OVERLAY"; overlayId: string }
+  | { type: "REGISTER_CUSTOM_OVERLAY"; overlay: CustomOverlay }
   | { type: "RECORD_CONSENT" }
   | { type: "SUBMIT_SELECTION" }
   | { type: "CONFIRM_CASH" }
@@ -91,7 +100,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 4,
+  schemaVersion: 5,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -101,6 +110,7 @@ export const initialBoothState = (): BoothState => ({
   layoutId: null,
   designId: null,
   overlayId: "none",
+  customOverlays: [],
   requiredCaptureCount: 0,
   captures: [],
   pendingCapture: null,
@@ -166,6 +176,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "PROCESSING_STARTED":
     case "PROCESSING_COMPLETED":
     case "FAIL":
+    case "REGISTER_CUSTOM_OVERLAY":
       if (actor !== "system") throw new CommandError("Only the Host can complete this action.");
       return;
   }
@@ -238,7 +249,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
     case "SELECT_OVERLAY": {
       requirePhase(state, ["selecting", "reviewing"]);
       const layout = getLayout(state.layoutId);
-      const overlay = getOverlay(command.overlayId);
+      const overlay = getOverlay(command.overlayId, state.customOverlays);
       if (!layout || !overlay || !overlaySupportsLayout(overlay, layout.id)) {
         throw new CommandError("That overlay is not compatible with the selected layout.");
       }
@@ -253,7 +264,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         !state.productId ||
         !state.layoutId ||
         !state.designId ||
-        !getOverlay(state.overlayId) ||
+        !getOverlay(state.overlayId, state.customOverlays) ||
         !state.consentRecorded
       ) {
         throw new CommandError(
@@ -401,6 +412,15 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
     case "PROCESSING_COMPLETED":
       requirePhase(state, ["processing"]);
       return revised(state, { phase: "complete", deliverables: command.deliverables });
+    case "REGISTER_CUSTOM_OVERLAY": {
+      const overlay = command.overlay;
+      if (!getLayout(overlay.layoutIds[0])) {
+        throw new CommandError("The imported overlay references an unknown layout.");
+      }
+      return revised(state, {
+        customOverlays: [...state.customOverlays.filter((item) => item.id !== overlay.id), overlay],
+      });
+    }
     case "FAIL":
       return revised(state, {
         phase: "error",
@@ -413,6 +433,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         ...initialBoothState(),
         operationMode: state.operationMode,
         cameraSourceId: state.cameraSourceId,
+        customOverlays: state.customOverlays,
         revision: state.revision + 1,
         updatedAt: now(),
       };

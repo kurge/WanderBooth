@@ -29,13 +29,13 @@ WanderBooth is an offline-first photo booth application being developed for our 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **0.9.0 — Layout, Frame, and Overlay Catalog**
+- Product-plan version: **1.0.0 — Owner-Imported Event Frames**
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
-- Current catalog: **two product families, five layouts, five frame palettes, and four optional overlays**, iPad customer screen, no on-screen price
+- Current catalog: **two product families, five layouts, five frame palettes, four built-in overlays, and locally imported event frames**, iPad customer screen, no on-screen price
 - Current cameras: **prototype simulator and experimental MacBook camera**, now with a relayed customer-screen preview and automatic capture sequence; Fujifilm X-M5 is the first dedicated-camera target
 - First print decision: **one 4×6 sheet containing two identical three-photo 2×6 strips**; the renderer now produces this file, but printer submission is not implemented
-- Immediate next step: refine the approved production artwork and transparent-overlay import workflow, verify the menu on the physical iPad, then test the Epson L8050 print path. Private 30-day cloud QR delivery follows.
+- Immediate next step: import and refine the approved production event artwork, verify the full menu on the physical iPad, then test the Epson L8050 print path. Private 30-day cloud QR delivery follows.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**
 - Repository visibility: **Public**
 
@@ -49,6 +49,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Product/layout menu with three-photo strips and four-photo cards; every layout supplies its own automatic photo count.
 - Five data-driven layouts: classic 2×6, repeated double strip 4×6, feature portrait, heart feature, and party landscape.
 - Five reusable frame palettes and optional no-overlay, film-edge, confetti, and heart foreground treatments.
+- Operator-only event-frame import for transparent artwork or opaque/flattened templates. Flat templates receive automatic photo openings from the selected layout and remain available after restart.
 - Rectangle, rounded, heart-shaped, repeated-capture, portrait, and landscape rendering.
 - Cash confirmation before capture, with no price shown in the application.
 - Two retakes, design selection, customer preview, and final approval.
@@ -62,11 +63,11 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - A double-clickable Apple-silicon Mac application and local DMG build.
 - Supplied Wander Press PH artwork and exact blue, lime, yellow, cream, orange, and purple brand tokens.
 
-The prototype now controls the starting MacBook camera and renders a reusable template catalog, but it does **not** yet import arbitrary owner artwork, control the X-M5, submit jobs to the Epson L8050, upload to cloud storage, or generate the private 30-day QR page. The built-in camera remains Experimental until the full reliability and print-quality test is complete.
+The prototype now controls the starting MacBook camera, renders a reusable template catalog, and imports owner artwork locally, but it does **not** yet control the X-M5, submit jobs to the Epson L8050, upload to cloud storage, or generate the private 30-day QR page. The built-in camera remains Experimental until the full reliability and print-quality test is complete.
 
 ## Open the app on this Mac
 
-The current local installation image is generated at `release/WanderBooth-0.4.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
+The current local installation image is generated at `release/WanderBooth-0.5.0-arm64.dmg`. Double-click it in Finder, then drag **WanderBooth** into **Applications**. This build is for the current Apple-silicon Mac and does not require Terminal after installation.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

@@ -1,7 +1,9 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import wanderPressSplashLogo from "../../assets/brand/source/wander-press-splash-shadow.png";
 import {
+  type CustomOverlay,
+  type CustomOverlayMode,
   designs,
   getLayout,
   getProduct,
@@ -151,6 +153,15 @@ function LayoutThumbnail({ layout }: { layout: Layout }) {
 }
 
 function OverlayThumbnail({ overlay }: { overlay: Overlay }) {
+  if (overlay.kind === "custom") {
+    return (
+      <span className="overlay-thumbnail overlay-thumbnail--custom" aria-hidden="true">
+        <img src={mediaSource(overlay.mediaUrl)} alt="" />
+        <b>Imported</b>
+      </span>
+    );
+  }
+
   return (
     <span className={`overlay-thumbnail overlay-thumbnail--${overlay.kind}`} aria-hidden="true">
       <i />
@@ -158,6 +169,140 @@ function OverlayThumbnail({ overlay }: { overlay: Overlay }) {
       <i />
       <i />
     </span>
+  );
+}
+
+function OverlayImporter({
+  layout,
+  onImported,
+}: {
+  layout: Layout;
+  onImported: (overlayId: string) => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [name, setName] = useState("");
+  const [mode, setMode] = useState<CustomOverlayMode>("flat_template");
+  const [status, setStatus] = useState<{ kind: "error" | "success"; message: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const importOverlay = async () => {
+    if (!file || !name.trim()) return;
+    setUploading(true);
+    setStatus(null);
+    try {
+      const response = await fetch(`${hostHttpUrl}/api/overlays`, {
+        method: "POST",
+        headers: {
+          "Content-Type": file.type || "image/png",
+          "X-WanderBooth-Layout-Id": layout.id,
+          "X-WanderBooth-Overlay-Mode": mode,
+          "X-WanderBooth-Overlay-Name": encodeURIComponent(name.trim()),
+        },
+        body: file,
+      });
+      const result = (await response.json()) as { error?: string; overlay?: CustomOverlay };
+      if (!response.ok || !result.overlay) {
+        throw new Error(result.error ?? "The design could not be imported.");
+      }
+      setStatus({ kind: "success", message: `${result.overlay.name} is ready and selected.` });
+      setFile(null);
+      setName("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      onImported(result.overlay.id);
+    } catch (error) {
+      setStatus({
+        kind: "error",
+        message: error instanceof Error ? error.message : "The design could not be imported.",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <section className="overlay-importer" aria-labelledby="overlay-import-title">
+      <div className="overlay-importer__copy">
+        <span>Operator tool</span>
+        <h3 id="overlay-import-title">Import an event frame</h3>
+        <p>
+          This design will be saved locally for <strong>{layout.name}</strong> at{" "}
+          {layout.canvasWidth}×{layout.canvasHeight}px.
+        </p>
+      </div>
+      <div className="overlay-importer__fields">
+        <label className="file-picker">
+          <span>{file ? file.name : "Choose PNG, JPEG, or WebP"}</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(event) => {
+              const selected = event.target.files?.[0] ?? null;
+              setFile(selected);
+              setStatus(null);
+              if (selected) setName(selected.name.replace(/\.[^.]+$/, ""));
+            }}
+          />
+        </label>
+        <label>
+          Design name
+          <input
+            type="text"
+            value={name}
+            maxLength={80}
+            placeholder="Example: Garcia Wedding"
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <fieldset>
+          <legend>How should WanderBooth prepare it?</legend>
+          <label>
+            <input
+              type="radio"
+              name="overlay-mode"
+              value="flat_template"
+              checked={mode === "flat_template"}
+              onChange={() => setMode("flat_template")}
+            />
+            <span>
+              <strong className="overlay-importer__option-title">Flat template</strong>
+              <small className="overlay-importer__option-help">
+                Best for the sample images. Automatically removes the photo areas.
+              </small>
+            </span>
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="overlay-mode"
+              value="transparent_artwork"
+              checked={mode === "transparent_artwork"}
+              onChange={() => setMode("transparent_artwork")}
+            />
+            <span>
+              <strong className="overlay-importer__option-title">Transparent artwork</strong>
+              <small className="overlay-importer__option-help">
+                Uses an exported PNG that already has transparent photo openings.
+              </small>
+            </span>
+          </label>
+        </fieldset>
+        <button
+          className="button button--dark"
+          type="button"
+          disabled={!file || !name.trim() || uploading}
+          onClick={() => void importOverlay()}
+        >
+          {uploading ? "Preparing design…" : "Import and select"}
+        </button>
+        {status && (
+          <p className={`overlay-importer__status overlay-importer__status--${status.kind}`}>
+            {status.message}
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -214,10 +359,12 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
 function SelectionPanel({
   state,
   interactive,
+  isOperator,
   sendCommand,
 }: {
   state: BoothState;
   interactive: boolean;
+  isOperator: boolean;
   sendCommand: (command: Command) => void;
 }) {
   const selectedProduct = getProduct(state.productId);
@@ -227,8 +374,9 @@ function SelectionPanel({
         .map((layoutId) => layouts.find((layout) => layout.id === layoutId))
         .filter((layout): layout is Layout => Boolean(layout))
     : [];
+  const allOverlays: Overlay[] = [...overlays, ...state.customOverlays];
   const availableOverlays = selectedLayout
-    ? overlays.filter((overlay) => overlaySupportsLayout(overlay, selectedLayout.id))
+    ? allOverlays.filter((overlay) => overlaySupportsLayout(overlay, selectedLayout.id))
     : [];
   const canSubmit = Boolean(
     state.productId && state.layoutId && state.designId && state.consentRecorded,
@@ -387,6 +535,13 @@ function SelectionPanel({
           ))}
           {!selectedLayout && <p className="catalog-empty">Choose a layout first.</p>}
         </div>
+        {isOperator && selectedLayout && (
+          <OverlayImporter
+            key={selectedLayout.id}
+            layout={selectedLayout}
+            onImported={(overlayId) => sendCommand({ type: "SELECT_OVERLAY", overlayId })}
+          />
+        )}
       </div>
 
       <div className="consent-row">
@@ -424,7 +579,14 @@ function SessionPanel({
   sendCommand: (command: Command) => void;
 }) {
   if (state.phase === "selecting") {
-    return <SelectionPanel state={state} interactive={interactive} sendCommand={sendCommand} />;
+    return (
+      <SelectionPanel
+        state={state}
+        interactive={interactive}
+        isOperator={isOperator}
+        sendCommand={sendCommand}
+      />
+    );
   }
 
   if (state.phase === "awaiting_cash") {
@@ -545,7 +707,7 @@ function SessionPanel({
               </div>
               <div className="mini-overlays">
                 <span>Overlay</span>
-                {overlays
+                {[...overlays, ...state.customOverlays]
                   .filter(
                     (overlay) =>
                       Boolean(state.layoutId) &&

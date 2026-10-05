@@ -975,4 +975,98 @@ describe("WanderBooth session rules", () => {
     expect(state.activeEventId).toBe("event-archive-001");
     expect(state.events[0]?.status).toBe("active");
   });
+
+  it("applies a local filter to one reviewed photo without changing the source URL", () => {
+    let state: BoothState = {
+      ...initialBoothState(),
+      operationMode: "self_service",
+      phase: "reviewing",
+      requiredCaptureCount: 2,
+      captures: [
+        {
+          slot: 1,
+          revision: 1,
+          mediaUrl: "/media/photo-1.jpg",
+          capturedAt: "2026-11-22T10:01:00.000Z",
+          filterId: "original",
+        },
+        {
+          slot: 2,
+          revision: 1,
+          mediaUrl: "/media/photo-2.jpg",
+          capturedAt: "2026-11-22T10:02:00.000Z",
+          filterId: "original",
+        },
+      ],
+    };
+
+    state = reduceCommand(
+      state,
+      { type: "SELECT_PHOTO_FILTER", slot: 2, filterId: "vintage" },
+      "customer",
+    );
+
+    expect(state.captures[0]?.filterId).toBe("original");
+    expect(state.captures[1]).toMatchObject({
+      filterId: "vintage",
+      mediaUrl: "/media/photo-2.jpg",
+    });
+  });
+
+  it("records and updates a print attempt on a completed event session", () => {
+    let state = reduceCommand(
+      initialBoothState(),
+      {
+        type: "CREATE_EVENT",
+        eventId: "event-print-001",
+        name: "Print Test",
+        eventDate: "2026-11-22",
+        templateFolderId: "folder-general",
+      },
+      "attendant",
+    );
+    state = {
+      ...state,
+      phase: "processing",
+      sessionId: "session-print-001",
+      sessionStartedAt: "2026-11-22T10:00:00.000Z",
+    };
+    state = reduceCommand(state, { type: "PROCESSING_COMPLETED", deliverables: [] }, "system");
+
+    const openedAttempt = {
+      id: "print-attempt-001",
+      requestedAt: "2026-11-22T10:05:00.000Z",
+      completedAt: null,
+      status: "dialog_opened" as const,
+      failureReason: null,
+    };
+    state = reduceCommand(
+      state,
+      {
+        type: "RECORD_PRINT_ATTEMPT",
+        eventId: "event-print-001",
+        sessionId: "session-print-001",
+        attempt: openedAttempt,
+      },
+      "attendant",
+    );
+    state = reduceCommand(
+      state,
+      {
+        type: "RECORD_PRINT_ATTEMPT",
+        eventId: "event-print-001",
+        sessionId: "session-print-001",
+        attempt: {
+          ...openedAttempt,
+          completedAt: "2026-11-22T10:05:20.000Z",
+          status: "sent",
+        },
+      },
+      "attendant",
+    );
+
+    expect(state.events[0]?.sessions[0]?.printAttempts).toEqual([
+      expect.objectContaining({ id: "print-attempt-001", status: "sent" }),
+    ]);
+  });
 });

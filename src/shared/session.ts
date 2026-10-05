@@ -15,6 +15,7 @@ import {
   photoSlotId,
   resolveLayout,
 } from "./catalog.js";
+import { isPhotoFilterId, type PhotoFilterId } from "./filters.js";
 
 export type Actor = "owner" | "attendant" | "customer" | "system";
 export type OperationMode = "attendant" | "self_service";
@@ -39,6 +40,7 @@ export type Capture = {
   revision: number;
   mediaUrl: string;
   capturedAt: string;
+  filterId?: PhotoFilterId;
 };
 
 export type PendingCapture = {
@@ -52,10 +54,18 @@ export type CaptureSequence =
   | { kind: "retake"; remaining: number; slot: number };
 
 export type Deliverable = {
-  kind: "individual" | "strip" | "slideshow";
+  kind: "individual" | "strip" | "slideshow" | "print";
   label: string;
   mediaUrl: string;
   mimeType: string;
+};
+
+export type PrintAttempt = {
+  id: string;
+  requestedAt: string;
+  completedAt: string | null;
+  status: "dialog_opened" | "sent" | "cancelled" | "failed";
+  failureReason: string | null;
 };
 
 export type TemplateFolder = {
@@ -97,6 +107,7 @@ export type EventSessionRecord = {
   templateName: string | null;
   captures: Capture[];
   deliverables: Deliverable[];
+  printAttempts: PrintAttempt[];
   qrStatus: "pending_cloud";
   qrExpiresAt: string | null;
 };
@@ -127,7 +138,7 @@ export type TemplateEditorState = {
 };
 
 export type BoothState = {
-  schemaVersion: 12;
+  schemaVersion: 13;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -241,12 +252,19 @@ export type Command =
   | { type: "CAPTURE_COMPLETED"; capture: Capture }
   | { type: "RETAKE"; slot: number }
   | { type: "RETAKE_COMPLETED"; capture: Capture }
+  | { type: "SELECT_PHOTO_FILTER"; slot: number; filterId: PhotoFilterId }
   | { type: "COUNTDOWN_TICK"; remaining: number }
   | { type: "COUNTDOWN_TRIGGER" }
   | { type: "CAMERA_CAPTURE_FAILED"; message: string }
   | { type: "APPROVE" }
   | { type: "PROCESSING_STARTED" }
   | { type: "PROCESSING_COMPLETED"; deliverables: Deliverable[] }
+  | {
+      type: "RECORD_PRINT_ATTEMPT";
+      eventId: string;
+      sessionId: string;
+      attempt: PrintAttempt;
+    }
   | { type: "FAIL"; message: string }
   | { type: "RESET" };
 
@@ -254,7 +272,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 12,
+  schemaVersion: 13,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -372,6 +390,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "UPDATE_FRAME_TRANSFORM":
     case "UPDATE_HOLDER_TRANSFORM":
     case "UPDATE_PHOTO_TRANSFORM":
+    case "RECORD_PRINT_ATTEMPT":
       if (!isStaff(actor)) throw new CommandError("This action is staff-only.");
       return;
     case "BEGIN_SESSION":
@@ -386,6 +405,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "START_CAPTURE_SEQUENCE":
     case "CAPTURE":
     case "RETAKE":
+    case "SELECT_PHOTO_FILTER":
     case "APPROVE":
       if (!canControlCreativeFlow(state, actor)) {
         throw new CommandError("The customer display is read-only in Attendant-Operated mode.");
@@ -1332,6 +1352,20 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         phase: "reviewing",
       });
     }
+    case "SELECT_PHOTO_FILTER": {
+      requirePhase(state, ["reviewing"]);
+      if (!isPhotoFilterId(command.filterId)) {
+        throw new CommandError("That photo filter is not available.");
+      }
+      if (!state.captures.some((capture) => capture.slot === command.slot)) {
+        throw new CommandError("Choose an existing photo before applying a filter.");
+      }
+      return revised(state, {
+        captures: state.captures.map((capture) =>
+          capture.slot === command.slot ? { ...capture, filterId: command.filterId } : capture,
+        ),
+      });
+    }
     case "COUNTDOWN_TICK":
       requirePhase(state, ["countdown"]);
       if (!state.captureSequence || command.remaining !== state.captureSequence.remaining - 1) {
@@ -1412,6 +1446,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
               templateName: selectedTemplate?.name ?? null,
               captures: state.captures,
               deliverables: command.deliverables,
+              printAttempts: existing?.printAttempts ?? [],
               qrStatus: "pending_cloud",
               qrExpiresAt: null,
             };
@@ -1429,6 +1464,35 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         phase: "complete",
         deliverables: command.deliverables,
         events,
+      });
+    }
+    case "RECORD_PRINT_ATTEMPT": {
+      const event = state.events.find((item) => item.id === command.eventId);
+      const session = event?.sessions.find((item) => item.id === command.sessionId);
+      if (!event || !session) {
+        throw new CommandError("That completed session is no longer available for printing.");
+      }
+      if (!command.attempt.id.trim() || !command.attempt.requestedAt) {
+        throw new CommandError("The print history entry is incomplete.");
+      }
+      return revised(state, {
+        events: updateEvent(state, event.id, (item) => ({
+          ...item,
+          sessions: item.sessions.map((entry) =>
+            entry.id === session.id
+              ? {
+                  ...entry,
+                  printAttempts: [
+                    ...(entry.printAttempts ?? []).filter(
+                      (attempt) => attempt.id !== command.attempt.id,
+                    ),
+                    command.attempt,
+                  ].sort((a, b) => a.requestedAt.localeCompare(b.requestedAt)),
+                }
+              : entry,
+          ),
+          updatedAt: now(),
+        })),
       });
     }
     case "REGISTER_CUSTOM_OVERLAY": {

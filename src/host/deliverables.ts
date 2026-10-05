@@ -17,6 +17,7 @@ import {
   photoSlotId,
   resolveLayout,
 } from "../shared/catalog.js";
+import type { PhotoFilterId } from "../shared/filters.js";
 import type {
   BoothState,
   Deliverable,
@@ -49,6 +50,48 @@ const escapeXml = (value: string) =>
     };
     return entities[character];
   });
+
+async function applyPhotoFilter(
+  inputPath: string,
+  outputPath: string,
+  filterId: PhotoFilterId | undefined,
+) {
+  let pipeline = sharp(inputPath).rotate();
+  switch (filterId ?? "original") {
+    case "black_and_white":
+      pipeline = pipeline.grayscale().linear(1.06, -7);
+      break;
+    case "warm":
+      pipeline = pipeline.recomb([
+        [1.08, 0.03, 0],
+        [0.01, 1.02, 0],
+        [0, 0.02, 0.9],
+      ]);
+      break;
+    case "cool":
+      pipeline = pipeline.recomb([
+        [0.92, 0, 0.03],
+        [0, 1, 0.02],
+        [0.02, 0.03, 1.08],
+      ]);
+      break;
+    case "vintage":
+      pipeline = pipeline
+        .recomb([
+          [0.393, 0.769, 0.189],
+          [0.349, 0.686, 0.168],
+          [0.272, 0.534, 0.131],
+        ])
+        .modulate({ brightness: 1.04, saturation: 0.76 });
+      break;
+    case "high_contrast":
+      pipeline = pipeline.linear(1.22, -25).modulate({ saturation: 1.06 });
+      break;
+    case "original":
+      break;
+  }
+  await pipeline.png().toFile(outputPath);
+}
 
 async function createBrandedIndividual(input: {
   capturePath: string;
@@ -407,6 +450,43 @@ async function createSlideshow(individualPaths: string[], outputPath: string) {
   ]);
 }
 
+async function createPrintSheet(input: {
+  compositePath: string;
+  outputPath: string;
+  printSize: Layout["printSize"];
+  canvasWidth: number;
+  canvasHeight: number;
+}) {
+  if (input.printSize === "2x6") {
+    const strip = await sharp(input.compositePath)
+      .resize(600, 1800, { fit: "fill" })
+      .png()
+      .toBuffer();
+    await sharp({
+      create: {
+        width: 1200,
+        height: 1800,
+        channels: 4,
+        background: "white",
+      },
+    })
+      .composite([
+        { input: strip, left: 0, top: 0 },
+        { input: strip, left: 600, top: 0 },
+      ])
+      .withMetadata({ density: 300 })
+      .png()
+      .toFile(input.outputPath);
+    return;
+  }
+
+  await sharp(input.compositePath)
+    .resize(input.canvasWidth, input.canvasHeight, { fit: "fill" })
+    .withMetadata({ density: 300 })
+    .png()
+    .toFile(input.outputPath);
+}
+
 export async function buildDeliverables(
   state: BoothState,
   dataDirectory: string,
@@ -436,14 +516,21 @@ export async function buildDeliverables(
     : join(dataDirectory, "sessions", state.sessionId, "deliverables");
   await mkdir(outputDirectory, { recursive: true });
 
-  const individualPaths: string[] = [];
   const capturePaths = state.captures.map((capture) =>
     mediaUrlToPath(dataDirectory, capture.mediaUrl),
   );
+  const filteredCapturePaths = await Promise.all(
+    state.captures.map(async (capture, index) => {
+      const outputPath = join(outputDirectory, `.filtered-photo-${capture.slot}.png`);
+      await applyPhotoFilter(capturePaths[index], outputPath, capture.filterId);
+      return outputPath;
+    }),
+  );
+  const individualPaths: string[] = [];
   for (const [index, capture] of state.captures.entries()) {
     const outputPath = join(outputDirectory, `photo-${capture.slot}.png`);
     await createBrandedIndividual({
-      capturePath: capturePaths[index],
+      capturePath: filteredCapturePaths[index],
       outputPath,
       accent: design.accent,
       background: design.background,
@@ -454,7 +541,7 @@ export async function buildDeliverables(
 
   const compositePath = join(outputDirectory, `wanderbooth-${layout.id}.png`);
   await createComposite({
-    capturePaths,
+    capturePaths: filteredCapturePaths,
     outputPath: compositePath,
     accent: design.accent,
     background: state.frameMode === "custom" ? "#fffaf2" : design.background,
@@ -482,6 +569,24 @@ export async function buildDeliverables(
     kind: "strip",
     label: `Branded ${layout.name} (${layout.printSize.replace("x", "×")})`,
     mediaUrl: publicMediaUrl(dataDirectory, compositePath),
+    mimeType: "image/png",
+  });
+
+  const printPath = join(outputDirectory, "wanderbooth-print-4x6.png");
+  await createPrintSheet({
+    compositePath,
+    outputPath: printPath,
+    printSize: layout.printSize,
+    canvasWidth: layout.canvasWidth,
+    canvasHeight: layout.canvasHeight,
+  });
+  deliverables.push({
+    kind: "print",
+    label:
+      layout.printSize === "2x6"
+        ? "4×6 print sheet · two matching 2×6 strips"
+        : `4×6 print sheet · ${layout.canvasWidth > layout.canvasHeight ? "landscape" : "portrait"}`,
+    mediaUrl: publicMediaUrl(dataDirectory, printPath),
     mimeType: "image/png",
   });
 

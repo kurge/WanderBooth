@@ -7,7 +7,7 @@ tags:
   - changelog
 status: active
 created: 2026-10-01
-updated: 2026-10-02
+updated: 2026-10-06
 ---
 
 # WanderBooth — Changelog
@@ -24,6 +24,30 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - PHP price for the first double-strip print
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
+
+## 1.8.0 — 2026-10-06
+
+### Added
+
+- Added six non-destructive per-photo filters after capture: Original, B&W, Warm, Cool, Vintage, and High Contrast.
+- Added authoritative local Sharp rendering so filters appear in branded individual photos, the layout, slideshow inputs, and print.
+- Added a dedicated 300-DPI 4×6 print deliverable to every completed session. A single 2×6 design is duplicated into two matching cut strips.
+- Added a staff print-preview window, Electron native print-dialog bridge, completion/history print and reprint actions, and per-session print-attempt history.
+- Added a Self-Service ready-to-print operator banner and short audible ding.
+- Added schema version 13, ADR 0019, the printing/filter operating guide, Epson pilot checklist, future AR provider comparison, reducer coverage, and a test record.
+
+### Changed
+
+- Made manual preview plus the native operating-system print dialog the first pilot workflow. Automatic queue submission, printer telemetry, retry, and copy protection remain later milestones.
+- Standardized Epson physical output on 4×6 media instead of assuming native 2×6 paper handling.
+- Kept AR out of the first filter milestone while preserving a future provider boundary. MediaPipe is the first offline-oriented spike; Snap Camera Kit and DeepAR remain managed alternatives.
+
+### Verified
+
+- Completed a disposable three-photo browser session, applied B&W only to Photo 1, generated final deliverables, and visually confirmed that both duplicated 2×6 strips reflected the filter.
+- Confirmed the operator completion view, exact 4×6 print preview, Epson instructions, native-dialog control, and completed-session print action.
+- Passed the production Host/web build, Electron syntax checks, and a six-shot end-to-end smoke session including the explicit print deliverable.
+- The Vitest runner timed out starting every worker before any test file loaded; no assertion failed, but the automated suite is recorded as unverified until rerun.
 
 ## 1.7.0 — 2026-10-02
 

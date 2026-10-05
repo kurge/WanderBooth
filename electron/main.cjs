@@ -1,8 +1,14 @@
-const { app, BrowserWindow, session } = require("electron");
+const { app, BrowserWindow, ipcMain, session } = require("electron");
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 
 let hostProcess;
+
+const sharedWebPreferences = () => ({
+  contextIsolation: true,
+  preload: path.join(__dirname, "preload.cjs"),
+  sandbox: true,
+});
 
 function startProductionHost() {
   if (process.env.WANDERBOOTH_DEV_URL) return;
@@ -26,25 +32,34 @@ function createOperatorWindow() {
     minHeight: 760,
     title: "WanderBooth Operator",
     backgroundColor: "#f7f4ed",
-    webPreferences: {
-      contextIsolation: true,
-      sandbox: true,
-    },
+    webPreferences: sharedWebPreferences(),
   });
 
   operatorWindow.webContents.setWindowOpenHandler(({ url }) => {
-    const customerWindow = new BrowserWindow({
-      width: 1024,
-      height: 768,
-      fullscreenable: true,
-      title: "WanderBooth Customer Display",
-      backgroundColor: "#fff23c",
-      webPreferences: {
-        contextIsolation: true,
-        sandbox: true,
-      },
-    });
-    customerWindow.loadURL(url);
+    if (!isTrustedBoothUrl(url)) return { action: "deny" };
+    const parsed = new URL(url);
+    const isPrintPreview = parsed.searchParams.get("surface") === "print";
+    const childWindow = new BrowserWindow(
+      isPrintPreview
+        ? {
+            width: 980,
+            height: 920,
+            minWidth: 760,
+            minHeight: 700,
+            title: "WanderBooth Print Preview",
+            backgroundColor: "#f7f4ed",
+            webPreferences: sharedWebPreferences(),
+          }
+        : {
+            width: 1024,
+            height: 768,
+            fullscreenable: true,
+            title: "WanderBooth Customer Display",
+            backgroundColor: "#fff23c",
+            webPreferences: sharedWebPreferences(),
+          },
+    );
+    childWindow.loadURL(url);
     return { action: "deny" };
   });
 
@@ -72,6 +87,15 @@ function isTrustedBoothUrl(url) {
   }
 }
 
+function isPrintSurfaceUrl(url) {
+  if (!isTrustedBoothUrl(url)) return false;
+  try {
+    return new URL(url).searchParams.get("surface") === "print";
+  } catch {
+    return false;
+  }
+}
+
 function configureCameraPermissions() {
   session.defaultSession.setPermissionCheckHandler(
     (_webContents, permission, requestingOrigin) =>
@@ -87,6 +111,25 @@ function configureCameraPermissions() {
 }
 
 app.whenReady().then(() => {
+  ipcMain.handle(
+    "wanderbooth:print-current-window",
+    (event) =>
+      new Promise((resolvePrint) => {
+        if (!isPrintSurfaceUrl(event.sender.getURL())) {
+          resolvePrint({ success: false, failureReason: "Printing is limited to print preview." });
+          return;
+        }
+        event.sender.print(
+          {
+            printBackground: true,
+            silent: false,
+          },
+          (success, failureReason) => {
+            resolvePrint({ success, failureReason: failureReason || null });
+          },
+        );
+      }),
+  );
   configureCameraPermissions();
   startProductionHost();
   createOperatorWindow();

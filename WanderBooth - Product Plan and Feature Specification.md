@@ -10,9 +10,9 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.7.0
+document_version: 1.8.0
 created: 2026-10-01
-updated: 2026-10-02
+updated: 2026-10-06
 owner: Kurge
 ---
 
@@ -124,6 +124,10 @@ The business should be able to keep serving customers during internet interrupti
 - The camera system must be extensible so additional brands and models can be added through adapters and tested compatibility profiles.
 - The starting MacBook camera is implemented as an Experimental standard video-device source. One packaged three-photo session passed at 1920×1080; it is not yet certified for customers or prints.
 - The first printer is an **Epson EcoTank L8050**.
+- Every physical job in the first manual print workflow uses one 4×6 sheet. A single 2×6 design is duplicated on both halves for cutting, while full 4×6 designs print as composed.
+- The operator sees the exact print sheet before opening the native macOS/Windows print dialog. Self-Service completion notifies the operator with a banner and ding; printing and reprinting remain staff-only.
+- Post-capture filters are selected per photo. The first offline catalog is Original, B&W, Warm, Cool, Vintage, and High Contrast; original captures are preserved.
+- AR effects are deferred until a provider spike compares MediaPipe, Snap Camera Kit, and DeepAR for offline behavior, licensing, authoring effort, camera support, and print quality.
 - A remote web dashboard is useful but is not required for the first release.
 - Product development must be carefully documented and version-controlled.
 - Documentation must remain understandable to a non-developer.
@@ -168,6 +172,8 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - The staff-only Template Gallery turns imported artwork into reusable, approved session choices. A pre-capture placeholder editor stores product/layout choice plus artwork, holder, crop, rotation, and lock geometry. Custom portrait or landscape templates can contain up to eight holders, and each holder maps independently to a Capture label so the same photo can appear more than once without sharing its placement settings.
 - Fixed colored and imported custom frames use separate selection modes. The review screen previews the actual composition, keeps captured and waiting cards the same size without cropping source images, and gives staff a Canva-style direct canvas for moving, proportionally scaling, rotating, and locking artwork, photo frames, and the images inside them. Middle holder handles can change width or height independently to match an opening, but this changes the crop boundary instead of distorting the capture. Imported frames can also be deleted from local storage after confirmation. The final renderer reuses the exact stored values.
 - The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
+- Review now offers six per-photo local filters. Sharp is the final renderer, and each session includes an explicit 4×6 print sheet.
+- Operators can open a dedicated print preview from completion or completed-session history and continue into the operating system's printer chooser. Self-Service completion also raises a visible/audible operator notification, and Electron-reported print outcomes persist in session history.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
 - A packaged Apple-silicon `WanderBooth.app` and verified DMG can be launched without developer commands on the starting Mac.
@@ -481,23 +487,21 @@ The iPad still needs a local connection to the Host for booth controls. This may
 
 - Support the Epson EcoTank L8050 through the operating system's official Epson printer driver
 - Render the Double strip product as one 4×6 sheet containing two vertical 2×6 strips with six unique photos
+- Duplicate a single finished 2×6 design on both halves of a 4×6 sheet
+- Show an in-app preview of the exact sheet before the native print dialog
+- Notify the operator when a Self-Service session is ready to print
+- Allow staff to print or reprint from completed event-session history
+- Record print-dialog attempts and Electron-reported sent, cancelled, or failed outcomes
 - Test print
-- Automatic print after fulfillment
-- Persistent print queue
-- Print status: queued, printing, completed, failed, cancelled
-- Retry failed job
-- Staff-authorized reprint
-- Duplicate-print protection
-- Configurable maximum copies
-- Paper/media counter and low-media warning
-- Log printer settings used for each job so a failed result can be reproduced
+- Physically certify paper, Actual Size / 100%, orientation, quality, borderless mode, color, and crop on the Epson L8050
 
 ### P1 — important after the core pilot works
 
 - Additional certified camera adapters and compatibility profiles for other brands and models
 - Camera-profile import/export and per-camera color/crop calibration
 - Multiple branded templates
-- Color, black-and-white, and simple beauty filters
+- Automatic print after fulfillment, persistent queue, retry, duplicate protection, copy limits, and printer/media status
+- Simple beauty adjustments beyond the six local color filters
 - Background replacement
 - Multiple print sizes
 - Product bundles
@@ -522,6 +526,7 @@ The iPad still needs a local connection to the Host for booth controls. This may
 - Video booth
 - 360 video
 - AI portraits
+- Live AR masks and face effects through a replaceable provider
 - Public event galleries
 - Customer surveys and marketing consent
 - Social sharing
@@ -587,7 +592,7 @@ This display has no interactive product, layout, design, retake, replacement, ap
 7. Capture, review, photo replacement/retake, style change, and final approval
 8. Camera-source selection and test
 9. Cash approval
-10. Printer test and queue
+10. Print preview, native printer dialog, test print, and later queue controls
 11. Reprint and re-display QR
 12. Error recovery and end-of-day summary
 
@@ -793,6 +798,8 @@ Tasks:
 - Prototype operation-mode selection, the laptop operator console, the read-only customer display, and the interactive Self-Service touch flow.
 - Refine the working prototype for layout-defined individual branded photos, a composite strip/card, and an MP4 slideshow.
 - Render a print-ready 4×6 sheet containing two different three-photo 2×6 strips from six unique captures.
+- Use the implemented print-preview flow to test both a duplicated single 2×6 design and a full 4×6 design through the Epson driver's native dialog.
+- Test the implemented per-photo local filters against representative skin tones, lighting, and physical prints.
 - Use the working data-driven catalog to test built-in three-, four-, and six-photo layouts plus custom one-to-eight-capture templates, frame palettes, overlays, and shaped slots.
 - Test the implemented staff-only transparent-artwork and flat-template importer with the final production designs.
 - Use the implemented Template Library folders to prepare and organize the first production layouts before the first busy event test.
@@ -842,6 +849,7 @@ Tasks:
 - Add attendant-confirmed cash approval and change calculation.
 - Add fulfillment and refund states.
 - Integrate the Epson L8050 through the selected pilot operating system's driver.
+- Promote the working manual preview/native-dialog flow only after its exact driver, paper, scale, color, quality, orientation, and borderless settings are recorded.
 - Add print queue, retry, and reprint protection.
 
 Exit condition: one cash-confirmed order reliably produces exactly one purchased digital deliverable and the correct number of prints.
@@ -1007,6 +1015,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.8.0 | 2026-10-06 | Added six non-destructive per-photo Sharp filters, manual print preview plus native system dialog, 4×6 duplication for single 2×6 designs, operator ready-to-print notification, session print history, and the deferred AR provider plan. |
 | 1.7.0 | 2026-10-02 | Added local event projects with isolated templates and completed-session history, reusable multi-folder template collections, explicit event-template promotion, manual local-event retention, and a separate future 30-day cloud QR policy. |
 | 1.6.1 | 2026-10-02 | Reorganized the custom-template choices and spacing for clearer desktop and iPad selection. |
 | 1.6.0 | 2026-10-02 | Added portrait/landscape custom 4×6 canvases with up to eight independently mapped holders and repeated Capture labels. |

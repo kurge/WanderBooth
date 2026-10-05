@@ -14,6 +14,7 @@ import {
   normalizeMediaTransform,
   normalizePhotoTransform,
 } from "../shared/catalog.js";
+import { isPhotoFilterId } from "../shared/filters.js";
 import type { ClientMessage, ServerMessage } from "../shared/protocol.js";
 import {
   type Actor,
@@ -69,10 +70,18 @@ const normalizeSavedTemplate = (
 const savedTemplates = (savedState?.savedTemplates ?? []).map((template) =>
   normalizeSavedTemplate(template, [savedTemplateFolders[0]?.id ?? generalFolder.id]),
 );
+const normalizeCapture = (capture: BoothState["captures"][number]) => ({
+  ...capture,
+  filterId: isPhotoFilterId(capture.filterId) ? capture.filterId : "original",
+});
 const savedEvents = (savedState?.events ?? []).map((event) => ({
   ...event,
   templates: (event.templates ?? []).map((template) => normalizeSavedTemplate(template)),
-  sessions: event.sessions ?? [],
+  sessions: (event.sessions ?? []).map((session) => ({
+    ...session,
+    captures: (session.captures ?? []).map(normalizeCapture),
+    printAttempts: session.printAttempts ?? [],
+  })),
 }));
 const savedOverlay = savedState
   ? getOverlay(savedState.overlayId ?? "none", savedCustomOverlays)
@@ -84,7 +93,7 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 12,
+      schemaVersion: 13,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
@@ -114,6 +123,7 @@ let state: BoothState = savedState
         slot,
         ...normalizePhotoTransform(transform),
       })),
+      captures: (savedState.captures ?? []).map(normalizeCapture),
       sessionCustomerName: savedState.sessionCustomerName ?? null,
       sessionStartedAt: savedState.sessionStartedAt ?? null,
     }
@@ -272,6 +282,7 @@ const receiveCameraCapture = async (request: IncomingMessage, response: ServerRe
         ? `/media/events/${eventId}/sessions/${sessionId}/captures/${filename}`
         : `/media/sessions/${sessionId}/captures/${filename}`,
       capturedAt: new Date().toISOString(),
+      filterId: "original",
     },
   });
   scheduleCountdownStep(1_200);
@@ -549,6 +560,7 @@ const runSimulatorPendingCapture = async (sessionId: string) => {
       revision: pending.revision,
       mediaUrl: result.mediaUrl,
       capturedAt: result.capturedAt,
+      filterId: "original",
     },
   });
   scheduleCountdownStep(1_200);

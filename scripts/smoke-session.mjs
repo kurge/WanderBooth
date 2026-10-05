@@ -110,6 +110,7 @@ if (
   throw new Error(`Expected ${requiredCaptureCount} branded individual files.`);
 }
 if (!kinds.includes("strip")) throw new Error("Expected a rendered strip.");
+if (!kinds.includes("print")) throw new Error("Expected a 4×6 print sheet.");
 if (!kinds.includes("slideshow")) throw new Error("Expected a rendered slideshow.");
 
 console.log("Smoke session passed:");

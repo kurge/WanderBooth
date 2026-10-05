@@ -21,6 +21,7 @@ import {
   products,
   resolveLayout,
 } from "../shared/catalog";
+import { photoFilterCss, photoFilters } from "../shared/filters";
 import type {
   Actor,
   BoothEvent,
@@ -37,7 +38,7 @@ import { type ResizeHandle, resizeTransform } from "./resizeTransform";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
 import { type CameraStatus, useMacBookCamera } from "./useMacBookCamera";
 
-type Surface = "operator" | "customer";
+type Surface = "operator" | "customer" | "print";
 
 const surface = (new URLSearchParams(window.location.search).get("surface") ??
   "operator") as Surface;
@@ -58,9 +59,17 @@ const phaseLabels: Record<BoothState["phase"], string> = {
 };
 
 const actorForSurface = (selectedSurface: Surface): Actor =>
-  selectedSurface === "operator" ? "attendant" : "customer";
+  selectedSurface === "customer" ? "customer" : "attendant";
 
 const mediaSource = (url: string) => `${hostHttpUrl}${url}`;
+
+const openPrintPreview = (eventId: string, sessionId: string) => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("surface", "print");
+  url.searchParams.set("eventId", eventId);
+  url.searchParams.set("sessionId", sessionId);
+  window.open(url.toString(), `WanderBoothPrint-${sessionId}`);
+};
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
@@ -136,7 +145,11 @@ function CapturePreview({ state, compact = false }: { state: BoothState; compact
         return (
           <figure className={capture ? "photo-card photo-card--filled" : "photo-card"} key={slot}>
             {capture ? (
-              <img src={mediaSource(capture.mediaUrl)} alt={`Capture ${slot}`} />
+              <img
+                src={mediaSource(capture.mediaUrl)}
+                style={{ filter: photoFilterCss(capture.filterId) }}
+                alt={`Capture ${slot}`}
+              />
             ) : (
               <div className="photo-card__empty">
                 <span>{slot}</span>
@@ -146,6 +159,80 @@ function CapturePreview({ state, compact = false }: { state: BoothState; compact
           </figure>
         );
       })}
+    </section>
+  );
+}
+
+function PhotoFilterPicker({
+  state,
+  sendCommand,
+}: {
+  state: BoothState;
+  sendCommand: (command: Command) => void;
+}) {
+  const [selectedSlot, setSelectedSlot] = useState(state.captures[0]?.slot ?? 1);
+  const selectedCapture =
+    state.captures.find((capture) => capture.slot === selectedSlot) ?? state.captures[0];
+
+  useEffect(() => {
+    if (selectedCapture) setSelectedSlot(selectedCapture.slot);
+  }, [selectedCapture]);
+
+  if (!selectedCapture) return null;
+
+  return (
+    <section className="photo-filter-picker">
+      <div className="photo-filter-picker__heading">
+        <div>
+          <span>Photo filters</span>
+          <small>Choose a photo, then apply its own look.</small>
+        </div>
+        <strong>Photo {selectedCapture.slot}</strong>
+      </div>
+      <div className="photo-filter-picker__tabs">
+        {state.captures.map((capture) => (
+          <button
+            type="button"
+            aria-pressed={capture.slot === selectedCapture.slot}
+            onClick={() => setSelectedSlot(capture.slot)}
+            key={capture.slot}
+          >
+            <img
+              src={mediaSource(capture.mediaUrl)}
+              style={{ filter: photoFilterCss(capture.filterId) }}
+              alt=""
+            />
+            <span>Photo {capture.slot}</span>
+          </button>
+        ))}
+      </div>
+      <div className="photo-filter-picker__options">
+        {photoFilters.map((filter) => (
+          <button
+            type="button"
+            aria-pressed={(selectedCapture.filterId ?? "original") === filter.id}
+            onClick={() =>
+              sendCommand({
+                type: "SELECT_PHOTO_FILTER",
+                slot: selectedCapture.slot,
+                filterId: filter.id,
+              })
+            }
+            key={filter.id}
+          >
+            <img
+              src={mediaSource(selectedCapture.mediaUrl)}
+              style={{ filter: filter.cssFilter }}
+              alt=""
+            />
+            <span>{filter.name}</span>
+          </button>
+        ))}
+      </div>
+      <p>
+        Filters are rendered locally into the final photo, layout, slideshow, and print—without
+        changing the original capture.
+      </p>
     </section>
   );
 }
@@ -821,7 +908,10 @@ function LayoutPreview({
               {capture ? (
                 <img
                   src={mediaSource(capture.mediaUrl)}
-                  style={transformStyle(photoTransform)}
+                  style={{
+                    ...transformStyle(photoTransform),
+                    filter: photoFilterCss(capture.filterId),
+                  }}
                   alt=""
                 />
               ) : context === "template" ? (
@@ -1432,6 +1522,7 @@ function EventWorkspacePanel({
                 {session.captures.map((capture) => (
                   <img
                     src={mediaSource(capture.mediaUrl)}
+                    style={{ filter: photoFilterCss(capture.filterId) }}
                     alt={`Session ${session.number} capture ${capture.slot}`}
                     key={`${session.id}-${capture.slot}`}
                   />
@@ -1448,6 +1539,23 @@ function EventWorkspacePanel({
                     {deliverable.label}
                   </a>
                 ))}
+              </div>
+              <div className="event-session-card__printing">
+                <button
+                  className="button button--primary button--tiny"
+                  type="button"
+                  disabled={
+                    !session.deliverables.some((deliverable) => deliverable.kind === "print")
+                  }
+                  onClick={() => openPrintPreview(event.id, session.id)}
+                >
+                  Preview &amp; {session.printAttempts.length ? "reprint" : "print"}
+                </button>
+                <small>
+                  {(session.printAttempts ?? []).length
+                    ? `${(session.printAttempts ?? []).length} print ${(session.printAttempts ?? []).length === 1 ? "attempt" : "attempts"} recorded`
+                    : "Not printed yet"}
+                </small>
               </div>
               <p className="event-session-card__qr">
                 QR delivery: waiting for the cloud-delivery milestone · future links expire after 30
@@ -2703,6 +2811,7 @@ function SessionPanel({
               <small>Full images · not cropped</small>
             </div>
             <CapturePreview state={state} compact />
+            {interactive && <PhotoFilterPicker state={state} sendCommand={sendCommand} />}
             {interactive && (
               <div
                 className="retake-row"
@@ -2884,6 +2993,8 @@ function SessionPanel({
   }
 
   if (state.phase === "complete") {
+    const currentEvent = activeEventFor(state);
+    const printDeliverable = state.deliverables.find((deliverable) => deliverable.kind === "print");
     return (
       <section className="delivery-stage">
         <div className="section-heading">
@@ -2894,22 +3005,54 @@ function SessionPanel({
             delivery milestone.
           </p>
         </div>
-        <div className="deliverable-grid">
-          {state.deliverables.map((deliverable) => (
-            <a
-              className={`deliverable deliverable--${deliverable.kind}`}
-              href={mediaSource(deliverable.mediaUrl)}
-              target="_blank"
-              rel="noreferrer"
-              key={deliverable.mediaUrl}
-            >
-              <span>
-                {deliverable.kind === "slideshow" ? "▶" : deliverable.kind === "strip" ? "▥" : "◫"}
+        {isOperator && currentEvent && state.sessionId && printDeliverable && (
+          <section className="print-ready-card">
+            <div>
+              <span className="eyebrow">
+                {state.operationMode === "self_service" ? "Guest is ready" : "Operator printing"}
               </span>
-              <strong>{deliverable.label}</strong>
-              <small>Open file</small>
-            </a>
-          ))}
+              <h2>Preview the exact 4×6 sheet, then choose the printer.</h2>
+              <p>
+                The native print dialog lets you choose the Epson L8050 or any printer installed on
+                this computer. A 2×6 design is duplicated across a 4×6 sheet for cutting.
+              </p>
+            </div>
+            <button
+              className="button button--primary button--large"
+              type="button"
+              onClick={() => openPrintPreview(currentEvent.id, state.sessionId ?? "")}
+            >
+              Preview &amp; print
+            </button>
+          </section>
+        )}
+        {!isOperator && state.operationMode === "self_service" && (
+          <div className="customer-message customer-message--compact">
+            <p>Your photos are ready. Your attendant has been notified to print them.</p>
+          </div>
+        )}
+        <div className="deliverable-grid">
+          {state.deliverables
+            .filter((deliverable) => deliverable.kind !== "print")
+            .map((deliverable) => (
+              <a
+                className={`deliverable deliverable--${deliverable.kind}`}
+                href={mediaSource(deliverable.mediaUrl)}
+                target="_blank"
+                rel="noreferrer"
+                key={deliverable.mediaUrl}
+              >
+                <span>
+                  {deliverable.kind === "slideshow"
+                    ? "▶"
+                    : deliverable.kind === "strip"
+                      ? "▥"
+                      : "◫"}
+                </span>
+                <strong>{deliverable.label}</strong>
+                <small>Open file</small>
+              </a>
+            ))}
         </div>
         {isOperator && (
           <button
@@ -3126,6 +3269,176 @@ function OperatorSidebar({
   );
 }
 
+const printStatusLabel = (status: "dialog_opened" | "sent" | "cancelled" | "failed") => {
+  if (status === "sent") return "Sent to printer";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "failed") return "Failed";
+  return "Print dialog opened";
+};
+
+function PrintSurface({
+  state,
+  connected,
+  sendCommand,
+}: {
+  state: BoothState;
+  connected: boolean;
+  sendCommand: (command: Command) => void;
+}) {
+  const parameters = new URLSearchParams(window.location.search);
+  const eventId = parameters.get("eventId") ?? "";
+  const sessionId = parameters.get("sessionId") ?? "";
+  const event = state.events.find((item) => item.id === eventId);
+  const session = event?.sessions.find((item) => item.id === sessionId);
+  const printDeliverable = session?.deliverables.find(
+    (deliverable) => deliverable.kind === "print",
+  );
+  const printLayout = getLayout(session?.layoutId ?? null);
+  const isLandscape = Boolean(printLayout && printLayout.canvasWidth > printLayout.canvasHeight);
+  const [printing, setPrinting] = useState(false);
+
+  const print = async () => {
+    if (!event || !session || !printDeliverable || printing) return;
+    setPrinting(true);
+    const attemptId = createId();
+    const requestedAt = new Date().toISOString();
+    sendCommand({
+      type: "RECORD_PRINT_ATTEMPT",
+      eventId: event.id,
+      sessionId: session.id,
+      attempt: {
+        id: attemptId,
+        requestedAt,
+        completedAt: null,
+        status: "dialog_opened",
+        failureReason: null,
+      },
+    });
+
+    if (!window.wanderBooth) {
+      window.print();
+      setPrinting(false);
+      return;
+    }
+
+    try {
+      const result = await window.wanderBooth.printCurrentWindow();
+      const cancelled = !result.success && /cancel/i.test(result.failureReason ?? "");
+      sendCommand({
+        type: "RECORD_PRINT_ATTEMPT",
+        eventId: event.id,
+        sessionId: session.id,
+        attempt: {
+          id: attemptId,
+          requestedAt,
+          completedAt: new Date().toISOString(),
+          status: result.success ? "sent" : cancelled ? "cancelled" : "failed",
+          failureReason: result.success ? null : result.failureReason,
+        },
+      });
+    } catch (printError) {
+      sendCommand({
+        type: "RECORD_PRINT_ATTEMPT",
+        eventId: event.id,
+        sessionId: session.id,
+        attempt: {
+          id: attemptId,
+          requestedAt,
+          completedAt: new Date().toISOString(),
+          status: "failed",
+          failureReason: printError instanceof Error ? printError.message : "Printing failed.",
+        },
+      });
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  if (!event || !session || !printDeliverable) {
+    return (
+      <main className="print-preview print-preview--missing">
+        <BrandMark />
+        <h1>Print preview is unavailable.</h1>
+        <p>Return to the operator window and open this completed session again.</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className={`print-preview ${isLandscape ? "print-preview--landscape" : ""}`}>
+      <style>{`@media print { @page { size: ${isLandscape ? "6in 4in" : "4in 6in"}; margin: 0; } }`}</style>
+      <header className="print-preview__header print-ui">
+        <div>
+          <span className="eyebrow">4×6 print preview</span>
+          <h1>{session.customerName || `Session ${session.number}`}</h1>
+          <p>
+            {event.name} · {printDeliverable.label}
+          </p>
+        </div>
+        <ConnectionBadge connected={connected} />
+      </header>
+      <section className="print-preview__workspace">
+        <div className="print-preview__sheet">
+          <img src={mediaSource(printDeliverable.mediaUrl)} alt="Final 4 by 6 print sheet" />
+        </div>
+        <aside className="print-preview__controls print-ui">
+          <span className="eyebrow">Ready to print</span>
+          <h2>Use the system print dialog.</h2>
+          <ol>
+            <li>Choose the Epson L8050 or another installed printer.</li>
+            <li>Select 4×6 paper and the matching portrait or landscape orientation.</li>
+            <li>Use 100% / Actual Size and borderless printing when the frame reaches the edge.</li>
+          </ol>
+          <button
+            className="button button--primary button--large"
+            type="button"
+            disabled={printing || !connected}
+            onClick={() => void print()}
+          >
+            {printing ? "Print dialog open…" : "Open print dialog"}
+          </button>
+          <p className="print-preview__note">
+            WanderBooth records the attempt. Printer, paper, quality, and copy count stay under your
+            control in the native dialog.
+          </p>
+          <div className="print-history">
+            <strong>Print history</strong>
+            {[...(session.printAttempts ?? [])].reverse().map((attempt) => (
+              <div className="print-history__attempt" key={attempt.id}>
+                <span>{printStatusLabel(attempt.status)}</span>
+                <small>{new Date(attempt.requestedAt).toLocaleString("en-PH")}</small>
+              </div>
+            ))}
+            {(session.printAttempts ?? []).length === 0 && <small>No attempts yet.</small>}
+          </div>
+        </aside>
+      </section>
+    </main>
+  );
+}
+
+const playReadyDing = () => {
+  try {
+    const audioContext = new AudioContext();
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.16, audioContext.currentTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.42);
+    gain.connect(audioContext.destination);
+    [880, 1175].forEach((frequency, index) => {
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      oscillator.connect(gain);
+      oscillator.start(audioContext.currentTime + index * 0.12);
+      oscillator.stop(audioContext.currentTime + 0.3 + index * 0.12);
+    });
+    window.setTimeout(() => void audioContext.close(), 700);
+  } catch {
+    // The visual notification remains available if the browser blocks audio.
+  }
+};
+
 function App() {
   const isOperator = surface === "operator";
   const actor = actorForSurface(surface);
@@ -3141,10 +3454,24 @@ function App() {
   );
   const activeEvent = state ? activeEventFor(state) : null;
   const showOperatorSidebar = isOperator && Boolean(activeEvent);
+  const notifiedSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (state?.phase) window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [state?.phase]);
+
+  useEffect(() => {
+    if (
+      isOperator &&
+      state?.operationMode === "self_service" &&
+      state.phase === "complete" &&
+      state.sessionId &&
+      notifiedSessionRef.current !== state.sessionId
+    ) {
+      notifiedSessionRef.current = state.sessionId;
+      playReadyDing();
+    }
+  }, [isOperator, state?.operationMode, state?.phase, state?.sessionId]);
 
   const openCustomerDisplay = () => {
     const url = new URL(window.location.href);
@@ -3165,6 +3492,10 @@ function App() {
         <p>{error ?? "Connecting to the local WanderBooth Host."}</p>
       </main>
     );
+  }
+
+  if (surface === "print") {
+    return <PrintSurface state={state} connected={connected} sendCommand={sendCommand} />;
   }
 
   return (
@@ -3209,6 +3540,27 @@ function App() {
           {error}
         </div>
       )}
+
+      {isOperator &&
+        state.phase === "complete" &&
+        state.operationMode === "self_service" &&
+        activeEvent &&
+        state.sessionId && (
+          <div className="print-notification" role="status">
+            <span aria-hidden="true">✓</span>
+            <div className="print-notification__copy">
+              <strong>Self-service session ready to print</strong>
+              <small>The guest has finished reviewing and approving the photos.</small>
+            </div>
+            <button
+              className="button button--dark button--tiny"
+              type="button"
+              onClick={() => openPrintPreview(activeEvent.id, state.sessionId ?? "")}
+            >
+              Preview &amp; print
+            </button>
+          </div>
+        )}
 
       <div className={showOperatorSidebar ? "workspace workspace--operator" : "workspace"}>
         <main className="booth-stage">

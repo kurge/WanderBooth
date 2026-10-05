@@ -30,7 +30,8 @@ iPad display ────┘                     │
                                       ├── in-memory local preview relay
                                       ├── event/session media folders
                                       ├── camera sources (simulator + Mac media device)
-                                      └── data-driven layout/frame/composition renderer
+                                      ├── Sharp filters + layout/frame/composition renderer
+                                      └── 4×6 print sheet + native print dialog bridge
 ```
 
 - `src/app/` — responsive React operator and customer interfaces.
@@ -57,7 +58,8 @@ The Host is authoritative. Every screen sends a command, the Host applies role a
 - Delivery: branded local files and event history work; cloud upload, QR generation, and 30-day expiry are not implemented yet. The interface must keep this state visibly pending.
 - Rendering: layout slots can repeat capture indices and use rectangle, rounded, or heart masks. Repeated custom holders keep independent holder/crop transforms through stable holder IDs even when they show the same capture. A session uses either a generated fixed-color frame (with an optional built-in treatment) or one imported custom frame. New imports use transparent PNG artwork with pre-cut openings; legacy flat-template records remain renderable. The staff-only Template Library and isolated event copies store approved product/layout/artwork combinations plus all placeholder, holder, crop, rotation, and lock transforms. Selecting a saved template fills those numbered positions with real captures. The Host applies the same persisted transforms in preview and export.
 - Review: the final composed layout is the primary preview. Captured and waiting source cards share a 16:9 footprint and use `contain` for uncropped review. The staff-only direct canvas uses click/tap selection, drag movement, proportional corner resizing, independent middle-edge crop-frame reshaping, direct rotation, object locking, and Crop image mode. Holder bounds may change aspect ratio, but the photo content always keeps its natural proportions. Frame artwork, each photo frame, and the image inside each frame have separate normalized transforms in authoritative Host state. Imported templates can be deleted with confirmation from the operator UI.
-- Printing: the 2×6 and 4×6 composite files render at 300 DPI. The first double-strip file now exists, but Epson L8050 queue control is not implemented yet.
+- Filters: review supports Original, B&W, Warm, Cool, Vintage, and High Contrast per capture. Selection is non-destructive in Host state; Sharp applies it to final individuals, composites, slideshow inputs, and prints.
+- Printing: every completed session has an explicit 300-DPI 4×6 print deliverable. A single 2×6 design is duplicated across both halves. Operator completion and event history open a dedicated preview, Electron invokes the native print dialog, and session history stores print outcomes. Automatic queue control, printer telemetry, and verified Epson settings are not implemented yet.
 - Authentication: local prototype roles are screen-based, not authenticated accounts.
 - Distribution: the current Mac build is unsigned and intended only for this development machine. Public downloads will require Apple Developer signing and notarization.
 

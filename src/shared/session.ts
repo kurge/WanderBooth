@@ -68,6 +68,27 @@ export type PrintAttempt = {
   failureReason: string | null;
 };
 
+export type QrDeliveryStatus =
+  | "not_configured"
+  | "queued"
+  | "uploading"
+  | "ready"
+  | "failed"
+  | "expired";
+
+export type QrDelivery = {
+  status: QrDeliveryStatus;
+  token: string;
+  shareUrl: string | null;
+  createdAt: string;
+  expiresAt: string;
+  uploadedAt: string | null;
+  lastAttemptAt: string | null;
+  nextRetryAt: string | null;
+  attemptCount: number;
+  lastError: string | null;
+};
+
 export type TemplateFolder = {
   id: string;
   name: string;
@@ -108,8 +129,7 @@ export type EventSessionRecord = {
   captures: Capture[];
   deliverables: Deliverable[];
   printAttempts: PrintAttempt[];
-  qrStatus: "pending_cloud";
-  qrExpiresAt: string | null;
+  qrDelivery: QrDelivery;
 };
 
 export type BoothEvent = {
@@ -138,7 +158,7 @@ export type TemplateEditorState = {
 };
 
 export type BoothState = {
-  schemaVersion: 13;
+  schemaVersion: 14;
   revision: number;
   operationMode: OperationMode;
   cameraSourceId: CameraSourceId;
@@ -258,7 +278,14 @@ export type Command =
   | { type: "CAMERA_CAPTURE_FAILED"; message: string }
   | { type: "APPROVE" }
   | { type: "PROCESSING_STARTED" }
-  | { type: "PROCESSING_COMPLETED"; deliverables: Deliverable[] }
+  | { type: "PROCESSING_COMPLETED"; deliverables: Deliverable[]; qrDelivery: QrDelivery }
+  | {
+      type: "UPDATE_QR_DELIVERY";
+      eventId: string;
+      sessionId: string;
+      delivery: QrDelivery;
+    }
+  | { type: "RETRY_QR_DELIVERY"; eventId: string; sessionId: string }
   | {
       type: "RECORD_PRINT_ATTEMPT";
       eventId: string;
@@ -272,7 +299,7 @@ const now = () => new Date().toISOString();
 const isStaff = (actor: Actor) => actor === "owner" || actor === "attendant";
 
 export const initialBoothState = (): BoothState => ({
-  schemaVersion: 13,
+  schemaVersion: 14,
   revision: 0,
   operationMode: "attendant",
   cameraSourceId: "simulator",
@@ -391,6 +418,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "UPDATE_HOLDER_TRANSFORM":
     case "UPDATE_PHOTO_TRANSFORM":
     case "RECORD_PRINT_ATTEMPT":
+    case "RETRY_QR_DELIVERY":
       if (!isStaff(actor)) throw new CommandError("This action is staff-only.");
       return;
     case "BEGIN_SESSION":
@@ -417,6 +445,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "COUNTDOWN_TRIGGER":
     case "PROCESSING_STARTED":
     case "PROCESSING_COMPLETED":
+    case "UPDATE_QR_DELIVERY":
     case "FAIL":
     case "REGISTER_CUSTOM_OVERLAY":
     case "DELETE_CUSTOM_OVERLAY":
@@ -1447,8 +1476,7 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
               captures: state.captures,
               deliverables: command.deliverables,
               printAttempts: existing?.printAttempts ?? [],
-              qrStatus: "pending_cloud",
-              qrExpiresAt: null,
+              qrDelivery: command.qrDelivery,
             };
             return {
               ...item,
@@ -1488,6 +1516,57 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
                     ),
                     command.attempt,
                   ].sort((a, b) => a.requestedAt.localeCompare(b.requestedAt)),
+                }
+              : entry,
+          ),
+          updatedAt: now(),
+        })),
+      });
+    }
+    case "UPDATE_QR_DELIVERY": {
+      const event = state.events.find((item) => item.id === command.eventId);
+      const session = event?.sessions.find((item) => item.id === command.sessionId);
+      if (!event || !session) {
+        throw new CommandError("That completed session is no longer available for QR delivery.");
+      }
+      if (session.qrDelivery.token !== command.delivery.token) {
+        throw new CommandError("The QR delivery update does not match this session.");
+      }
+      return revised(state, {
+        events: updateEvent(state, event.id, (item) => ({
+          ...item,
+          sessions: item.sessions.map((entry) =>
+            entry.id === session.id ? { ...entry, qrDelivery: command.delivery } : entry,
+          ),
+          updatedAt: now(),
+        })),
+      });
+    }
+    case "RETRY_QR_DELIVERY": {
+      const event = state.events.find((item) => item.id === command.eventId);
+      const session = event?.sessions.find((item) => item.id === command.sessionId);
+      if (!event || !session) {
+        throw new CommandError("That completed session is no longer available for QR delivery.");
+      }
+      if (!session.qrDelivery.shareUrl) {
+        throw new CommandError("Configure Cloudflare delivery before retrying this QR link.");
+      }
+      if (Date.parse(session.qrDelivery.expiresAt) <= Date.now()) {
+        throw new CommandError("This QR link has already expired.");
+      }
+      return revised(state, {
+        events: updateEvent(state, event.id, (item) => ({
+          ...item,
+          sessions: item.sessions.map((entry) =>
+            entry.id === session.id
+              ? {
+                  ...entry,
+                  qrDelivery: {
+                    ...entry.qrDelivery,
+                    status: "queued",
+                    nextRetryAt: now(),
+                    lastError: null,
+                  },
                 }
               : entry,
           ),

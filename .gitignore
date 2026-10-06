@@ -13,6 +13,8 @@ coverage/
 .env
 .env.*
 !.env.example
+cloud/.dev.vars
+cloud/.wrangler/
 *.pem
 *.key
 

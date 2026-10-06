@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.8.0
+document_version: 1.9.0
 created: 2026-10-01
 updated: 2026-10-06
 owner: Kurge
@@ -159,7 +159,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - Cash confirmation is staff-only and occurs before capture; no price appears on screen.
 - Session state and command history persist in a local SQLite database.
 - A local Event Library now creates, opens, archives, restores, and permanently deletes event projects. Each event owns its template copies and completed session history.
-- Finished captures and deliverables are stored below event/session-specific directories. The event workspace shows their local links and an honest pending state for the not-yet-built cloud QR service.
+- Finished captures and deliverables are stored below event/session-specific directories. Each completed session also owns a stable private QR record with an exact 30-day expiry and honest queued, uploading, ready, failed, or expired state.
 - Master templates can belong to several named folders. Event creation copies one folder's masters; adding, editing, or deleting an event copy is isolated, while an explicit promotion creates a new library master.
 - A development-only camera simulator exercises capture and two-retake behavior safely.
 - Staff can select the simulator or MacBook camera only while the booth is idle. The Mac path includes permission handling, physical device choice, a reduced mirrored preview relayed to the customer screen, and separate full-resolution unmirrored JPEG transfer.
@@ -174,11 +174,13 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - The packaged Host serves the customer interface over the local network and shows the current Safari address in the operator sidebar.
 - Review now offers six per-photo local filters. Sharp is the final renderer, and each session includes an explicit 4×6 print sheet.
 - Operators can open a dedicated print preview from completion or completed-session history and continue into the operating system's printer chooser. Self-Service completion also raises a visible/audible operator notification, and Electron-reported print outcomes persist in session history.
+- The Host now generates each private QR locally, uploads only approved branded deliverables through a restart-safe background queue, and lets staff retry or re-display delivery from event history. Printing and later sessions are not blocked by a network failure.
+- A minimal Cloudflare Worker accepts authenticated Host uploads, keeps media in private R2, records state in D1, serves a mobile gallery through the random token, rejects access at the exact 30-day expiry, and runs hourly physical cleanup.
 - Local processing produces three branded individual PNGs, a 600×1800-pixel strip at 300 DPI, and a 1.5-second-per-photo MP4 slideshow.
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
 - A packaged Apple-silicon `WanderBooth.app` and verified DMG can be launched without developer commands on the starting Mac.
 
-This checkpoint is not yet a pilot release. Camera reliability certification, Epson printing, cloud upload, QR generation, the 30-day download page, storage monitoring, and tested manual local-deletion operations are still required.
+This checkpoint is not yet a pilot release. The Epson workflow has passed its first owner-run physical print, and the QR workflow has passed local end-to-end and expiry tests. Real Cloudflare deployment, a mobile-data phone test, repeatable Epson settings, camera reliability certification, storage monitoring, and tested manual local-deletion operations are still required.
 
 ### Why the first release uses a desktop Host and reusable customer client
 
@@ -316,7 +318,7 @@ This is a defining WanderBooth feature.
    - the final branded composite strip; and
    - a short H.264 MP4 slideshow that shows each photo for approximately 1.5 seconds and loops in the web page.
 3. The Host uploads those deliverables to private cloud storage.
-4. Only after the upload is confirmed, the completion screen displays a QR code for a private HTTPS page.
+4. The completion screen displays the stable QR code and its true status. Before upload confirmation, the link shows a safe preparing page; after confirmation, it shows the completed gallery.
 5. The customer scans the code using any internet connection; they do not join WanderBooth Wi-Fi.
 6. The mobile page previews the strip, individual photos, and slideshow, with clear download buttons.
 7. The link and cloud media expire 30 days after the session. No account or app installation is required.
@@ -328,7 +330,7 @@ This is a defining WanderBooth feature.
 - The mobile page must work on current iPhone and Android browsers.
 - The page may show only the branded deliverables for that session; raw camera originals are never uploaded or exposed.
 - Access must expire automatically 30 days after the session.
-- The attendant must be able to revoke or re-display a session link.
+- The attendant must be able to re-display a session link. Explicit early revocation is a post-pilot hardening item; exact 30-day expiry is required now.
 - Files remain private in object storage and are served through controlled or short-lived access URLs.
 - Cloud 30-day cleanup and confirmed manual local-event deletion must be independently logged and recover safely.
 - Downloading should not require a name, phone number, email address, or customer account.
@@ -700,10 +702,10 @@ The full management dashboard remains deferred, but remote 30-day QR access requ
 
 - an authenticated upload API used only by registered booth Hosts;
 - private S3-compatible object storage for branded deliverables;
-- a small database recording share-token hash, session metadata, upload state, and expiry;
+- a small database recording the random delivery-token lookup, upload state, and expiry without customer/event metadata;
 - a public, mobile-friendly download page addressed by an unguessable token;
 - scheduled deletion after 30 days, with safe retries and audit records; and
-- rate limiting, basic monitoring, and a way for an attendant to revoke access.
+- basic operational monitoring and a documented failure-recovery workflow.
 
 The cloud service must never become a dependency for capture, local saving, processing, or printing. A connectivity outage delays only remote delivery.
 
@@ -806,7 +808,7 @@ Tasks:
 - Use the implemented Event Library to create the pilot event, copy its starting designs, complete repeated named/unnamed sessions, leave the app, and reopen the history.
 - Verify archive/restore and confirmed manual deletion using only a disposable event before any customer data exists.
 - Test the working browser-to-Host control connection from the physical iPad.
-- Prototype queued upload to private cloud storage and a 30-day mobile download page.
+- Deploy the implemented queued upload, private storage, and 30-day mobile page to the WanderBooth Cloudflare account.
 - Verify that capture and printing continue with internet disconnected and that the upload completes after reconnection.
 
 Exit condition: both operation modes complete the same persisted layout-defined workflow; Attendant-Operated choices work only from the operator console; Self-Service choices work from the touchscreen; all three camera adapter families can provide the captures; a phone downloads the results from a private cloud QR page; and an interrupted upload resumes safely after reconnection.
@@ -1015,6 +1017,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.9.0 | 2026-10-06 | Implemented the private Cloudflare QR workflow: stable locally generated codes, persistent offline retry, authenticated Worker uploads, private R2 media, D1 status, a mobile gallery, exact 30-day expiry, hourly cleanup, operator configuration/retry, and session-history re-display. |
 | 1.8.0 | 2026-10-06 | Added six non-destructive per-photo Sharp filters, manual print preview plus native system dialog, 4×6 duplication for single 2×6 designs, operator ready-to-print notification, session print history, and the deferred AR provider plan. |
 | 1.7.0 | 2026-10-02 | Added local event projects with isolated templates and completed-session history, reusable multi-folder template collections, explicit event-template promotion, manual local-event retention, and a separate future 30-day cloud QR policy. |
 | 1.6.1 | 2026-10-02 | Reorganized the custom-template choices and spacing for clearer desktop and iPad selection. |

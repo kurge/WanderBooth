@@ -2,7 +2,7 @@
 
 **Status:** Working Phase 0 behavior
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 
 **Updated:** 2026-10-02
 
@@ -31,7 +31,7 @@ After final approval and local processing, the completed event-session record st
 - selected product, layout, and event template;
 - local capture references;
 - branded individual photos, final composite, and MP4 slideshow references; and
-- an honest `pending_cloud` QR status until cloud delivery exists.
+- a persistent QR-delivery record containing its random token, share URL, exact expiry, upload/retry status, and last error without storing the Cloudflare secret in the event.
 
 Completed sessions are snapshots. Editing an event template later does not rewrite an earlier session or its exported files.
 
@@ -70,9 +70,11 @@ Simulator and real-camera captures use the same event/session ownership model. T
 
 Local event data currently remains on the booth computer until staff manually delete the entire event. Archiving is not deletion. There is no automatic local 30-day cleanup in this phase.
 
-The future customer QR link has a separate policy: only approved branded deliverables will be uploaded, and the private cloud page and cloud files will expire automatically after 30 days. Until that service is implemented, event history shows **QR delivery pending** and exposes only local booth links. It must not claim that a public phone download is ready.
+The customer QR link has a separate policy from local storage. Only approved branded individual photos, the final layout, and the looping slideshow are uploaded; raw captures and the print-only sheet stay local. The private cloud page stops serving files exactly 30 days after session completion, and the hourly cleanup job removes the R2 objects and file rows while retaining only a minimal expired-delivery record.
 
-Before a live pilot, WanderBooth still needs storage-capacity warnings, a separate backup location, a deliberate per-session deletion/recovery policy, and the cloud expiry audit trail.
+Event history displays the true state: setup required, queued, uploading, ready, failed, or expired. A failed or interrupted upload can be retried, including after an application restart. Local capture, processing, printing, history, and deliberate event deletion continue to work without internet access.
+
+Before a live pilot, WanderBooth still needs storage-capacity warnings, a separate backup location, a deliberate per-session deletion/recovery policy, deployment monitoring, and a tested Cloudflare recovery/export procedure.
 
 ## Operator checklist
 
@@ -82,12 +84,12 @@ Before opening the booth:
 2. Confirm its client, venue, date, and event-template set.
 3. Select Attendant-Operated or Self-Service mode.
 4. Test the chosen camera and inspect available local storage.
-5. Run one complete test session and open every deliverable.
+5. Confirm Cloud delivery is configured and run one complete test session through **QR ready**.
 
 After the event:
 
 1. Review the completed session count and files.
-2. Archive the event when it is no longer in active use.
-3. Back it up outside WanderBooth if the business needs another copy.
-4. Permanently delete it only when the business has deliberately decided the local media is no longer needed.
-
+2. Confirm no session is still queued, uploading, or failed before disconnecting the event internet connection.
+3. Archive the event when it is no longer in active use.
+4. Back it up outside WanderBooth if the business needs another copy.
+5. Permanently delete it only when the business has deliberately decided the local media is no longer needed.

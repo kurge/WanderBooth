@@ -25,6 +25,38 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Source of the final 5–10 production design assets
 - Exact first live-pilot month or event
 
+## 1.9.0 — 2026-10-06
+
+### Added
+
+- Added one stable private QR token, share URL, exact 30-day expiry, retry history, and delivery state to every completed session in schema version 14.
+- Added locally rendered QR codes to the operator/customer completion screens and completed-session history, with honest setup, queued, uploading, ready, failed, and expired messages.
+- Added an operator-only Cloudflare setup panel that validates the Worker URL and device token before saving them to an owner-only local runtime file.
+- Added a persistent background upload queue that resumes interrupted work after restart, retries failures with backoff, and never blocks local capture, processing, printing, or the next session.
+- Added a Cloudflare Worker with authenticated, idempotent manifest/file/completion routes; private R2 media; D1 delivery state; a mobile guest gallery; exact expiry enforcement; and hourly cleanup.
+- Added the Cloud QR operating/deployment guide, ADR 0020, D1 migration, Wrangler configuration, cloud/Host/reducer coverage, an expanded smoke workflow, and a synthetic test record.
+
+### Changed
+
+- Uploads now include only branded individual photos, the final strip/card, and the looping slideshow. Raw captures, the local database, event/client metadata, and the dedicated print sheet remain local.
+- The stable QR may be scanned while an upload is queued; its page shows a safe preparing state until every approved file is confirmed.
+- Kept local event retention manual and separate from the automatic 30-day cloud access and cleanup policy.
+- Kept the QR on the operator/customer screens and in history rather than baking it into the printed photo in this version.
+
+### Security
+
+- Uses a 192-bit random URL-safe token, private bucket reads through the Worker, no-store/no-index/security headers, strict upload validation, authenticated Host writes, and ignored local secret files.
+- Blocks guest access at the exact expiry timestamp even before scheduled object deletion runs.
+
+### Verified
+
+- Passed Host, web, and Worker production builds plus changed-file formatting/lint checks.
+- Passed local D1 migration; authenticated manifest/image/video upload; completion; guest gallery; file download; exact HTTP 410 expiry; and scheduled media cleanup.
+- Passed a full disposable Host-to-Worker session with three individual photos, final strip, and slideshow while confirming the print-only sheet was excluded.
+- Visually checked the operator configuration, completion/history QR, iPad-sized customer screen, and mobile guest gallery.
+- Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.14.0-arm64.dmg` (133 MB; SHA-256 `d11fe84312f41a321042131c791c805c8e5b19c13ccc65c1b4b450d09786b822`).
+- The focused Vitest runner hung before running assertions and remains honestly unverified; real Cloudflare deployment and a phone/mobile-data test are still pending.
+
 ## 1.8.0 — 2026-10-06
 
 ### Added

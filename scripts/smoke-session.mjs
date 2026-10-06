@@ -78,6 +78,17 @@ if (currentState.cameraSourceId !== "simulator") {
   await command({ type: "SET_CAMERA_SOURCE", cameraSourceId: "simulator" });
 }
 
+if (!currentState.activeEventId) {
+  const smokeEventId = `event-smoke-${Date.now()}`;
+  await command({
+    type: "CREATE_EVENT",
+    eventId: smokeEventId,
+    name: "Synthetic smoke-test event",
+    eventDate: new Date().toISOString().slice(0, 10),
+    templateFolderId: currentState.templateFolders[0].id,
+  });
+}
+
 await command({ type: "BEGIN_SESSION", sessionId: `smoke-${Date.now()}` });
 await command({ type: "SELECT_PRODUCT", productId });
 await command({ type: "SELECT_LAYOUT", layoutId });
@@ -113,10 +124,35 @@ if (!kinds.includes("strip")) throw new Error("Expected a rendered strip.");
 if (!kinds.includes("print")) throw new Error("Expected a 4×6 print sheet.");
 if (!kinds.includes("slideshow")) throw new Error("Expected a rendered slideshow.");
 
+const completedEvent = completed.events.find((event) => event.id === completed.activeEventId);
+const completedSession = completedEvent?.sessions.find(
+  (session) => session.id === completed.sessionId,
+);
+if (!completedSession?.qrDelivery?.token) {
+  throw new Error("Expected a persistent private QR delivery record.");
+}
+
+if (process.env.WANDERBOOTH_SMOKE_EXPECT_QR_READY === "1") {
+  await waitForState(
+    (state) => {
+      const event = state.events.find((item) => item.id === state.activeEventId);
+      return (
+        event?.sessions.find((session) => session.id === state.sessionId)?.qrDelivery.status ===
+        "ready"
+      );
+    },
+    "cloud QR delivery",
+    60_000,
+  );
+}
+
 console.log("Smoke session passed:");
 for (const deliverable of completed.deliverables) {
   console.log(`- ${deliverable.label}: ${deliverable.mediaUrl}`);
 }
+console.log(`- QR delivery: ${completedSession.qrDelivery.shareUrl ?? "cloud setup required"}`);
 
-await command({ type: "RESET" });
+if (process.env.WANDERBOOTH_SMOKE_KEEP_COMPLETE !== "1") {
+  await command({ type: "RESET" });
+}
 socket.close();

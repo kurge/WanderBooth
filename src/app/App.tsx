@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import wanderPressSplashLogo from "../../assets/brand/source/wander-press-splash-shadow.png";
@@ -27,6 +28,7 @@ import type {
   BoothEvent,
   BoothState,
   Command,
+  EventSessionRecord,
   HolderTransform,
   OperationMode,
   PhotoTransform,
@@ -62,6 +64,246 @@ const actorForSurface = (selectedSurface: Surface): Actor =>
   selectedSurface === "customer" ? "customer" : "attendant";
 
 const mediaSource = (url: string) => `${hostHttpUrl}${url}`;
+
+const qrStatusCopy: Record<
+  EventSessionRecord["qrDelivery"]["status"],
+  { label: string; detail: string }
+> = {
+  not_configured: {
+    label: "Cloud setup required",
+    detail: "Connect the Cloudflare delivery service on this Mac to create the guest link.",
+  },
+  queued: {
+    label: "Waiting to upload",
+    detail: "The private link is saved. WanderBooth will upload when internet is available.",
+  },
+  uploading: {
+    label: "Uploading photos",
+    detail: "The same QR link will become ready automatically.",
+  },
+  ready: {
+    label: "Ready to download",
+    detail: "Scan with a phone to open the private 30-day gallery.",
+  },
+  failed: {
+    label: "Upload delayed",
+    detail: "The private link is safe and WanderBooth will retry automatically.",
+  },
+  expired: {
+    label: "Gallery expired",
+    detail: "Guest access ended after 30 days and the cloud media is being removed.",
+  },
+};
+
+function QrCodeImage({ value, compact = false }: { value: string; compact?: boolean }) {
+  const [source, setSource] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void QRCode.toDataURL(value, {
+      color: { dark: "#28083fff", light: "#ffffffff" },
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: compact ? 180 : 420,
+    }).then((result) => {
+      if (active) setSource(result);
+    });
+    return () => {
+      active = false;
+    };
+  }, [compact, value]);
+
+  if (!source) return <span className="qr-code-placeholder">Preparing QR…</span>;
+  return <img className={compact ? "qr-code qr-code--compact" : "qr-code"} src={source} alt="" />;
+}
+
+function CloudDeliverySetup() {
+  const [configured, setConfigured] = useState(false);
+  const [baseUrl, setBaseUrl] = useState("");
+  const [deviceToken, setDeviceToken] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
+
+  useEffect(() => {
+    void fetch(`${hostHttpUrl}/api/cloud-delivery/config`)
+      .then(async (response) => {
+        const result = (await response.json()) as {
+          baseUrl?: string | null;
+          configured?: boolean;
+          error?: string;
+        };
+        if (!response.ok) throw new Error(result.error ?? "Cloud setup could not be read.");
+        setConfigured(Boolean(result.configured));
+        setBaseUrl(result.baseUrl ?? "");
+      })
+      .catch((error) =>
+        setMessage({
+          kind: "error",
+          text: error instanceof Error ? error.message : "Cloud setup could not be read.",
+        }),
+      );
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const response = await fetch(`${hostHttpUrl}/api/cloud-delivery/config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ baseUrl, deviceToken }),
+      });
+      const result = (await response.json()) as {
+        baseUrl?: string | null;
+        configured?: boolean;
+        error?: string;
+      };
+      if (!response.ok) throw new Error(result.error ?? "Cloudflare connection failed.");
+      setConfigured(Boolean(result.configured));
+      setBaseUrl(result.baseUrl ?? baseUrl);
+      setDeviceToken("");
+      setMessage({
+        kind: "success",
+        text: "Cloudflare connected. Pending galleries will now upload automatically.",
+      });
+    } catch (error) {
+      setMessage({
+        kind: "error",
+        text: error instanceof Error ? error.message : "Cloudflare connection failed.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <details className={`cloud-setup ${configured ? "cloud-setup--ready" : ""}`}>
+      <summary>
+        <span className="cloud-setup__summary-copy">
+          <strong className="cloud-setup__title">Cloud QR delivery</strong>
+          <small className="cloud-setup__subtitle">
+            {configured ? `Connected to ${baseUrl}` : "Connect the workers.dev delivery service"}
+          </small>
+        </span>
+        <b className="cloud-setup__status">{configured ? "Connected" : "Setup required"}</b>
+      </summary>
+      <div className="cloud-setup__body">
+        <p>
+          Enter the deployed Worker address and the same device token saved as its Cloudflare
+          secret. The token is stored only in this Mac’s private WanderBooth data folder.
+        </p>
+        <label>
+          Cloudflare Worker URL
+          <input
+            type="url"
+            value={baseUrl}
+            placeholder="https://wanderbooth-delivery.your-name.workers.dev"
+            onChange={(event) => setBaseUrl(event.target.value)}
+          />
+        </label>
+        <label>
+          Device token{" "}
+          {configured && (
+            <small className="cloud-setup__hint">Enter again only when updating</small>
+          )}
+          <input
+            type="password"
+            value={deviceToken}
+            autoComplete="new-password"
+            placeholder="Paste the Cloudflare DEVICE_TOKEN secret"
+            onChange={(event) => setDeviceToken(event.target.value)}
+          />
+        </label>
+        <button
+          className="button button--primary"
+          type="button"
+          disabled={saving || !baseUrl.trim() || !deviceToken.trim()}
+          onClick={() => void save()}
+        >
+          {saving ? "Testing connection…" : "Save and test connection"}
+        </button>
+        {message && (
+          <p className={`cloud-setup__message cloud-setup__message--${message.kind}`}>
+            {message.text}
+          </p>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function QrDeliveryCard({
+  eventId,
+  session,
+  compact = false,
+  isOperator,
+  sendCommand,
+}: {
+  eventId: string;
+  session: EventSessionRecord;
+  compact?: boolean;
+  isOperator: boolean;
+  sendCommand: (command: Command) => void;
+}) {
+  const delivery = session.qrDelivery;
+  const copy = qrStatusCopy[delivery.status];
+  const canShowQr = Boolean(delivery.shareUrl && delivery.status !== "expired");
+  const retry = () => sendCommand({ type: "RETRY_QR_DELIVERY", eventId, sessionId: session.id });
+
+  if (compact) {
+    return (
+      <details className={`history-qr history-qr--${delivery.status}`}>
+        <summary>
+          <span>QR delivery</span>
+          <strong className="history-qr__status">{copy.label}</strong>
+        </summary>
+        <div className="history-qr__body">
+          {canShowQr && delivery.shareUrl && <QrCodeImage value={delivery.shareUrl} compact />}
+          <div>
+            <p>{copy.detail}</p>
+            {delivery.shareUrl && <small className="history-qr__meta">{delivery.shareUrl}</small>}
+            {delivery.lastError && (
+              <small className="history-qr__meta history-qr__error">{delivery.lastError}</small>
+            )}
+            {delivery.status === "failed" && isOperator && (
+              <button className="button button--quiet button--tiny" type="button" onClick={retry}>
+                Retry now
+              </button>
+            )}
+          </div>
+        </div>
+      </details>
+    );
+  }
+
+  return (
+    <section className={`qr-delivery qr-delivery--${delivery.status}`}>
+      {canShowQr && delivery.shareUrl ? (
+        <QrCodeImage value={delivery.shareUrl} />
+      ) : (
+        <div className="qr-delivery__empty" aria-hidden="true">
+          QR
+        </div>
+      )}
+      <div className="qr-delivery__copy">
+        <span className="eyebrow">Private 30-day gallery</span>
+        <h2>{copy.label}</h2>
+        <p>{copy.detail}</p>
+        {delivery.status !== "expired" && (
+          <small>Expires {new Date(delivery.expiresAt).toLocaleString("en-PH")}</small>
+        )}
+        {delivery.lastError && isOperator && (
+          <small className="qr-delivery__error">{delivery.lastError}</small>
+        )}
+        {delivery.status === "failed" && isOperator && (
+          <button className="button button--dark" type="button" onClick={retry}>
+            Retry upload now
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
 
 const openPrintPreview = (eventId: string, sessionId: string) => {
   const url = new URL(window.location.href);
@@ -1505,6 +1747,8 @@ function EventWorkspacePanel({
         </section>
       </div>
 
+      <CloudDeliverySetup />
+
       <section className="event-session-history">
         <div className="catalog-section__subheading">
           <small>Saved locally</small>
@@ -1557,10 +1801,13 @@ function EventWorkspacePanel({
                     : "Not printed yet"}
                 </small>
               </div>
-              <p className="event-session-card__qr">
-                QR delivery: waiting for the cloud-delivery milestone · future links expire after 30
-                days.
-              </p>
+              <QrDeliveryCard
+                eventId={event.id}
+                session={session}
+                compact
+                isOperator
+                sendCommand={sendCommand}
+              />
             </article>
           ))}
           {event.sessions.length === 0 && (
@@ -2994,17 +3241,23 @@ function SessionPanel({
 
   if (state.phase === "complete") {
     const currentEvent = activeEventFor(state);
+    const currentSession = currentEvent?.sessions.find((session) => session.id === state.sessionId);
     const printDeliverable = state.deliverables.find((deliverable) => deliverable.kind === "print");
     return (
       <section className="delivery-stage">
         <div className="section-heading">
           <span className="eyebrow">Session complete</span>
           <h1>Your WanderBooth set is ready.</h1>
-          <p>
-            These links are local to the booth. The private 30-day cloud QR page is the next
-            delivery milestone.
-          </p>
+          <p>Download locally here, or scan the private QR to keep the 30-day phone gallery.</p>
         </div>
+        {currentEvent && currentSession && (
+          <QrDeliveryCard
+            eventId={currentEvent.id}
+            session={currentSession}
+            isOperator={isOperator}
+            sendCommand={sendCommand}
+          />
+        )}
         {isOperator && currentEvent && state.sessionId && printDeliverable && (
           <section className="print-ready-card">
             <div>

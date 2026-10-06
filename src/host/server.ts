@@ -24,6 +24,14 @@ import {
   initialBoothState,
   reduceCommand,
 } from "../shared/session.js";
+import {
+  CloudDeliveryConfigStore,
+  createQrDelivery,
+  restoreQrDelivery,
+  testCloudDelivery,
+  uploadSessionDelivery,
+  validateCloudDeliveryConfig,
+} from "./cloudDelivery.js";
 import { importCustomOverlay } from "./customOverlay.js";
 import { BoothDatabase } from "./database.js";
 import { buildDeliverables } from "./deliverables.js";
@@ -35,6 +43,8 @@ const webDirectory = process.env.WANDERBOOTH_WEB_DIR
   : null;
 await mkdir(dataDirectory, { recursive: true });
 
+const cloudDeliveryConfigStore = new CloudDeliveryConfigStore(dataDirectory);
+await cloudDeliveryConfigStore.load();
 const database = new BoothDatabase(dataDirectory);
 const defaultState = initialBoothState();
 const savedState = database.loadState();
@@ -81,6 +91,11 @@ const savedEvents = (savedState?.events ?? []).map((event) => ({
     ...session,
     captures: (session.captures ?? []).map(normalizeCapture),
     printAttempts: session.printAttempts ?? [],
+    qrDelivery: restoreQrDelivery(
+      session.qrDelivery,
+      cloudDeliveryConfigStore.get(),
+      session.completedAt,
+    ),
   })),
 }));
 const savedOverlay = savedState
@@ -93,7 +108,7 @@ let state: BoothState = savedState
   ? {
       ...defaultState,
       ...savedState,
-      schemaVersion: 13,
+      schemaVersion: 14,
       cameraSourceId: savedState.cameraSourceId ?? "simulator",
       pendingCapture: savedState.pendingCapture ?? null,
       captureSequence: savedState.captureSequence ?? null,
@@ -197,6 +212,20 @@ const readImageBody = async (
 
   if (totalBytes === 0) throw new CommandError(`The ${label} file is empty.`);
   return Buffer.concat(chunks);
+};
+
+const readJsonBody = async <T>(request: IncomingMessage, maximumBytes = 32 * 1024) => {
+  const buffer = await readImageBody(request, maximumBytes, "request");
+  try {
+    return JSON.parse(buffer.toString("utf8")) as T;
+  } catch {
+    throw new CommandError("The request must contain valid JSON.");
+  }
+};
+
+const isLoopbackRequest = (request: IncomingMessage) => {
+  const address = request.socket.remoteAddress ?? "";
+  return address === "::1" || address === "127.0.0.1" || address === "::ffff:127.0.0.1";
 };
 
 let commandQueue = Promise.resolve();
@@ -374,6 +403,39 @@ const receiveOverlayDelete = async (overlayId: string, response: ServerResponse)
   sendJson(response, 200, { ok: true });
 };
 
+const receiveCloudDeliveryConfig = async (request: IncomingMessage, response: ServerResponse) => {
+  if (!isLoopbackRequest(request)) {
+    sendJson(response, 403, { error: "Cloud delivery can be configured only on this computer." });
+    return;
+  }
+  const input = await readJsonBody<{ baseUrl?: string; deviceToken?: string }>(request);
+  const config = validateCloudDeliveryConfig({
+    baseUrl: input.baseUrl ?? "",
+    deviceToken: input.deviceToken ?? "",
+  });
+  await testCloudDelivery(config);
+  await cloudDeliveryConfigStore.save(config);
+
+  for (const event of state.events) {
+    for (const session of event.sessions) {
+      if (
+        session.qrDelivery.status !== "ready" &&
+        session.qrDelivery.status !== "expired" &&
+        Date.parse(session.qrDelivery.expiresAt) > Date.now()
+      ) {
+        systemCommit({
+          type: "UPDATE_QR_DELIVERY",
+          eventId: event.id,
+          sessionId: session.id,
+          delivery: restoreQrDelivery(session.qrDelivery, config, session.completedAt),
+        });
+      }
+    }
+  }
+  scheduleDeliveryQueue(100);
+  sendJson(response, 200, cloudDeliveryConfigStore.publicConfig());
+};
+
 const httpServer = createServer((request, response) => {
   const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
@@ -381,10 +443,32 @@ const httpServer = createServer((request, response) => {
     response.writeHead(204, {
       "Access-Control-Allow-Headers":
         "Content-Type, X-Session-Id, X-WanderBooth-Layout-Id, X-WanderBooth-Overlay-Mode, X-WanderBooth-Overlay-Name",
-      "Access-Control-Allow-Methods": "DELETE, GET, POST, OPTIONS",
+      "Access-Control-Allow-Methods": "DELETE, GET, POST, PUT, OPTIONS",
       "Access-Control-Allow-Origin": "*",
     });
     response.end();
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/api/cloud-delivery/config") {
+    if (!isLoopbackRequest(request)) {
+      sendJson(response, 403, {
+        error: "Cloud delivery can be configured only on this computer.",
+      });
+      return;
+    }
+    sendJson(response, 200, cloudDeliveryConfigStore.publicConfig());
+    return;
+  }
+
+  if (request.method === "PUT" && requestUrl.pathname === "/api/cloud-delivery/config") {
+    commandQueue = commandQueue
+      .then(() => receiveCloudDeliveryConfig(request, response))
+      .catch((error) => {
+        const message =
+          error instanceof Error ? error.message : "Cloud delivery could not be configured.";
+        sendJson(response, error instanceof CommandError ? 409 : 502, { error: message });
+      });
     return;
   }
 
@@ -455,6 +539,7 @@ const httpServer = createServer((request, response) => {
   if (requestUrl.pathname === "/api/info") {
     sendJson(response, 200, {
       customerUrls: customerUrls(),
+      cloudDelivery: cloudDeliveryConfigStore.publicConfig(),
       service: "wanderbooth-host",
     });
     return;
@@ -527,6 +612,123 @@ const commit = (nextState: BoothState, actor: Actor, command: Command, commandId
 
 const systemCommit = (command: Command) => {
   commit(reduceCommand(state, command, "system"), "system", command);
+};
+
+let deliveryTimer: ReturnType<typeof setTimeout> | null = null;
+let deliveryProcessing = false;
+
+const nextDeliveryJob = () => {
+  const nowMilliseconds = Date.now();
+  for (const event of state.events) {
+    for (const session of event.sessions) {
+      const delivery = session.qrDelivery;
+      if (
+        ["queued", "failed"].includes(delivery.status) &&
+        Date.parse(delivery.expiresAt) > nowMilliseconds &&
+        (!delivery.nextRetryAt || Date.parse(delivery.nextRetryAt) <= nowMilliseconds)
+      ) {
+        return { event, session };
+      }
+    }
+  }
+  return null;
+};
+
+const nextScheduledDeliveryAt = () => {
+  const retryTimes = state.events.flatMap((event) =>
+    event.sessions
+      .filter(
+        (session) =>
+          ["queued", "failed"].includes(session.qrDelivery.status) &&
+          Date.parse(session.qrDelivery.expiresAt) > Date.now() &&
+          session.qrDelivery.nextRetryAt,
+      )
+      .map((session) => Date.parse(session.qrDelivery.nextRetryAt ?? ""))
+      .filter(Number.isFinite),
+  );
+  return retryTimes.length ? Math.min(...retryTimes) : null;
+};
+
+const scheduleDeliveryQueue = (delayMilliseconds = 500) => {
+  if (deliveryTimer) clearTimeout(deliveryTimer);
+  deliveryTimer = setTimeout(
+    () => {
+      deliveryTimer = null;
+      void runDeliveryQueue();
+    },
+    Math.max(0, delayMilliseconds),
+  );
+};
+
+const runDeliveryQueue = async () => {
+  if (deliveryProcessing) return;
+  const config = cloudDeliveryConfigStore.get();
+  if (!config) return;
+  const job = nextDeliveryJob();
+  if (!job) {
+    const nextRetryAt = nextScheduledDeliveryAt();
+    if (nextRetryAt) scheduleDeliveryQueue(Math.min(5 * 60_000, nextRetryAt - Date.now()));
+    return;
+  }
+
+  deliveryProcessing = true;
+  const attemptAt = new Date().toISOString();
+  const uploading = {
+    ...job.session.qrDelivery,
+    status: "uploading" as const,
+    lastAttemptAt: attemptAt,
+    nextRetryAt: null,
+    attemptCount: job.session.qrDelivery.attemptCount + 1,
+    lastError: null,
+  };
+  systemCommit({
+    type: "UPDATE_QR_DELIVERY",
+    eventId: job.event.id,
+    sessionId: job.session.id,
+    delivery: uploading,
+  });
+
+  try {
+    const currentSession = state.events
+      .find((event) => event.id === job.event.id)
+      ?.sessions.find((session) => session.id === job.session.id);
+    if (!currentSession) throw new Error("The local session was removed during upload.");
+    const uploadedAt = await uploadSessionDelivery({
+      config,
+      dataDirectory,
+      session: currentSession,
+    });
+    systemCommit({
+      type: "UPDATE_QR_DELIVERY",
+      eventId: job.event.id,
+      sessionId: job.session.id,
+      delivery: {
+        ...uploading,
+        status: "ready",
+        uploadedAt,
+        nextRetryAt: null,
+        lastError: null,
+      },
+    });
+  } catch (error) {
+    const retryDelays = [10_000, 30_000, 2 * 60_000, 5 * 60_000, 10 * 60_000];
+    const retryDelay = retryDelays[Math.min(uploading.attemptCount - 1, retryDelays.length - 1)];
+    const expired = Date.parse(uploading.expiresAt) <= Date.now();
+    systemCommit({
+      type: "UPDATE_QR_DELIVERY",
+      eventId: job.event.id,
+      sessionId: job.session.id,
+      delivery: {
+        ...uploading,
+        status: expired ? "expired" : "failed",
+        nextRetryAt: expired ? null : new Date(Date.now() + retryDelay).toISOString(),
+        lastError: error instanceof Error ? error.message : "The cloud upload failed.",
+      },
+    });
+  } finally {
+    deliveryProcessing = false;
+    scheduleDeliveryQueue(250);
+  }
 };
 
 const safeSessionId = (sessionId: string) => {
@@ -622,7 +824,12 @@ const runApproval = async (
 ) => {
   commit(reduceCommand(state, command, actor), actor, command, id);
   const deliverables = await buildDeliverables(state, dataDirectory);
-  systemCommit({ type: "PROCESSING_COMPLETED", deliverables });
+  systemCommit({
+    type: "PROCESSING_COMPLETED",
+    deliverables,
+    qrDelivery: createQrDelivery(cloudDeliveryConfigStore.get(), new Date().toISOString()),
+  });
+  scheduleDeliveryQueue(100);
 };
 
 const runDeleteEvent = async (
@@ -684,6 +891,14 @@ const processMessage = async (socket: WebSocket, rawData: WebSocket.RawData) => 
       await runApproval(message.command, message.actor, message.commandId);
     } else if (message.command.type === "DELETE_EVENT") {
       await runDeleteEvent(message.command, message.actor, message.commandId);
+    } else if (message.command.type === "RETRY_QR_DELIVERY") {
+      commit(
+        reduceCommand(state, message.command, message.actor),
+        message.actor,
+        message.command,
+        message.commandId,
+      );
+      scheduleDeliveryQueue(100);
     } else {
       commit(
         reduceCommand(state, message.command, message.actor),
@@ -716,4 +931,5 @@ httpServer.listen(port, "0.0.0.0", () => {
   console.log(`WanderBooth Host is ready on http://0.0.0.0:${port}`);
   console.log(`Runtime data stays local in ${dataDirectory}`);
   if (state.phase === "countdown") scheduleCountdownStep();
+  scheduleDeliveryQueue(750);
 });

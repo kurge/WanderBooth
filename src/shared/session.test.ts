@@ -8,6 +8,19 @@ import {
 } from "./catalog";
 import { type BoothState, CommandError, initialBoothState, reduceCommand } from "./session";
 
+const queuedQrDelivery = {
+  status: "queued" as const,
+  token: "abcdefghijklmnopqrstuvwxyzABCDEF",
+  shareUrl: "https://wanderbooth-delivery.example.workers.dev/d/abcdefghijklmnopqrstuvwxyzABCDEF",
+  createdAt: "2026-11-22T10:03:00.000Z",
+  expiresAt: "2026-12-22T10:03:00.000Z",
+  uploadedAt: null,
+  lastAttemptAt: null,
+  nextRetryAt: "2026-11-22T10:03:00.000Z",
+  attemptCount: 0,
+  lastError: null,
+};
+
 const customOverlay: CustomOverlay = {
   id: "custom-test-overlay",
   name: "Test Event",
@@ -937,6 +950,7 @@ describe("WanderBooth session rules", () => {
             mimeType: "video/mp4",
           },
         ],
+        qrDelivery: queuedQrDelivery,
       },
       "system",
     );
@@ -945,7 +959,7 @@ describe("WanderBooth session rules", () => {
       id: "session-event-001",
       number: 1,
       customerName: "Santos family",
-      qrStatus: "pending_cloud",
+      qrDelivery: expect.objectContaining({ status: "queued", token: queuedQrDelivery.token }),
     });
     const reset = reduceCommand(state, { type: "RESET" }, "attendant");
     expect(reset.events[0]?.sessions).toHaveLength(1);
@@ -1031,7 +1045,11 @@ describe("WanderBooth session rules", () => {
       sessionId: "session-print-001",
       sessionStartedAt: "2026-11-22T10:00:00.000Z",
     };
-    state = reduceCommand(state, { type: "PROCESSING_COMPLETED", deliverables: [] }, "system");
+    state = reduceCommand(
+      state,
+      { type: "PROCESSING_COMPLETED", deliverables: [], qrDelivery: queuedQrDelivery },
+      "system",
+    );
 
     const openedAttempt = {
       id: "print-attempt-001",
@@ -1068,5 +1086,60 @@ describe("WanderBooth session rules", () => {
     expect(state.events[0]?.sessions[0]?.printAttempts).toEqual([
       expect.objectContaining({ id: "print-attempt-001", status: "sent" }),
     ]);
+  });
+
+  it("tracks QR upload progress and lets staff retry a failed delivery", () => {
+    let state = reduceCommand(
+      initialBoothState(),
+      {
+        type: "CREATE_EVENT",
+        eventId: "event-qr-001",
+        name: "QR Test",
+        eventDate: "2026-11-22",
+        templateFolderId: "folder-general",
+      },
+      "attendant",
+    );
+    state = {
+      ...state,
+      phase: "processing",
+      sessionId: "session-qr-001",
+      sessionStartedAt: "2026-11-22T10:00:00.000Z",
+    };
+    state = reduceCommand(
+      state,
+      { type: "PROCESSING_COMPLETED", deliverables: [], qrDelivery: queuedQrDelivery },
+      "system",
+    );
+    state = reduceCommand(
+      state,
+      {
+        type: "UPDATE_QR_DELIVERY",
+        eventId: "event-qr-001",
+        sessionId: "session-qr-001",
+        delivery: {
+          ...queuedQrDelivery,
+          status: "failed",
+          attemptCount: 1,
+          lastError: "Venue internet disconnected.",
+        },
+      },
+      "system",
+    );
+    expect(state.events[0]?.sessions[0]?.qrDelivery).toMatchObject({
+      status: "failed",
+      attemptCount: 1,
+      lastError: "Venue internet disconnected.",
+    });
+
+    state = reduceCommand(
+      state,
+      { type: "RETRY_QR_DELIVERY", eventId: "event-qr-001", sessionId: "session-qr-001" },
+      "attendant",
+    );
+    expect(state.events[0]?.sessions[0]?.qrDelivery).toMatchObject({
+      status: "queued",
+      lastError: null,
+    });
   });
 });

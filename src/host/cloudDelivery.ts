@@ -119,7 +119,7 @@ export const restoreQrDelivery = (
   else if (status === "uploading") status = "queued";
   else if (status === "not_configured" && config) status = "queued";
   const shareUrl =
-    config && !["ready", "expired"].includes(status)
+    config && status !== "expired"
       ? shareUrlFor(config.baseUrl, fallback.token)
       : (saved?.shareUrl ??
         (config ? shareUrlFor(config.baseUrl, fallback.token) : fallback.shareUrl));

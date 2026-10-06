@@ -117,6 +117,26 @@ describe("cloud QR delivery", () => {
     );
   });
 
+  it("moves a ready delivery to a newly configured Worker without re-uploading it", () => {
+    const original = createQrDelivery(
+      { baseUrl: "https://old.example.workers.dev", deviceToken: "a".repeat(32) },
+      new Date(Date.now() - 60_000).toISOString(),
+      "abcdefghijklmnopqrstuvwxyzABCDEF",
+    );
+
+    const restored = restoreQrDelivery(
+      { ...original, status: "ready", uploadedAt: new Date().toISOString() },
+      { baseUrl: "https://new.example.workers.dev", deviceToken: "b".repeat(32) },
+      original.createdAt,
+    );
+
+    expect(restored.status).toBe("ready");
+    expect(restored.attemptCount).toBe(original.attemptCount);
+    expect(restored.shareUrl).toBe(
+      "https://new.example.workers.dev/d/abcdefghijklmnopqrstuvwxyzABCDEF",
+    );
+  });
+
   it("rejects an insecure non-local delivery URL", () => {
     expect(() =>
       validateCloudDeliveryConfig({

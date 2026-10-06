@@ -42,6 +42,8 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - The stable QR may be scanned while an upload is queued; its page shows a safe preparing state until every approved file is confirmed.
 - Kept local event retention manual and separate from the automatic 30-day cloud access and cleanup policy.
 - Kept the QR on the operator/customer screens and in history rather than baking it into the printed photo in this version.
+- Replaced the personal-name `workers.dev` account subdomain with branded production URL `wanderbooth-delivery.wanderpressph.workers.dev`.
+- When staff save a tested replacement delivery hostname, every non-expired session now refreshes its share URL while preserving its stable token, readiness, attempt count, and uploaded files.
 
 ### Security
 
@@ -55,9 +57,11 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Passed a full disposable Host-to-Worker session with three individual photos, final strip, and slideshow while confirming the print-only sheet was excluded.
 - Visually checked the operator configuration, completion/history QR, iPad-sized customer screen, and mobile guest gallery.
 - Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.14.0-arm64.dmg` (133 MB; SHA-256 `af36fa1c362364dce02000c4d4968a96391416221daf71beb02a47b71f2030eb`).
-- Deployed `wanderbooth-delivery.garcia-kathleenrose.workers.dev` with APAC D1, private R2, an hourly Cron Trigger, a verified 31-day lifecycle backstop, and disabled preview URLs.
+- Deployed `wanderbooth-delivery.wanderpressph.workers.dev` with APAC D1, private R2, an hourly Cron Trigger, a verified 31-day lifecycle backstop, and disabled preview URLs.
 - Passed a production six-photo synthetic Host upload with eight verified downloads, exact approved-file counts, print-sheet exclusion, and HTTP 401 rejection for an invalid device credential.
 - Connected the installed app's real local workspace and uploaded its four authorized existing sessions on the first attempt: 22 branded individual photos, four final layouts, and four slideshows. Two print sheets remained local. All four galleries returned HTTP 200, and the ready state survived a Host restart.
+- Migrated those four ready galleries to the branded hostname without re-uploading media. Their stable tokens and single-attempt histories stayed unchanged, all returned HTTP 200 with 8, 8, 8, and 6 downloads, and the new URLs survived restart.
+- Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.14.1-arm64.dmg` (133 MiB; SHA-256 `63397f07acc4ec735f668e7e1ec6e310d68404b627af3c0018d86edd42bc95a1`).
 - The focused Vitest runner hung before running assertions and remains honestly unverified; a phone/mobile-data test is still pending.
 
 ## 1.8.0 — 2026-10-06

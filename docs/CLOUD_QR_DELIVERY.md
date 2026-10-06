@@ -95,7 +95,7 @@ The Worker does not expose bucket URLs. Guest files pass through expiry and deli
 
 ## Cloudflare deployment
 
-The first deployment uses [wanderbooth-delivery.garcia-kathleenrose.workers.dev](https://wanderbooth-delivery.garcia-kathleenrose.workers.dev). Cloudflare preview URLs are disabled. A custom domain can be added later without changing the gallery design.
+The production deployment uses [wanderbooth-delivery.wanderpressph.workers.dev](https://wanderbooth-delivery.wanderpressph.workers.dev). Cloudflare preview URLs are disabled. A custom domain can be added later without changing the gallery design.
 
 The following is the repeatable setup procedure used for this deployment:
 
@@ -142,6 +142,8 @@ Production resources created on 2026-10-06:
 - preview URLs: disabled
 
 The local Host stores its cloud configuration in `data/runtime/cloud-delivery.json` with owner-only file permissions. This is acceptable for the private Phase 0 booth computer; reading the credential directly from the operating-system keychain remains a later hardening step. A recovery copy of the current production token is stored in this Mac's login Keychain under service `ph.wanderpress.wanderbooth.cloudflare` and account `wanderbooth-host`; the app does not read that Keychain item automatically.
+
+Saving a tested replacement base URL refreshes the hostname for every non-expired session, including already-ready galleries, while keeping each token, upload status, and attempt count unchanged. Use this only when the replacement hostname routes to the same delivery service and D1/R2 data. It does not re-upload media.
 
 For local development, copy `cloud/.dev.vars.example` to ignored `cloud/.dev.vars`, choose a synthetic token, apply the local migration, and run `pnpm cloud:dev`. Never reuse a production token in local development.
 

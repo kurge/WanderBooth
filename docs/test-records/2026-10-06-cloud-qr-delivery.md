@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Date | 2026-10-06 |
-| Build | WanderBooth 0.14.0 source build |
+| Build | WanderBooth 0.14.1 source build |
 | Runtime | Disposable Host data directory; simulator media; local Wrangler D1/R2 emulation |
 | Real customer data | None |
 
@@ -25,7 +25,7 @@
 | Guest mobile gallery | Pass; branded images, looping video, and download controls were visually checked |
 | Exact expired access | Pass; expired gallery returned HTTP 410 before cleanup |
 | Scheduled cleanup | Pass; Worker cron removed file records/media and marked the delivery expired |
-| Apple-silicon DMG | Pass; 133 MB image verified by macOS, SHA-256 `af36fa1c362364dce02000c4d4968a96391416221daf71beb02a47b71f2030eb` |
+| Apple-silicon DMG | Pass; 0.14.1, 133 MiB image verified by macOS, SHA-256 `63397f07acc4ec735f668e7e1ec6e310d68404b627af3c0018d86edd42bc95a1` |
 | Restart-safe queue rule | Pass in reducer/migration inspection; interrupted `uploading` state restores as `queued` |
 | Automated Vitest suite | Environment blocked; focused Vitest workers hung before assertions and were cancelled after 90 seconds. New cloud/reducer tests exist but are not claimed as executed. |
 | Real Cloudflare deployment | Pass; Worker, APAC D1, private R2, secret, hourly Cron Trigger, and stable workers.dev route are live |
@@ -38,6 +38,10 @@
 | Existing-session production upload | Pass; four authorized sessions uploaded on their first attempt with 22 individual photos, four final layouts, and four slideshows |
 | Existing-session privacy boundary | Pass; two print sheets stayed local, no raw captures were uploaded, and no customer links or media details were added to Git |
 | Restart persistence | Pass; production connection and four `ready` states survived a Host restart with zero errors |
+| Branded hostname migration | Pass; Cloudflare account subdomain changed to `wanderpressph`, and the branded health route returned HTTP 200 |
+| Existing QR migration | Pass; four ready sessions kept their stable tokens, one-attempt history, and cloud files while their saved hostname changed |
+| Branded-gallery verification | Pass; all four branded links returned HTTP 200 with 8, 8, 8, and 6 download controls and survived restart |
+| Installed app version audit | Update required; `/Applications/WanderBooth.app` is 0.13.0, while the verified QR build is 0.14.1 |
 | Physical phone over mobile data | Pending; scan the deployed synthetic gallery with Wi-Fi disabled |
 
 ## Notes
@@ -46,6 +50,6 @@ All uploads used generated simulator files in disposable directories outside the
 
 The local end-to-end smoke created a disposable event, completed three captures, generated individual PNGs, the final strip, print sheet, and MP4, then waited for the background queue to reach `ready`. The resulting guest gallery contained the approved customer files and excluded the print-only sheet.
 
-The deployed synthetic gallery is available at `https://wanderbooth-delivery.garcia-kathleenrose.workers.dev/d/zfxQC17G1JCfvoaX3n9tlya81XyDB373` until November 5, 2026. It contains no customer data. The remaining external check is scanning that gallery from a physical phone with Wi-Fi disabled so the request uses mobile data.
+The deployed synthetic gallery is available at `https://wanderbooth-delivery.wanderpressph.workers.dev/d/zfxQC17G1JCfvoaX3n9tlya81XyDB373` until November 5, 2026. It contains no customer data. The remaining external check is scanning that gallery from a physical phone with Wi-Fi disabled so the request uses mobile data.
 
 The installed app was then connected using the token recovery copy from macOS Keychain. Its four authorized existing sessions moved from `not_configured` to `ready` without retries. Public checks returned HTTP 200 with the expected 8, 8, 8, and 6 download links. D1 confirmed the same approved file counts. Real gallery URLs and tokens are deliberately omitted from this record.

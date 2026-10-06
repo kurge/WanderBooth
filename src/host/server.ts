@@ -419,7 +419,6 @@ const receiveCloudDeliveryConfig = async (request: IncomingMessage, response: Se
   for (const event of state.events) {
     for (const session of event.sessions) {
       if (
-        session.qrDelivery.status !== "ready" &&
         session.qrDelivery.status !== "expired" &&
         Date.parse(session.qrDelivery.expiresAt) > Date.now()
       ) {

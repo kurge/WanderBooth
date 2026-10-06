@@ -26,7 +26,7 @@ The cloud gallery contains only branded individual photos, the final layout, and
 - Access is blocked exactly at 30 days and hourly cleanup removes media afterward. A 31-day R2 lifecycle rule may be added only as a safety backstop.
 - The Worker retains a minimal expired row for a clear expired page and cleanup audit, but removes the media rows and objects.
 - Cloud delivery can fail independently without stopping capture, processing, printing, or local event history.
-- A future custom domain can replace `workers.dev`; already-issued links must continue to use the base URL saved with their session.
+- A replacement hostname that routes to this same Worker and D1/R2 data may refresh every non-expired session URL while preserving its stable token and upload state. For a future migration to a different service, the previous hostname must remain reachable until its issued links expire.
 
 ## Alternatives considered
 

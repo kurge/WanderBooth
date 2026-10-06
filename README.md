@@ -38,7 +38,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Current catalog: **two normal product families with five built-in layouts, plus portrait and landscape custom saved templates with up to eight holders**, a mutually exclusive fixed-color or imported event frame, iPad customer screen, and no on-screen price
 - Current cameras: **prototype simulator and experimental MacBook camera**, now with a relayed customer-screen preview and automatic capture sequence; Fujifilm X-M5 is the first dedicated-camera target
 - First print decision: every job uses an Epson-compatible **4×6 sheet**. A single 2×6 design is duplicated on both halves for cutting; the six-shot Double strip already fills the whole 4×6 sheet.
-- Immediate next step: install the 0.14.0 DMG, connect the production app to the deployed QR service, and scan the production synthetic gallery from a physical phone on mobile data. Epson L8050 printing has passed its first physical workflow test; exact color, scale, and borderless settings still need a repeatable pilot preset. AR remains a later adapter-backed experiment.
+- Immediate next step: open the installed app, confirm its four completed sessions show **QR ready**, and scan one gallery from a physical phone on mobile data. Epson L8050 printing has passed its first physical workflow test; exact color, scale, and borderless settings still need a repeatable pilot preset. AR remains a later adapter-backed experiment.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**
 - Repository visibility: **Public**
 

@@ -4,6 +4,8 @@
 
 **Version:** 1.0.0
 
+The production Mac is connected. Its four authorized existing sessions were uploaded successfully on 2026-10-06, and all four persisted as `ready` after a Host restart. Customer gallery tokens and media details are intentionally excluded from this repository.
+
 **Updated:** 2026-10-06
 
 ## Outcome

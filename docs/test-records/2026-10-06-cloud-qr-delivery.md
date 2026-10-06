@@ -35,6 +35,9 @@
 | R2 lifecycle backstop | Pass; enabled for all objects at 31 days; incomplete multipart uploads abort after 7 days |
 | Preview URL hardening | Pass; deployment previews disabled while the stable workers.dev route remains enabled |
 | Production credential cleanup | Pass; recovery copy verified in macOS Keychain and temporary plaintext token/runtime removed |
+| Existing-session production upload | Pass; four authorized sessions uploaded on their first attempt with 22 individual photos, four final layouts, and four slideshows |
+| Existing-session privacy boundary | Pass; two print sheets stayed local, no raw captures were uploaded, and no customer links or media details were added to Git |
+| Restart persistence | Pass; production connection and four `ready` states survived a Host restart with zero errors |
 | Physical phone over mobile data | Pending; scan the deployed synthetic gallery with Wi-Fi disabled |
 
 ## Notes
@@ -44,3 +47,5 @@ All uploads used generated simulator files in disposable directories outside the
 The local end-to-end smoke created a disposable event, completed three captures, generated individual PNGs, the final strip, print sheet, and MP4, then waited for the background queue to reach `ready`. The resulting guest gallery contained the approved customer files and excluded the print-only sheet.
 
 The deployed synthetic gallery is available at `https://wanderbooth-delivery.garcia-kathleenrose.workers.dev/d/zfxQC17G1JCfvoaX3n9tlya81XyDB373` until November 5, 2026. It contains no customer data. The remaining external check is scanning that gallery from a physical phone with Wi-Fi disabled so the request uses mobile data.
+
+The installed app was then connected using the token recovery copy from macOS Keychain. Its four authorized existing sessions moved from `not_configured` to `ready` without retries. Public checks returned HTTP 200 with the expected 8, 8, 8, and 6 download links. D1 confirmed the same approved file counts. Real gallery URLs and tokens are deliberately omitted from this record.

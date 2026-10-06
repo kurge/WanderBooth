@@ -38,7 +38,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Current catalog: **two normal product families with five built-in layouts, plus portrait and landscape custom saved templates with up to eight holders**, a mutually exclusive fixed-color or imported event frame, iPad customer screen, and no on-screen price
 - Current cameras: **prototype simulator and experimental MacBook camera**, now with a relayed customer-screen preview and automatic capture sequence; Fujifilm X-M5 is the first dedicated-camera target
 - First print decision: every job uses an Epson-compatible **4×6 sheet**. A single 2×6 design is duplicated on both halves for cutting; the six-shot Double strip already fills the whole 4×6 sheet.
-- Immediate next step: deploy the private QR service to Cloudflare, enter its `workers.dev` URL and device token in the operator screen, and run a full phone/mobile-data test. Epson L8050 printing has passed its first physical workflow test; exact color, scale, and borderless settings still need a repeatable pilot preset. AR remains a later adapter-backed experiment.
+- Immediate next step: install the 0.14.0 DMG, connect the production app to the deployed QR service, and scan the production synthetic gallery from a physical phone on mobile data. Epson L8050 printing has passed its first physical workflow test; exact color, scale, and borderless settings still need a repeatable pilot preset. AR remains a later adapter-backed experiment.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**
 - Repository visibility: **Public**
 
@@ -83,7 +83,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - A double-clickable Apple-silicon Mac application and local DMG build.
 - Supplied Wander Press PH artwork and exact blue, lime, yellow, cream, orange, and purple brand tokens.
 
-The prototype now controls the starting MacBook camera, provides event workspaces plus a reusable Template Library, imports owner artwork locally, opens the operating system's printer chooser with a prepared 4×6 sheet, and contains the complete private QR upload/download workflow. The QR service has passed local synthetic end-to-end tests but still needs deployment to the WanderBooth Cloudflare account and a real-phone test. The app does **not** yet control the X-M5 or automatically manage the Epson queue. The built-in camera and Epson path remain Experimental until the full reliability and print-quality tests are complete.
+The prototype now controls the starting MacBook camera, provides event workspaces plus a reusable Template Library, imports owner artwork locally, opens the operating system's printer chooser with a prepared 4×6 sheet, and contains the complete private QR upload/download workflow. The QR service is deployed at [wanderbooth-delivery.garcia-kathleenrose.workers.dev](https://wanderbooth-delivery.garcia-kathleenrose.workers.dev) and has passed a production synthetic end-to-end test; a physical-phone/mobile-data check remains. The app does **not** yet control the X-M5 or automatically manage the Epson queue. The built-in camera and Epson path remain Experimental until the full reliability and print-quality tests are complete.
 
 ## Open the app on this Mac
 

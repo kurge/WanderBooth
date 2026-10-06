@@ -180,7 +180,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - Unit tests and a repeatable end-to-end smoke session verify the current workflow.
 - A packaged Apple-silicon `WanderBooth.app` and verified DMG can be launched without developer commands on the starting Mac.
 
-This checkpoint is not yet a pilot release. The Epson workflow has passed its first owner-run physical print, and the QR workflow has passed local end-to-end and expiry tests. Real Cloudflare deployment, a mobile-data phone test, repeatable Epson settings, camera reliability certification, storage monitoring, and tested manual local-deletion operations are still required.
+This checkpoint is not yet a pilot release. The Epson workflow has passed its first owner-run physical print. The QR workflow has passed local expiry tests and a production Cloudflare Host-to-Worker gallery/download test. A mobile-data phone test, connection of the installed production app, repeatable Epson settings, camera reliability certification, storage monitoring, and tested manual local-deletion operations are still required.
 
 ### Why the first release uses a desktop Host and reusable customer client
 

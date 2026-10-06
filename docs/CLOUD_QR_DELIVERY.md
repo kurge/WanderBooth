@@ -1,6 +1,6 @@
 # WanderBooth Cloud QR Delivery
 
-**Status:** Implemented locally; Cloudflare account deployment pending
+**Status:** Deployed and production-synthetic verified; physical-phone test pending
 
 **Version:** 1.0.0
 
@@ -93,7 +93,9 @@ The Worker does not expose bucket URLs. Guest files pass through expiry and deli
 
 ## Cloudflare deployment
 
-The first deployment uses the free `workers.dev` hostname. A custom domain can be added later without changing the gallery design.
+The first deployment uses [wanderbooth-delivery.garcia-kathleenrose.workers.dev](https://wanderbooth-delivery.garcia-kathleenrose.workers.dev). Cloudflare preview URLs are disabled. A custom domain can be added later without changing the gallery design.
+
+The following is the repeatable setup procedure used for this deployment:
 
 1. Sign in to the correct Cloudflare account:
 
@@ -128,7 +130,16 @@ The first deployment uses the free `workers.dev` hostname. A custom domain can b
 
 6. In WanderBooth's operator event workspace, enter the deployed `https://...workers.dev` base URL and the same device token. **Save and test Cloudflare** validates the credentials before saving them locally.
 
-The local Host stores its cloud configuration in `data/runtime/cloud-delivery.json` with owner-only file permissions. This is acceptable for the private Phase 0 booth computer; an operating-system keychain is a later hardening step.
+Production resources created on 2026-10-06:
+
+- Worker: `wanderbooth-delivery`
+- D1 database: `wanderbooth-delivery` in APAC
+- private R2 bucket: `wanderbooth-delivery`
+- Cron Trigger: hourly at minute 17
+- R2 lifecycle backstop: expire every object after 31 days
+- preview URLs: disabled
+
+The local Host stores its cloud configuration in `data/runtime/cloud-delivery.json` with owner-only file permissions. This is acceptable for the private Phase 0 booth computer; reading the credential directly from the operating-system keychain remains a later hardening step. A recovery copy of the current production token is stored in this Mac's login Keychain under service `ph.wanderpress.wanderbooth.cloudflare` and account `wanderbooth-host`; the app does not read that Keychain item automatically.
 
 For local development, copy `cloud/.dev.vars.example` to ignored `cloud/.dev.vars`, choose a synthetic token, apply the local migration, and run `pnpm cloud:dev`. Never reuse a production token in local development.
 
@@ -157,7 +168,7 @@ After an event:
 
 ## Acceptance criteria
 
-- A completed synthetic session reaches `ready` through the real deployed Worker.
+- A completed synthetic session reaches `ready` through the real deployed Worker. **Passed on 2026-10-06.**
 - A current iPhone or Android phone opens the gallery over mobile data.
 - Every expected branded individual, layout, and slideshow opens and downloads.
 - No raw capture, print sheet, event/client metadata, or secret appears in cloud storage or the public repository.
@@ -165,7 +176,7 @@ After an event:
 - Restarting the Host restores an interrupted upload to the queue.
 - Repeating a manifest, file, or completion request does not create duplicate guest files.
 - A gallery refuses access at its exact expiry time, and scheduled cleanup deletes its R2 objects.
-- Invalid Host credentials cannot create or modify a delivery.
+- Invalid Host credentials cannot create or modify a delivery. **Deployed health check returns HTTP 401 for an invalid token.**
 
 ## Pilot measurements
 

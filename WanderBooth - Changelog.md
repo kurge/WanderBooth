@@ -55,7 +55,9 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Passed a full disposable Host-to-Worker session with three individual photos, final strip, and slideshow while confirming the print-only sheet was excluded.
 - Visually checked the operator configuration, completion/history QR, iPad-sized customer screen, and mobile guest gallery.
 - Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.14.0-arm64.dmg` (133 MB; SHA-256 `af36fa1c362364dce02000c4d4968a96391416221daf71beb02a47b71f2030eb`).
-- The focused Vitest runner hung before running assertions and remains honestly unverified; real Cloudflare deployment and a phone/mobile-data test are still pending.
+- Deployed `wanderbooth-delivery.garcia-kathleenrose.workers.dev` with APAC D1, private R2, an hourly Cron Trigger, a verified 31-day lifecycle backstop, and disabled preview URLs.
+- Passed a production six-photo synthetic Host upload with eight verified downloads, exact approved-file counts, print-sheet exclusion, and HTTP 401 rejection for an invalid device credential.
+- The focused Vitest runner hung before running assertions and remains honestly unverified; connecting the installed app and a phone/mobile-data test are still pending.
 
 ## 1.8.0 — 2026-10-06
 

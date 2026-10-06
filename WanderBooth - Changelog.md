@@ -54,7 +54,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Passed local D1 migration; authenticated manifest/image/video upload; completion; guest gallery; file download; exact HTTP 410 expiry; and scheduled media cleanup.
 - Passed a full disposable Host-to-Worker session with three individual photos, final strip, and slideshow while confirming the print-only sheet was excluded.
 - Visually checked the operator configuration, completion/history QR, iPad-sized customer screen, and mobile guest gallery.
-- Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.14.0-arm64.dmg` (133 MB; SHA-256 `d11fe84312f41a321042131c791c805c8e5b19c13ccc65c1b4b450d09786b822`).
+- Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.14.0-arm64.dmg` (133 MB; SHA-256 `af36fa1c362364dce02000c4d4968a96391416221daf71beb02a47b71f2030eb`).
 - The focused Vitest runner hung before running assertions and remains honestly unverified; real Cloudflare deployment and a phone/mobile-data test are still pending.
 
 ## 1.8.0 — 2026-10-06

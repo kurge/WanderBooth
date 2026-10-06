@@ -25,7 +25,7 @@
 | Guest mobile gallery | Pass; branded images, looping video, and download controls were visually checked |
 | Exact expired access | Pass; expired gallery returned HTTP 410 before cleanup |
 | Scheduled cleanup | Pass; Worker cron removed file records/media and marked the delivery expired |
-| Apple-silicon DMG | Pass; 133 MB image verified by macOS, SHA-256 `d11fe84312f41a321042131c791c805c8e5b19c13ccc65c1b4b450d09786b822` |
+| Apple-silicon DMG | Pass; 133 MB image verified by macOS, SHA-256 `af36fa1c362364dce02000c4d4968a96391416221daf71beb02a47b71f2030eb` |
 | Restart-safe queue rule | Pass in reducer/migration inspection; interrupted `uploading` state restores as `queued` |
 | Automated Vitest suite | Environment blocked; focused Vitest workers hung before assertions and were cancelled after 90 seconds. New cloud/reducer tests exist but are not claimed as executed. |
 | Real Cloudflare deployment | Pending account OAuth approval, resource creation, secret setup, and deploy |

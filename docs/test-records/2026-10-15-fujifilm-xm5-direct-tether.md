@@ -28,6 +28,7 @@ Customer media from this test was written only to a temporary local directory an
 | Camera-copy retention | Pass | `--keep --keep-raw` retained the new JPEG and RAF on the camera while saving the JPEG locally |
 | Preview immediately after capture | Fail | Three preview requests in the same persistent session returned an unspecified driver error |
 | Software-only reconnect after capture | Fail | Closing the controller, reclaiming USB, and opening a new session still could not receive a preview without a camera power cycle |
+| Second automatic capture after preview failure | Pass | A new controller session fired and downloaded another JPEG plus RAF without power-cycling; both files remained on the camera |
 | CLI movie-preview stream | Fail | The movie-preview command returned zero frames |
 | Disconnect/ownership | Partial | A controller can claim the camera only after FUJIFILM TETHER APP is closed and macOS `ptpcamerad` releases it |
 
@@ -36,6 +37,7 @@ Customer media from this test was written only to a temporary local directory an
 - FUJIFILM TETHER APP demonstrated live view from this exact X-M5 in tether mode. The camera is capable of tethered preview; the remaining problem is providing that preview inside WanderBooth.
 - Direct gPhoto2 capture proves that Self-Service does not require an attendant to press the physical shutter.
 - The final persistent-session test received repeated preview frames, fired the shutter, downloaded the full-resolution files, and explicitly kept both files on the camera. The camera then stopped serving preview frames. Reopening only the software/USB session did not recover preview.
+- The failed preview state did not prevent a second automatic still capture in a new controller session. This supports separating uninterrupted HDMI preview from repeated USB still capture, although the full six-capture and 50-session gates remain.
 - Only one desktop application can own the USB tether connection at a time. FUJIFILM TETHER APP must be fully exited before a direct controller can claim the camera.
 - macOS launches `ptpcamerad` for a connected PTP camera. The experimental controller must release or avoid that competing process before opening the camera.
 - The original one-off command demonstrated gPhoto2's deletion default. The final persistent-session test used `--keep --keep-raw`, and gPhoto2 confirmed that both the JPEG and RAF remained on the camera. Any future controller must retain those flags.

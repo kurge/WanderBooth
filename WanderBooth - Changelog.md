@@ -39,7 +39,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Passed the full 58-test suite, including focused coverage for ignoring an existing JPEG, waiting through a partially written file, accepting only a newly completed image, restoring the local folder configuration, timing out safely, and enforcing staff-only idle source selection.
 - Visually checked the isolated operator event workspace, X-M5 source selection, setup instructions, readiness block, and transfer-test controls.
 - Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.15.0-arm64.dmg` (144 MiB; SHA-256 `c549161096578d5c4840c2b379980535c00910a11af36e31d90e908957a45cb1`).
-- Physically detected the X-M5 on macOS through gPhoto2 2.5.32/libgphoto2 2.5.34, received six consecutive real 1024×768 tether previews in one persistent session, remotely fired the camera, downloaded an 11 MB 6240×4160 JPEG plus a 33 MB RAF without touching the shutter, and retained both files on the camera.
+- Physically detected the X-M5 on macOS through gPhoto2 2.5.32/libgphoto2 2.5.34, received six consecutive real 1024×768 tether previews in one persistent session, and completed two automatic full-resolution still captures without power-cycling. The first downloaded an 11 MB 6240×4160 JPEG plus a 33 MB RAF, and both tests retained JPEG and RAF copies on the camera.
 - Confirmed the exact X-M5 can show tethered live view in FUJIFILM TETHER APP.
 - Preview resume after the direct capture, software-only reconnect, and movie-preview streaming did not pass. USB-only control is therefore not a customer-ready live-view adapter; physical folder-bridge transfer, the combined HDMI/USB path, print quality, and repeated-session reliability still require testing.
 

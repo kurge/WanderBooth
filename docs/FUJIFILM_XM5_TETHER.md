@@ -6,7 +6,7 @@
 
 WanderBooth can import the full-resolution JPEG produced by a Fujifilm X-M5 through FUJIFILM TETHER APP. This first bridge is designed for attended sessions. WanderBooth owns the countdown and waits for the next completed JPEG, while the attendant presses the X-M5 shutter after the countdown.
 
-It does not yet provide X-M5 live view or programmatic shutter control. Do not advertise this source as unattended Self-Service until those capabilities are implemented and tested.
+The current app bridge does not yet provide X-M5 live view or programmatic shutter control. A 2026-10-15 direct-control spike nevertheless proved that this exact X-M5 can provide a 1024×768 tether preview frame and can be triggered automatically to deliver a 6240×4160 JPEG plus RAF. The remaining work is a stable persistent connection that keeps preview running before and after each capture. Do not advertise this source as unattended Self-Service until that sequence is implemented and reliability-tested.
 
 ## One-time setup
 
@@ -53,10 +53,14 @@ The bridge records a snapshot of the folder before every capture. Files that exi
 
 ## Remaining certification work
 
-- Physical X-M5 test on the pilot Mac and current firmware.
-- Actual resolution and transfer-latency record.
+- Replace one-off direct-control commands with one persistent camera session.
+- Sustain a usable preview and resume it after every automatic capture without a camera power cycle.
+- Keep the new JPEG and RAF on the camera while saving the full-resolution JPEG locally.
 - Retake, cable-disconnect, app-restart, and camera-restart recovery.
 - Fifty consecutive sessions without a missing or mismatched capture.
 - 2×6 and 4×6 Epson print-quality approval.
-- A supported automatic shutter-control path for unattended Self-Service.
-- A usable customer preview path, potentially through a separate HDMI/UVC preview device if Fujifilm does not expose X-M5 live view to WanderBooth.
+- Bundle or document the macOS direct-controller dependency without silently changing the public repository's licensing.
+- Add a separate Windows 11 adapter; libgphoto2 does not support Windows.
+- Keep HDMI/UVC preview as the fallback if persistent direct USB preview remains unstable.
+
+See [the 2026-10-15 direct USB tether test record](test-records/2026-10-15-fujifilm-xm5-direct-tether.md) for exact evidence and limitations.

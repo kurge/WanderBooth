@@ -728,6 +728,29 @@ describe("WanderBooth session rules", () => {
     ).toThrow("not available");
   });
 
+  it("offers the experimental X-M5 tether source only to staff while idle", () => {
+    const selected = reduceCommand(
+      initialBoothState(),
+      { type: "SET_CAMERA_SOURCE", cameraSourceId: "fujifilm_xm5_tether" },
+      "attendant",
+    );
+    expect(selected.cameraSourceId).toBe("fujifilm_xm5_tether");
+    expect(() =>
+      reduceCommand(
+        initialBoothState(),
+        { type: "SET_CAMERA_SOURCE", cameraSourceId: "fujifilm_xm5_tether" },
+        "customer",
+      ),
+    ).toThrow("Only staff");
+    expect(() =>
+      reduceCommand(
+        beginSelection(),
+        { type: "SET_CAMERA_SOURCE", cameraSourceId: "fujifilm_xm5_tether" },
+        "attendant",
+      ),
+    ).toThrow("not available");
+  });
+
   it("tracks the exact photo expected from a real camera", () => {
     let state = completeSelection();
     state = reduceCommand(state, { type: "CONFIRM_CASH" }, "attendant");

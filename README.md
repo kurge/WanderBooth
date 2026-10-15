@@ -21,6 +21,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - [Changelog](<WanderBooth - Changelog.md>) — chronological record of material documentation and product-plan changes.
 - [Hardware baseline](docs/HARDWARE.md) — owned devices, known compatibility, risks, and the Phase 0 hardware test plan.
 - [Camera compatibility matrix](docs/CAMERA_COMPATIBILITY.md) — camera sources, adapter types, test status, and product-level approval.
+- [Fujifilm X-M5 tether pilot](docs/FUJIFILM_XM5_TETHER.md) — attended USB tether setup, transfer test, operation, and recovery.
 - [Operation modes](docs/OPERATION_MODES.md) — control ownership, screen behavior, permissions, and workflows for Attendant-Operated and Self-Service use.
 - [Events and local storage](docs/EVENTS_AND_STORAGE.md) — event projects, session history, local file ownership, archive/delete behavior, and the boundary with 30-day cloud delivery.
 - [Cloud QR delivery](docs/CLOUD_QR_DELIVERY.md) — Cloudflare setup, operator workflow, security, retention, recovery, and deployment.
@@ -36,7 +37,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
 - Current catalog: **two normal product families with five built-in layouts, plus portrait and landscape custom saved templates with up to eight holders**, a mutually exclusive fixed-color or imported event frame, iPad customer screen, and no on-screen price
-- Current cameras: **prototype simulator and experimental MacBook camera**, now with a relayed customer-screen preview and automatic capture sequence; Fujifilm X-M5 is the first dedicated-camera target
+- Current cameras: **prototype simulator, experimental video-device capture, and experimental Fujifilm X-M5 tethered JPEG import**. The X-M5 bridge currently requires the attendant to fire the shutter and does not yet supply live preview.
 - First print decision: every job uses an Epson-compatible **4×6 sheet**. A single 2×6 design is duplicated on both halves for cutting; the six-shot Double strip already fills the whole 4×6 sheet.
 - Immediate next step: replace the installed 0.13.0 app with the verified 0.14.1 DMG, confirm its four completed sessions show **QR ready** at the branded hostname, and scan one gallery from a physical phone on mobile data. Epson L8050 printing has passed its first physical workflow test; exact color, scale, and borderless settings still need a repeatable pilot preset. AR remains a later adapter-backed experiment.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**
@@ -83,7 +84,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - A double-clickable Apple-silicon Mac application and local DMG build.
 - Supplied Wander Press PH artwork and exact blue, lime, yellow, cream, orange, and purple brand tokens.
 
-The prototype now controls the starting MacBook camera, provides event workspaces plus a reusable Template Library, imports owner artwork locally, opens the operating system's printer chooser with a prepared 4×6 sheet, and contains the complete private QR upload/download workflow. The QR service is deployed at [wanderbooth-delivery.wanderpressph.workers.dev](https://wanderbooth-delivery.wanderpressph.workers.dev) and has passed a production synthetic end-to-end test; a physical-phone/mobile-data check remains. The app does **not** yet control the X-M5 or automatically manage the Epson queue. The built-in camera and Epson path remain Experimental until the full reliability and print-quality tests are complete.
+The prototype now controls standard video cameras and can import a new full-resolution X-M5 JPEG through FUJIFILM TETHER APP, provides event workspaces plus a reusable Template Library, imports owner artwork locally, opens the operating system's printer chooser with a prepared 4×6 sheet, and contains the complete private QR upload/download workflow. The QR service is deployed at [wanderbooth-delivery.wanderpressph.workers.dev](https://wanderbooth-delivery.wanderpressph.workers.dev) and has passed a production synthetic end-to-end test; a physical-phone/mobile-data check remains. The X-M5 path does **not** yet provide automatic shutter control or live preview, and the app does not automatically manage the Epson queue. Camera and Epson paths remain Experimental until the full reliability and print-quality tests are complete.
 
 ## Open the app on this Mac
 

@@ -2,9 +2,9 @@
 
 **Status:** Phase 0 testing
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 
-**Updated:** 2026-10-02
+**Updated:** 2026-10-15
 
 This matrix is the source of truth for which camera sources WanderBooth can safely offer. A source is not approved for paying customers merely because the operating system or application can detect it.
 
@@ -21,7 +21,7 @@ This matrix is the source of truth for which camera sources WanderBooth can safe
 
 | Camera source | Adapter family | Windows 11 | macOS 15.7.5+ | Preview | Full still capture | Product approval | Current label | Notes |
 |---|---|---|---|---|---|---|---|---|
-| Fujifilm X-M5 | Dedicated camera | Planned | Planned | Not tested | Not tested | None yet | Planned | Recommended first dedicated-camera test; direct control still needs proof |
+| Fujifilm X-M5 through FUJIFILM TETHER APP | Dedicated watched-folder tether | Planned | Implemented, physical test pending | Unavailable in first bridge | Implemented, physical test pending | Attended testing only | Experimental | Imports only a new stable full-resolution JPEG; attendant fires shutter; no automatic trigger or live preview yet |
 | Canon EOS 60D | Dedicated camera | Planned | Planned | Not tested | Not tested | None yet | Planned | Owned secondary target; watched-folder bridge may be required |
 | Starting MacBook Pro built-in camera | Standard video device | Not applicable | Passed once on macOS 15.7.5 | Passed once through the local customer relay | Passed once at 1920×1080 | None yet | Experimental | Packaged app completed one automatic three-photo session from a single tap, synchronized countdowns, and all deliverables; physical-iPad, reliability, recovery, crop, and print-quality certification remain |
 | USB/UVC webcam | Standard video device | Planned | Planned | Not tested | Not tested | None yet | Planned | Exact webcam model is not selected |
@@ -73,3 +73,7 @@ Required setup:
 ## Completed records
 
 - [2026-10-02 starting MacBook camera smoke test](test-records/2026-10-02-macbook-camera.md)
+
+## Experimental setup guides
+
+- [Fujifilm X-M5 USB tether pilot](FUJIFILM_XM5_TETHER.md)

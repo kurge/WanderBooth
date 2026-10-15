@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, session } = require("electron");
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 
@@ -111,6 +111,16 @@ function configureCameraPermissions() {
 }
 
 app.whenReady().then(() => {
+  ipcMain.handle("wanderbooth:select-tether-folder", async (event) => {
+    if (!isTrustedBoothUrl(event.sender.getURL())) return null;
+    const parent = BrowserWindow.fromWebContents(event.sender);
+    const result = await dialog.showOpenDialog(parent ?? undefined, {
+      title: "Choose Fujifilm Tether App download folder",
+      buttonLabel: "Use this folder",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    return result.canceled ? null : (result.filePaths[0] ?? null);
+  });
   ipcMain.handle(
     "wanderbooth:print-current-window",
     (event) =>

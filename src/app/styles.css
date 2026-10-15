@@ -993,6 +993,46 @@ p {
   width: 100%;
 }
 
+.camera-control--tether ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+  color: #5f647d;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.camera-control--tether code {
+  display: block;
+  padding: 8px;
+  border-radius: 9px;
+  color: var(--blue-dark);
+  background: rgba(255, 255, 255, 0.74);
+  font-size: 0.62rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.camera-control--tether p {
+  margin: 9px 0 0;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.camera-control__success {
+  color: #147044;
+  font-weight: 800;
+}
+
+.camera-control__actions {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.camera-control__note {
+  color: #656a83;
+}
+
 .ipad-connection code {
   display: block;
   padding: 10px;
@@ -2462,6 +2502,13 @@ button.saved-template-card:hover,
 
 .live-camera__simulator strong {
   font-size: clamp(1.4rem, 3vw, 2.5rem);
+}
+
+.live-camera__tether small {
+  max-width: 28rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 750;
+  text-align: center;
 }
 
 .live-camera__guide {

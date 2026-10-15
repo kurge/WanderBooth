@@ -33,7 +33,7 @@ iPad display ────┘                     │
                                       ├── Host-owned countdown/capture sequence
                                       ├── in-memory local preview relay
                                       ├── event/session media folders
-                                      ├── camera sources (simulator + Mac media device)
+                                      ├── camera sources (simulator + video device + X-M5 tether folder)
                                       ├── Sharp filters + layout/frame/composition renderer
                                       ├── 4×6 print sheet + native print dialog bridge
                                       └── persistent QR upload queue ── HTTPS ── Cloudflare Worker
@@ -45,6 +45,7 @@ iPad display ────┘                     │
 - `src/host/` — local HTTP/WebSocket service, persistence, and deliverable processing.
 - `src/camera/` — Host-side replaceable camera adapters; currently contains the simulator.
 - `src/app/useMacBookCamera.ts` — standard media-device preview and JPEG capture for the Mac operator renderer.
+- `src/host/tetherCamera.ts` — persisted X-M5/Fujifilm download-folder bridge, stable-file detection, and JPEG validation.
 - `src/shared/` — event records, template collections, product catalog, permissions, session state machine, and wire messages.
 - `src/cloud/` — authenticated Cloudflare upload API, private mobile guest gallery, and scheduled expiry cleanup.
 - `cloud/` — Wrangler configuration and D1 migrations. Local secrets belong only in ignored `cloud/.dev.vars`.
@@ -61,7 +62,7 @@ The Host is authoritative. Every screen sends a command, the Host applies role a
 - Events: the operator starts in a local event library. Each event owns isolated template copies and completed session records. Captures and deliverables are written below `data/events/<event-id>/sessions/<session-id>/`; archiving hides an event without deleting it, while confirmed event deletion removes both its state record and local event directory.
 - Template collections: reusable library templates may belong to multiple folders. New events copy one selected folder. Event edits never mutate the master; an explicit promote action creates a new library master in selected folders.
 - Payments: staff-confirmed cash only; price is intentionally absent from the UI.
-- Camera: simulator and experimental MacBook camera work; Fujifilm X-M5 follows. Camera selection remains staff-only and idle-only.
+- Camera: simulator and experimental standard video-device capture work. The Experimental Fujifilm X-M5 bridge imports a newly transferred stable JPEG from FUJIFILM TETHER APP; it currently requires an attendant to fire the shutter and has no X-M5 live preview. Camera selection remains staff-only and idle-only.
 - Capture: one command starts the product-defined sequence. Countdown ticks and capture triggers are Host-owned and broadcast to every screen.
 - Preview: the Mac renderer sends reduced mirrored JPEG frames to an in-memory Host relay; full-resolution unmirrored captures use a separate persisted route.
 - Delivery: schema version 14 gives each completed session a stable random QR token, exact 30-day expiry, persistent retry metadata, and one of `not_configured`, `queued`, `uploading`, `ready`, `failed`, or `expired`. The Host uploads only branded individual photos, the final layout, and slideshow. It never uploads raw captures or the print-only sheet. The Cloudflare Worker stores media in private R2, state in D1, serves the tokenized mobile gallery, and cleans expired media hourly. The operator can configure, retry, and re-display delivery; internet failure never blocks local capture, processing, or printing.

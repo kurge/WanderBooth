@@ -39,6 +39,7 @@ import { createId } from "./createId";
 import { type ResizeHandle, resizeTransform } from "./resizeTransform";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
 import { type CameraStatus, useMacBookCamera } from "./useMacBookCamera";
+import { useTetherCamera } from "./useTetherCamera";
 
 type Surface = "operator" | "customer" | "print";
 
@@ -2516,6 +2517,12 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
     >
       {state.cameraSourceId === "macbook_camera" ? (
         <img src={`${hostHttpUrl}/api/camera-preview`} alt="Mirrored live camera preview" />
+      ) : state.cameraSourceId === "fujifilm_xm5_tether" ? (
+        <div className="live-camera__simulator live-camera__tether">
+          <span>X-M5</span>
+          <strong>Full-resolution tether</strong>
+          <small>Frame the guest using the camera screen.</small>
+        </div>
       ) : (
         <div className="live-camera__simulator">
           <span>TEST</span>
@@ -2529,7 +2536,11 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
         <i />
       </div>
       <span className="live-camera__badge">
-        {state.cameraSourceId === "macbook_camera" ? "Mirrored preview" : "Synthetic preview"}
+        {state.cameraSourceId === "macbook_camera"
+          ? "Mirrored preview"
+          : state.cameraSourceId === "fujifilm_xm5_tether"
+            ? "JPEG tether · preview unavailable"
+            : "Synthetic preview"}
       </span>
       {countdown && (
         <div className="countdown-overlay" role="status" aria-live="assertive">
@@ -2544,7 +2555,9 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
       )}
       {state.phase === "capturing" && (
         <div className="capture-flash" role="status">
-          <strong>Smile!</strong>
+          <strong>
+            {state.cameraSourceId === "fujifilm_xm5_tether" ? "Waiting for X-M5 photo…" : "Smile!"}
+          </strong>
         </div>
       )}
     </section>
@@ -2987,7 +3000,9 @@ function SessionPanel({
         ? `One tap takes all ${state.requiredCaptureCount} photos.`
         : state.phase === "countdown"
           ? "Get ready…"
-          : "Hold that pose…";
+          : state.cameraSourceId === "fujifilm_xm5_tether" && isOperator
+            ? "Press the X-M5 shutter now."
+            : "Hold that pose…";
     return (
       <section className="capture-stage capture-stage--live">
         <div className="capture-stage__copy">
@@ -2999,8 +3014,14 @@ function SessionPanel({
           <h1>{heading}</h1>
           <p>
             {state.phase === "ready"
-              ? "There is a three-second countdown before each photo, with a short pause between shots."
-              : "Stay inside the guide. The saved photo is not mirrored."}
+              ? state.cameraSourceId === "fujifilm_xm5_tether"
+                ? "Each countdown pauses while WanderBooth waits for the full-resolution JPEG. The attendant fires the shutter in this first tether version."
+                : "There is a three-second countdown before each photo, with a short pause between shots."
+              : state.phase === "capturing" && state.cameraSourceId === "fujifilm_xm5_tether"
+                ? isOperator
+                  ? "WanderBooth will continue automatically after Fujifilm Tether App saves the JPEG."
+                  : "Your attendant is taking the full-quality photo now."
+                : "Stay inside the guide. The saved photo is not mirrored."}
           </p>
           {interactive && state.phase === "ready" && (
             <button
@@ -3347,6 +3368,7 @@ function SessionPanel({
 function OperatorSidebar({
   state,
   camera,
+  tetherCamera,
   customerUrls,
   sendCommand,
 }: {
@@ -3360,11 +3382,13 @@ function OperatorSidebar({
     stopCamera: () => void;
     videoRef: React.RefObject<HTMLVideoElement | null>;
   };
+  tetherCamera: ReturnType<typeof useTetherCamera>;
   customerUrls: string[];
   sendCommand: (command: Command) => void;
 }) {
   const isIdle = state.phase === "idle";
   const macBookSelected = state.cameraSourceId === "macbook_camera";
+  const tetherSelected = state.cameraSourceId === "fujifilm_xm5_tether";
   const selectedLayout = resolveLayout(state.layoutId, state.customSlots);
 
   return (
@@ -3404,7 +3428,7 @@ function OperatorSidebar({
         >
           <span className="device-card__status" />
           <div>
-            <strong>MacBook camera</strong>
+            <strong>Webcam / video camera</strong>
             <small>
               {!macBookSelected && "Available · experimental"}
               {macBookSelected && camera.status === "off" && "Selected · needs to be enabled"}
@@ -3417,12 +3441,7 @@ function OperatorSidebar({
 
         {macBookSelected && (
           <div className="camera-control">
-            <video
-              ref={camera.videoRef}
-              muted
-              playsInline
-              aria-label="Live MacBook camera preview"
-            />
+            <video ref={camera.videoRef} muted playsInline aria-label="Live video camera preview" />
             {camera.devices.length > 1 && (
               <label>
                 Video device
@@ -3455,19 +3474,82 @@ function OperatorSidebar({
                 disabled={camera.status === "requesting"}
                 onClick={() => void camera.startCamera()}
               >
-                {camera.status === "requesting" ? "Starting camera…" : "Enable MacBook camera"}
+                {camera.status === "requesting" ? "Starting camera…" : "Enable video camera"}
               </button>
             )}
           </div>
         )}
 
-        <button className="device-card" type="button" disabled>
+        <button
+          className={`device-card device-card--selectable ${
+            tetherSelected && tetherCamera.status.ready
+              ? "device-card--ready device-card--selected"
+              : tetherSelected
+                ? "device-card--selected"
+                : ""
+          }`}
+          type="button"
+          disabled={!isIdle}
+          onClick={() =>
+            sendCommand({ type: "SET_CAMERA_SOURCE", cameraSourceId: "fujifilm_xm5_tether" })
+          }
+        >
           <span className="device-card__status" />
           <div>
-            <strong>Fujifilm X-M5</strong>
-            <small>Planned tether test</small>
+            <strong>Fujifilm X-M5 · USB tether</strong>
+            <small>
+              {!tetherSelected && "Available · experimental"}
+              {tetherSelected && !tetherCamera.status.configured && "Selected · choose folder"}
+              {tetherSelected &&
+                tetherCamera.status.configured &&
+                !tetherCamera.status.ready &&
+                "Folder unavailable · needs attention"}
+              {tetherSelected && tetherCamera.status.ready && "Folder ready · active source"}
+            </small>
           </div>
         </button>
+        {tetherSelected && (
+          <div className="camera-control camera-control--tether">
+            <ol>
+              <li>Set the X-M5 to USB Tether Shooting Auto.</li>
+              <li>Open Fujifilm Tether App and choose one dedicated JPEG download folder.</li>
+              <li>Choose that same folder below, then run a test transfer.</li>
+            </ol>
+            {tetherCamera.status.downloadDirectory && (
+              <code>{tetherCamera.status.downloadDirectory}</code>
+            )}
+            {tetherCamera.status.verifiedAt && (
+              <p className="camera-control__success">
+                Last verified {new Date(tetherCamera.status.verifiedAt).toLocaleString("en-PH")}
+                {tetherCamera.status.lastFileName ? ` · ${tetherCamera.status.lastFileName}` : ""}
+              </p>
+            )}
+            {tetherCamera.message && <p>{tetherCamera.message}</p>}
+            {tetherCamera.error && <p className="camera-control__error">{tetherCamera.error}</p>}
+            <div className="camera-control__actions">
+              <button
+                className="button button--quiet button--tiny"
+                type="button"
+                disabled={!isIdle || tetherCamera.loading || tetherCamera.testing}
+                onClick={() => void tetherCamera.chooseFolder()}
+              >
+                {tetherCamera.loading ? "Opening…" : "Choose download folder"}
+              </button>
+              <button
+                className="button button--primary button--tiny"
+                type="button"
+                disabled={!isIdle || !tetherCamera.status.ready || tetherCamera.testing}
+                onClick={() => void tetherCamera.testTransfer()}
+              >
+                {tetherCamera.testing ? "Waiting for test photo…" : "Test X-M5 transfer"}
+              </button>
+            </div>
+            <p className="camera-control__note">
+              This first version imports the original JPEG. The attendant must press the camera
+              shutter after each countdown; automatic shutter control comes later.
+            </p>
+          </div>
+        )}
       </section>
       <section className="ipad-connection">
         <span className="eyebrow">iPad customer screen</span>
@@ -3701,6 +3783,7 @@ function App() {
     state,
     sendCommand,
   });
+  const tetherCamera = useTetherCamera(isOperator);
   const interactive = useMemo(
     () => isOperator || state?.operationMode === "self_service",
     [isOperator, state?.operationMode],
@@ -3823,7 +3906,11 @@ function App() {
                 <EventWorkspacePanel
                   state={state}
                   cameraReady={
-                    state.cameraSourceId !== "macbook_camera" || camera.status === "ready"
+                    state.cameraSourceId === "macbook_camera"
+                      ? camera.status === "ready"
+                      : state.cameraSourceId === "fujifilm_xm5_tether"
+                        ? tetherCamera.status.ready && !tetherCamera.testing
+                        : true
                   }
                   sendCommand={sendCommand}
                 />
@@ -3862,6 +3949,7 @@ function App() {
           <OperatorSidebar
             state={state}
             camera={camera}
+            tetherCamera={tetherCamera}
             customerUrls={customerUrls}
             sendCommand={sendCommand}
           />

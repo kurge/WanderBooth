@@ -7,6 +7,7 @@ declare global {
         success: boolean;
         failureReason: string | null;
       }>;
+      selectTetherFolder: () => Promise<string | null>;
     };
   }
 }

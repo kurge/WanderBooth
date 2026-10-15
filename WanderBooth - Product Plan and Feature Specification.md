@@ -123,6 +123,7 @@ The business should be able to keep serving customers during internet interrupti
 - Supported source types must include dedicated DSLR/mirrorless cameras, USB/UVC webcams, built-in Windows/Mac laptop cameras, and the iPad camera.
 - The camera system must be extensible so additional brands and models can be added through adapters and tested compatibility profiles.
 - The starting MacBook camera is implemented as an Experimental standard video-device source. One packaged three-photo session passed at 1920×1080; it is not yet certified for customers or prints.
+- The Fujifilm X-M5 now has an Experimental attended watched-folder bridge through FUJIFILM TETHER APP. It imports the newly transferred full-resolution JPEG after each countdown, but the attendant must fire the shutter and X-M5 live preview is not available yet.
 - The first printer is an **Epson EcoTank L8050**.
 - Every physical job in the first manual print workflow uses one 4×6 sheet. A single 2×6 design is duplicated on both halves for cutting, while full 4×6 designs print as composed.
 - The operator sees the exact print sheet before opening the native macOS/Windows print dialog. Self-Service completion notifies the operator with a banner and ding; printing and reprinting remain staff-only.
@@ -162,7 +163,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - Finished captures and deliverables are stored below event/session-specific directories. Each completed session also owns a stable private QR record with an exact 30-day expiry and honest queued, uploading, ready, failed, or expired state.
 - Master templates can belong to several named folders. Event creation copies one folder's masters; adding, editing, or deleting an event copy is isolated, while an explicit promotion creates a new library master.
 - A development-only camera simulator exercises capture and two-retake behavior safely.
-- Staff can select the simulator or MacBook camera only while the booth is idle. The Mac path includes permission handling, physical device choice, a reduced mirrored preview relayed to the customer screen, and separate full-resolution unmirrored JPEG transfer.
+- Staff can select the simulator, standard video camera, or Fujifilm X-M5 tether bridge only while the booth is idle. The video path includes permission handling, physical device choice, a reduced mirrored preview relayed to the customer screen, and separate unmirrored JPEG transfer. The X-M5 path validates one local download folder, ignores old files, and accepts only a new stable decodable JPEG for the pending session slot.
 - One action starts every photo required by the selected layout. The Host advances and broadcasts the three-second countdown before each capture so the Mac and customer screen cannot drift apart.
 - Retakes use the same synchronized countdown, and staff can cancel an active session safely back to idle.
 - The selection menu offers built-in three-photo, four-photo, and six-photo arrangements plus saved portrait or landscape custom templates with one to eight holders and a derived automatic capture count.
@@ -791,7 +792,7 @@ Tasks:
 - Confirm initial products and PHP prices when the business is ready.
 - Use the iPad as the first Self-Service touchscreen, test both iPad and second-monitor display-only attended presentations, and keep the customer client responsive for a future dedicated touchscreen.
 - Use the confirmed MacBook Pro and record storage requirements as real session files are measured.
-- Test the Fujifilm X-M5 as the recommended first dedicated camera: tethering, live view, trigger control, and transfer speed. Test the Canon EOS 60D next or use it as a fallback if the X-M5 path fails.
+- Physically test the implemented Fujifilm X-M5 attended tether bridge, then continue research on live view, supported automatic trigger control, transfer speed, disconnect recovery, and print quality. Test the Canon EOS 60D next or use it as a fallback if the X-M5 path fails.
 - Define the shared camera-source contract and implement three feasibility adapters: dedicated camera, standard webcam/built-in camera, and iPad camera.
 - Test Epson L8050 print sizes, margins, speed, quality, paper handling, and failure recovery.
 - Test the confirmed iPad Pro 12.9-inch (6th generation) on iPadOS 18.2.

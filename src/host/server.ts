@@ -35,6 +35,7 @@ import {
 import { importCustomOverlay } from "./customOverlay.js";
 import { BoothDatabase } from "./database.js";
 import { buildDeliverables } from "./deliverables.js";
+import { TetherCameraBridge, type TetherFolderSnapshot } from "./tetherCamera.js";
 
 const port = Number(process.env.WANDERBOOTH_HOST_PORT ?? 4174);
 const dataDirectory = resolve(process.env.WANDERBOOTH_DATA_DIR ?? "data/runtime");
@@ -45,6 +46,8 @@ await mkdir(dataDirectory, { recursive: true });
 
 const cloudDeliveryConfigStore = new CloudDeliveryConfigStore(dataDirectory);
 await cloudDeliveryConfigStore.load();
+const tetherCameraBridge = new TetherCameraBridge(dataDirectory);
+await tetherCameraBridge.load();
 const database = new BoothDatabase(dataDirectory);
 const defaultState = initialBoothState();
 const savedState = database.loadState();
@@ -435,6 +438,36 @@ const receiveCloudDeliveryConfig = async (request: IncomingMessage, response: Se
   sendJson(response, 200, cloudDeliveryConfigStore.publicConfig());
 };
 
+const receiveTetherCameraConfig = async (request: IncomingMessage, response: ServerResponse) => {
+  if (!isLoopbackRequest(request)) {
+    sendJson(response, 403, { error: "Camera folders can be configured only on this computer." });
+    return;
+  }
+  if (state.phase !== "idle") {
+    throw new CommandError("Change the Fujifilm folder only while the booth is idle.");
+  }
+  const input = await readJsonBody<{ downloadDirectory?: string }>(request, 8 * 1024);
+  const status = await tetherCameraBridge.configure(input.downloadDirectory ?? "");
+  sendJson(response, 200, status);
+};
+
+const testTetherCameraTransfer = async (request: IncomingMessage, response: ServerResponse) => {
+  if (!isLoopbackRequest(request)) {
+    sendJson(response, 403, { error: "The camera transfer test can run only on this computer." });
+    return;
+  }
+  if (state.phase !== "idle") {
+    throw new CommandError("Run the Fujifilm transfer test only while the booth is idle.");
+  }
+  const baseline = await tetherCameraBridge.snapshot();
+  const photo = await tetherCameraBridge.waitForNewJpeg(baseline, 30_000);
+  await tetherCameraBridge.markVerified(photo.filename);
+  sendJson(response, 200, {
+    filename: photo.filename,
+    status: await tetherCameraBridge.status(),
+  });
+};
+
 const httpServer = createServer((request, response) => {
   const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
@@ -468,6 +501,39 @@ const httpServer = createServer((request, response) => {
           error instanceof Error ? error.message : "Cloud delivery could not be configured.";
         sendJson(response, error instanceof CommandError ? 409 : 502, { error: message });
       });
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/api/tether-camera") {
+    if (!isLoopbackRequest(request)) {
+      sendJson(response, 403, { error: "Camera setup is available only on this computer." });
+      return;
+    }
+    void tetherCameraBridge
+      .status()
+      .then((status) => sendJson(response, 200, status))
+      .catch((error) =>
+        sendJson(response, 500, {
+          error: error instanceof Error ? error.message : "Camera status could not be checked.",
+        }),
+      );
+    return;
+  }
+
+  if (request.method === "PUT" && requestUrl.pathname === "/api/tether-camera") {
+    void receiveTetherCameraConfig(request, response).catch((error) => {
+      const message =
+        error instanceof Error ? error.message : "The camera folder could not be saved.";
+      sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
+    });
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/api/tether-camera/test") {
+    void testTetherCameraTransfer(request, response).catch((error) => {
+      const message = error instanceof Error ? error.message : "The camera transfer test failed.";
+      sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
+    });
     return;
   }
 
@@ -767,6 +833,81 @@ const runSimulatorPendingCapture = async (sessionId: string) => {
   scheduleCountdownStep(1_200);
 };
 
+const tetherCaptureStillMatches = (
+  sessionId: string,
+  pending: NonNullable<BoothState["pendingCapture"]>,
+) =>
+  state.cameraSourceId === "fujifilm_xm5_tether" &&
+  state.phase === "capturing" &&
+  state.sessionId === sessionId &&
+  state.pendingCapture?.kind === pending.kind &&
+  state.pendingCapture.slot === pending.slot &&
+  state.pendingCapture.revision === pending.revision;
+
+const completeTetherCapture = async (
+  sessionId: string,
+  pending: NonNullable<BoothState["pendingCapture"]>,
+  photo: Awaited<ReturnType<TetherCameraBridge["waitForNewJpeg"]>>,
+) => {
+  if (!tetherCaptureStillMatches(sessionId, pending)) return;
+  const eventId = state.activeEventId ? safeEventId(state.activeEventId) : null;
+  const sessionRoot = eventId
+    ? resolve(dataDirectory, "events", eventId, "sessions", sessionId)
+    : resolve(dataDirectory, "sessions", sessionId);
+  const captureDirectory = resolve(sessionRoot, "captures");
+  await mkdir(captureDirectory, { recursive: true });
+  const filename = `photo-${pending.slot}-r${pending.revision}.jpg`;
+  await writeFile(resolve(captureDirectory, filename), photo.buffer);
+  await tetherCameraBridge
+    .markVerified(photo.filename)
+    .catch((error) => console.error("Fujifilm verification time could not be saved:", error));
+
+  systemCommit({
+    type: pending.kind === "retake" ? "RETAKE_COMPLETED" : "CAPTURE_COMPLETED",
+    capture: {
+      slot: pending.slot,
+      revision: pending.revision,
+      mediaUrl: eventId
+        ? `/media/events/${eventId}/sessions/${sessionId}/captures/${filename}`
+        : `/media/sessions/${sessionId}/captures/${filename}`,
+      capturedAt: new Date().toISOString(),
+      filterId: "original",
+    },
+  });
+  scheduleCountdownStep(1_200);
+};
+
+const failTetherCapture = (
+  sessionId: string,
+  pending: NonNullable<BoothState["pendingCapture"]>,
+  error: unknown,
+) => {
+  if (!tetherCaptureStillMatches(sessionId, pending)) return;
+  systemCommit({
+    type: "CAMERA_CAPTURE_FAILED",
+    message:
+      error instanceof Error
+        ? error.message
+        : "The Fujifilm photo could not be imported. Check the tether connection and retry.",
+  });
+};
+
+const runTetherPendingCapture = (sessionId: string, baseline: TetherFolderSnapshot) => {
+  const pending = state.pendingCapture;
+  if (!pending) throw new CommandError("The Fujifilm capture was not scheduled.");
+
+  void tetherCameraBridge.waitForNewJpeg(baseline).then(
+    (photo) => {
+      commandQueue = commandQueue
+        .then(() => completeTetherCapture(sessionId, pending, photo))
+        .catch((error) => failTetherCapture(sessionId, pending, error));
+    },
+    (error: unknown) => {
+      commandQueue = commandQueue.then(() => failTetherCapture(sessionId, pending, error));
+    },
+  );
+};
+
 const runCountdownStep = async () => {
   if (state.phase !== "countdown" || !state.captureSequence) return;
 
@@ -780,9 +921,13 @@ const runCountdownStep = async () => {
   }
 
   const sessionId = safeSessionId(state.sessionId ?? "");
+  const tetherBaseline =
+    state.cameraSourceId === "fujifilm_xm5_tether" ? await tetherCameraBridge.snapshot() : null;
   systemCommit({ type: "COUNTDOWN_TRIGGER" });
   if (state.cameraSourceId === "simulator") {
     await runSimulatorPendingCapture(sessionId);
+  } else if (state.cameraSourceId === "fujifilm_xm5_tether" && tetherBaseline) {
+    runTetherPendingCapture(sessionId, tetherBaseline);
   }
 };
 
@@ -811,8 +956,14 @@ const runCapture = async (
   id: string,
 ) => {
   const sessionId = safeSessionId(state.sessionId ?? "");
+  const tetherBaseline =
+    state.cameraSourceId === "fujifilm_xm5_tether" ? await tetherCameraBridge.snapshot() : null;
   commit(reduceCommand(state, command, actor), actor, command, id);
   if (state.cameraSourceId === "macbook_camera") return;
+  if (state.cameraSourceId === "fujifilm_xm5_tether" && tetherBaseline) {
+    runTetherPendingCapture(sessionId, tetherBaseline);
+    return;
+  }
   await runSimulatorPendingCapture(sessionId);
 };
 

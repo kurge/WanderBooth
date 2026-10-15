@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.9.1
+document_version: 1.9.2
 created: 2026-10-01
 updated: 2026-10-15
 owner: Kurge
@@ -123,7 +123,7 @@ The business should be able to keep serving customers during internet interrupti
 - Supported source types must include dedicated DSLR/mirrorless cameras, USB/UVC webcams, built-in Windows/Mac laptop cameras, and the iPad camera.
 - The camera system must be extensible so additional brands and models can be added through adapters and tested compatibility profiles.
 - The starting MacBook camera is implemented as an Experimental standard video-device source. One packaged three-photo session passed at 1920×1080; it is not yet certified for customers or prints.
-- The Fujifilm X-M5 has an Experimental attended watched-folder bridge through FUJIFILM TETHER APP. A physical direct-USB spike also proved a real 1024×768 tether preview frame, programmatic shutter activation, and automatic 6240×4160 JPEG plus RAF download. Self-Service remains blocked until WanderBooth can keep one persistent connection, sustain preview before and after capture, retain the camera copy, and pass recovery and repeated-session testing.
+- The Fujifilm X-M5 has an Experimental attended watched-folder bridge through FUJIFILM TETHER APP. A physical direct-USB spike proved repeated 1024×768 preview frames, programmatic shutter activation, automatic 6240×4160 JPEG plus RAF download, and camera-copy retention. It also proved a blocker: USB preview stops after capture and does not recover through a software-only reconnect on the tested camera/firmware. The planned Self-Service adapter therefore combines clean HDMI through a UVC capture device for continuous preview with USB tether for automatic full-resolution capture.
 - The first printer is an **Epson EcoTank L8050**.
 - Every physical job in the first manual print workflow uses one 4×6 sheet. A single 2×6 design is duplicated on both halves for cutting, while full 4×6 designs print as composed.
 - The operator sees the exact print sheet before opening the native macOS/Windows print dialog. Self-Service completion notifies the operator with a banner and ding; printing and reprinting remain staff-only.
@@ -792,7 +792,7 @@ Tasks:
 - Confirm initial products and PHP prices when the business is ready.
 - Use the iPad as the first Self-Service touchscreen, test both iPad and second-monitor display-only attended presentations, and keep the customer client responsive for a future dedicated touchscreen.
 - Use the confirmed MacBook Pro and record storage requirements as real session files are measured.
-- Convert the partially successful Fujifilm X-M5 direct-USB spike into one persistent Mac camera session: sustain preview, trigger after the countdown, retain and download the full-resolution JPEG, resume preview, and test disconnect recovery. Keep the attended watched-folder bridge and HDMI/UVC preview as fallbacks, then test the Canon EOS 60D.
+- Build the Fujifilm X-M5 combined Mac adapter: use clean HDMI through a UVC capture device for continuous preview and direct USB tether for countdown-triggered capture, full-resolution JPEG download, and camera-copy retention. Keep the attended watched-folder bridge as fallback, run recovery and repeated-session tests, then test the Canon EOS 60D.
 - Define the shared camera-source contract and implement three feasibility adapters: dedicated camera, standard webcam/built-in camera, and iPad camera.
 - Test Epson L8050 print sizes, margins, speed, quality, paper handling, and failure recovery.
 - Test the confirmed iPad Pro 12.9-inch (6th generation) on iPadOS 18.2.
@@ -1018,6 +1018,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.9.2 | 2026-10-15 | Completed the persistent X-M5 test: repeated USB preview, automatic full-resolution capture, and camera-copy retention passed, but post-capture preview and software-only reconnect failed. Selected HDMI/UVC preview plus USB capture as the Self-Service architecture. |
 | 1.9.1 | 2026-10-15 | Recorded the physical X-M5 direct-tether spike: USB preview and automatic full-resolution capture passed once, while sustained preview, post-capture resume, camera-copy retention, packaging, Windows support, and repeat-session recovery remain required before Self-Service approval. |
 | 1.9.0 | 2026-10-06 | Implemented the private Cloudflare QR workflow: stable locally generated codes, persistent offline retry, authenticated Worker uploads, private R2 media, D1 status, a mobile gallery, exact 30-day expiry, hourly cleanup, operator configuration/retry, and session-history re-display. |
 | 1.8.0 | 2026-10-06 | Added six non-destructive per-photo Sharp filters, manual print preview plus native system dialog, 4×6 duplication for single 2×6 designs, operator ready-to-print notification, session print history, and the deferred AR provider plan. |

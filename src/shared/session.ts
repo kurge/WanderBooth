@@ -19,7 +19,11 @@ import { isPhotoFilterId, type PhotoFilterId } from "./filters.js";
 
 export type Actor = "owner" | "attendant" | "customer" | "system";
 export type OperationMode = "attendant" | "self_service";
-export type CameraSourceId = "simulator" | "macbook_camera" | "fujifilm_xm5_tether";
+export type CameraSourceId =
+  | "simulator"
+  | "macbook_camera"
+  | "fujifilm_xm5_tether"
+  | "fujifilm_xm5_hybrid";
 export type FrameMode = "color" | "custom";
 export type Phase =
   | "idle"

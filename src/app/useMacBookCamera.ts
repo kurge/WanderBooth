@@ -103,10 +103,12 @@ const previewFrameToJpeg = async (video: HTMLVideoElement) => {
 
 export function useMacBookCamera({
   active,
+  captureEnabled,
   state,
   sendCommand,
 }: {
   active: boolean;
+  captureEnabled: boolean;
   state: BoothState | null;
   sendCommand: (command: Command) => void;
 }) {
@@ -233,7 +235,8 @@ export function useMacBookCamera({
 
   useEffect(() => {
     const pending = state?.pendingCapture;
-    if (!active || state?.phase !== "capturing" || !pending || !state.sessionId) return;
+    if (!active || !captureEnabled || state?.phase !== "capturing" || !pending || !state.sessionId)
+      return;
 
     const captureKey = `${state.sessionId}:${pending.kind}:${pending.slot}:${pending.revision}`;
     if (handledCaptureRef.current === captureKey) return;
@@ -271,7 +274,7 @@ export function useMacBookCamera({
       }
     };
     void capture();
-  }, [active, error, sendCommand, state, status]);
+  }, [active, captureEnabled, error, sendCommand, state, status]);
 
   return {
     devices,

@@ -38,6 +38,7 @@ import { activeEventFor, galleryTemplatesFor, sessionTemplatesFor } from "../sha
 import { createId } from "./createId";
 import { type ResizeHandle, resizeTransform } from "./resizeTransform";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
+import { useDirectXm5Camera } from "./useDirectXm5Camera";
 import { type CameraStatus, useMacBookCamera } from "./useMacBookCamera";
 import { useTetherCamera } from "./useTetherCamera";
 
@@ -2515,7 +2516,7 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
       className={`live-camera ${state.cameraSourceId === "simulator" ? "live-camera--simulator" : ""}`}
       aria-label="Live camera preview"
     >
-      {state.cameraSourceId === "macbook_camera" ? (
+      {["macbook_camera", "fujifilm_xm5_hybrid"].includes(state.cameraSourceId) ? (
         <img src={`${hostHttpUrl}/api/camera-preview`} alt="Mirrored live camera preview" />
       ) : state.cameraSourceId === "fujifilm_xm5_tether" ? (
         <div className="live-camera__simulator live-camera__tether">
@@ -2538,9 +2539,11 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
       <span className="live-camera__badge">
         {state.cameraSourceId === "macbook_camera"
           ? "Mirrored preview"
-          : state.cameraSourceId === "fujifilm_xm5_tether"
-            ? "JPEG tether · preview unavailable"
-            : "Synthetic preview"}
+          : state.cameraSourceId === "fujifilm_xm5_hybrid"
+            ? "HDMI/video preview · X-M5 USB still"
+            : state.cameraSourceId === "fujifilm_xm5_tether"
+              ? "JPEG tether · preview unavailable"
+              : "Synthetic preview"}
       </span>
       {countdown && (
         <div className="countdown-overlay" role="status" aria-live="assertive">
@@ -2556,7 +2559,9 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
       {state.phase === "capturing" && (
         <div className="capture-flash" role="status">
           <strong>
-            {state.cameraSourceId === "fujifilm_xm5_tether" ? "Waiting for X-M5 photo…" : "Smile!"}
+            {["fujifilm_xm5_tether", "fujifilm_xm5_hybrid"].includes(state.cameraSourceId)
+              ? "Waiting for X-M5 photo…"
+              : "Smile!"}
           </strong>
         </div>
       )}
@@ -3002,7 +3007,9 @@ function SessionPanel({
           ? "Get ready…"
           : state.cameraSourceId === "fujifilm_xm5_tether" && isOperator
             ? "Press the X-M5 shutter now."
-            : "Hold that pose…";
+            : state.cameraSourceId === "fujifilm_xm5_hybrid"
+              ? "Capturing the full-resolution X-M5 photo…"
+              : "Hold that pose…";
     return (
       <section className="capture-stage capture-stage--live">
         <div className="capture-stage__copy">
@@ -3016,12 +3023,16 @@ function SessionPanel({
             {state.phase === "ready"
               ? state.cameraSourceId === "fujifilm_xm5_tether"
                 ? "Each countdown pauses while WanderBooth waits for the full-resolution JPEG. The attendant fires the shutter in this first tether version."
-                : "There is a three-second countdown before each photo, with a short pause between shots."
+                : state.cameraSourceId === "fujifilm_xm5_hybrid"
+                  ? "The video input stays live for posing. After each countdown, WanderBooth fires the X-M5 over USB and saves its full-resolution JPEG automatically."
+                  : "There is a three-second countdown before each photo, with a short pause between shots."
               : state.phase === "capturing" && state.cameraSourceId === "fujifilm_xm5_tether"
                 ? isOperator
                   ? "WanderBooth will continue automatically after Fujifilm Tether App saves the JPEG."
                   : "Your attendant is taking the full-quality photo now."
-                : "Stay inside the guide. The saved photo is not mirrored."}
+                : state.phase === "capturing" && state.cameraSourceId === "fujifilm_xm5_hybrid"
+                  ? "Stay still while WanderBooth downloads the full-quality photo."
+                  : "Stay inside the guide. The saved photo is not mirrored."}
           </p>
           {interactive && state.phase === "ready" && (
             <button
@@ -3368,6 +3379,7 @@ function SessionPanel({
 function OperatorSidebar({
   state,
   camera,
+  directXm5Camera,
   tetherCamera,
   customerUrls,
   sendCommand,
@@ -3382,6 +3394,7 @@ function OperatorSidebar({
     stopCamera: () => void;
     videoRef: React.RefObject<HTMLVideoElement | null>;
   };
+  directXm5Camera: ReturnType<typeof useDirectXm5Camera>;
   tetherCamera: ReturnType<typeof useTetherCamera>;
   customerUrls: string[];
   sendCommand: (command: Command) => void;
@@ -3389,6 +3402,7 @@ function OperatorSidebar({
   const isIdle = state.phase === "idle";
   const macBookSelected = state.cameraSourceId === "macbook_camera";
   const tetherSelected = state.cameraSourceId === "fujifilm_xm5_tether";
+  const hybridSelected = state.cameraSourceId === "fujifilm_xm5_hybrid";
   const selectedLayout = resolveLayout(state.layoutId, state.customSlots);
 
   return (
@@ -3477,6 +3491,119 @@ function OperatorSidebar({
                 {camera.status === "requesting" ? "Starting camera…" : "Enable video camera"}
               </button>
             )}
+          </div>
+        )}
+
+        <button
+          className={`device-card device-card--selectable ${
+            hybridSelected && camera.status === "ready" && directXm5Camera.status.ready
+              ? "device-card--ready device-card--selected"
+              : hybridSelected
+                ? "device-card--selected"
+                : ""
+          }`}
+          type="button"
+          disabled={!isIdle}
+          onClick={() =>
+            sendCommand({ type: "SET_CAMERA_SOURCE", cameraSourceId: "fujifilm_xm5_hybrid" })
+          }
+        >
+          <span className="device-card__status" />
+          <div>
+            <strong>Fujifilm X-M5 · hybrid</strong>
+            <small>
+              {!hybridSelected && "Available · experimental"}
+              {hybridSelected && !directXm5Camera.status.available && "Selected · gPhoto2 required"}
+              {hybridSelected &&
+                directXm5Camera.status.available &&
+                !directXm5Camera.status.ready &&
+                "Selected · test video and USB capture"}
+              {hybridSelected &&
+                directXm5Camera.status.ready &&
+                camera.status !== "ready" &&
+                "USB ready · enable video preview"}
+              {hybridSelected &&
+                directXm5Camera.status.ready &&
+                camera.status === "ready" &&
+                "Ready · active source"}
+            </small>
+          </div>
+        </button>
+
+        {hybridSelected && (
+          <div className="camera-control camera-control--tether">
+            <video ref={camera.videoRef} muted playsInline aria-label="X-M5 live video preview" />
+            <ol>
+              <li>Fully quit Fujifilm Tether App.</li>
+              <li>Set the X-M5 to USB Tether Shooting Auto and connect its USB data cable.</li>
+              <li>
+                For the pilot, choose any video camera below. Later choose the HDMI capture device
+                connected to the X-M5.
+              </li>
+              <li>Enable the preview, then take one automatic USB test photo.</li>
+            </ol>
+            {camera.devices.length > 1 && (
+              <label>
+                Live-view video device
+                <select
+                  value={camera.selectedDeviceId ?? ""}
+                  onChange={(event) => void camera.startCamera(event.target.value)}
+                >
+                  {camera.devices.map((device, index) => (
+                    <option value={device.deviceId} key={device.deviceId}>
+                      {device.label || `Camera ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {directXm5Camera.status.verifiedAt && (
+              <p className="camera-control__success">
+                USB capture verified{" "}
+                {new Date(directXm5Camera.status.verifiedAt).toLocaleString("en-PH")}
+                {directXm5Camera.status.lastFileName
+                  ? ` · ${directXm5Camera.status.lastFileName}`
+                  : ""}
+              </p>
+            )}
+            {camera.error && <p className="camera-control__error">{camera.error}</p>}
+            {directXm5Camera.message && <p>{directXm5Camera.message}</p>}
+            {directXm5Camera.error && (
+              <p className="camera-control__error">{directXm5Camera.error}</p>
+            )}
+            <div className="camera-control__actions">
+              {camera.status === "ready" ? (
+                <button
+                  className="button button--quiet button--tiny"
+                  type="button"
+                  disabled={!isIdle}
+                  onClick={camera.stopCamera}
+                >
+                  Turn preview off
+                </button>
+              ) : (
+                <button
+                  className="button button--quiet button--tiny"
+                  type="button"
+                  disabled={camera.status === "requesting"}
+                  onClick={() => void camera.startCamera()}
+                >
+                  {camera.status === "requesting" ? "Starting preview…" : "Enable video preview"}
+                </button>
+              )}
+              <button
+                className="button button--primary button--tiny"
+                type="button"
+                disabled={!isIdle || !directXm5Camera.status.available || directXm5Camera.testing}
+                onClick={() => void directXm5Camera.testCapture()}
+              >
+                {directXm5Camera.testing ? "Taking test photo…" : "Test automatic X-M5 capture"}
+              </button>
+            </div>
+            <p className="camera-control__note">
+              The video input is preview only. Every saved guest photo comes from the X-M5 USB
+              tether at full resolution, and WanderBooth keeps the camera copy.
+            </p>
           </div>
         )}
 
@@ -3778,11 +3905,18 @@ function App() {
   const isOperator = surface === "operator";
   const actor = actorForSurface(surface);
   const { state, connected, customerUrls, error, sendCommand } = useBoothConnection(actor);
+  const videoPreviewActive =
+    isOperator &&
+    (state?.cameraSourceId === "macbook_camera" || state?.cameraSourceId === "fujifilm_xm5_hybrid");
   const camera = useMacBookCamera({
-    active: isOperator && state?.cameraSourceId === "macbook_camera",
+    active: videoPreviewActive,
+    captureEnabled: state?.cameraSourceId === "macbook_camera",
     state,
     sendCommand,
   });
+  const directXm5Camera = useDirectXm5Camera(
+    isOperator && state?.cameraSourceId === "fujifilm_xm5_hybrid",
+  );
   const tetherCamera = useTetherCamera(isOperator);
   const interactive = useMemo(
     () => isOperator || state?.operationMode === "self_service",
@@ -3908,9 +4042,13 @@ function App() {
                   cameraReady={
                     state.cameraSourceId === "macbook_camera"
                       ? camera.status === "ready"
-                      : state.cameraSourceId === "fujifilm_xm5_tether"
-                        ? tetherCamera.status.ready && !tetherCamera.testing
-                        : true
+                      : state.cameraSourceId === "fujifilm_xm5_hybrid"
+                        ? camera.status === "ready" &&
+                          directXm5Camera.status.ready &&
+                          !directXm5Camera.testing
+                        : state.cameraSourceId === "fujifilm_xm5_tether"
+                          ? tetherCamera.status.ready && !tetherCamera.testing
+                          : true
                   }
                   sendCommand={sendCommand}
                 />
@@ -3949,6 +4087,7 @@ function App() {
           <OperatorSidebar
             state={state}
             camera={camera}
+            directXm5Camera={directXm5Camera}
             tetherCamera={tetherCamera}
             customerUrls={customerUrls}
             sendCommand={sendCommand}

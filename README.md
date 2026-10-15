@@ -21,7 +21,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - [Changelog](<WanderBooth - Changelog.md>) — chronological record of material documentation and product-plan changes.
 - [Hardware baseline](docs/HARDWARE.md) — owned devices, known compatibility, risks, and the Phase 0 hardware test plan.
 - [Camera compatibility matrix](docs/CAMERA_COMPATIBILITY.md) — camera sources, adapter types, test status, and product-level approval.
-- [Fujifilm X-M5 tether pilot](docs/FUJIFILM_XM5_TETHER.md) — attended USB tether setup, transfer test, operation, and recovery.
+- [Fujifilm X-M5 tether pilot](docs/FUJIFILM_XM5_TETHER.md) — attended fallback plus hybrid HDMI-preview/USB-capture setup, testing, and recovery.
 - [Operation modes](docs/OPERATION_MODES.md) — control ownership, screen behavior, permissions, and workflows for Attendant-Operated and Self-Service use.
 - [Events and local storage](docs/EVENTS_AND_STORAGE.md) — event projects, session history, local file ownership, archive/delete behavior, and the boundary with 30-day cloud delivery.
 - [Cloud QR delivery](docs/CLOUD_QR_DELIVERY.md) — Cloudflare setup, operator workflow, security, retention, recovery, and deployment.
@@ -33,13 +33,13 @@ WanderBooth is an offline-first photo booth application being developed for our 
 ## Current project state
 
 - Product name: **WanderBooth**
-- Product-plan version: **1.9.0 — Private Cloud QR Delivery**
+- Product-plan version: **1.9.3 — X-M5 Hybrid Capture Adapter**
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
 - Current catalog: **two normal product families with five built-in layouts, plus portrait and landscape custom saved templates with up to eight holders**, a mutually exclusive fixed-color or imported event frame, iPad customer screen, and no on-screen price
-- Current cameras: **prototype simulator, experimental video-device capture, and experimental Fujifilm X-M5 tethered JPEG import**. The X-M5 bridge currently requires the attendant to fire the shutter and does not yet supply live preview.
+- Current cameras: **prototype simulator, experimental video-device capture, attended Fujifilm X-M5 folder import, and experimental X-M5 Hybrid**. Hybrid uses a selected video input for live view and direct USB for automatic full-resolution X-M5 stills; final X-M5 live view awaits an HDMI/UVC capture device.
 - First print decision: every job uses an Epson-compatible **4×6 sheet**. A single 2×6 design is duplicated on both halves for cutting; the six-shot Double strip already fills the whole 4×6 sheet.
-- Immediate next step: replace the installed 0.13.0 app with the verified 0.14.1 DMG, confirm its four completed sessions show **QR ready** at the branded hostname, and scan one gallery from a physical phone on mobile data. Epson L8050 printing has passed its first physical workflow test; exact color, scale, and borderless settings still need a repeatable pilot preset. AR remains a later adapter-backed experiment.
+- Immediate next step: connect the X-M5's HDMI Micro (Type D) output to a UVC capture device, choose that input inside X-M5 Hybrid, and run the six-capture/retake/recovery gate. Epson L8050 printing has passed its first physical workflow test; exact color, scale, and borderless settings still need a repeatable pilot preset. AR remains a later adapter-backed experiment.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**
 - Repository visibility: **Public**
 
@@ -78,17 +78,18 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - A minimal Cloudflare Worker delivery service using private R2 media, D1 delivery records, an authenticated Host API, a mobile guest gallery, and hourly cleanup after the exact 30-day access window.
 - Synthetic camera output for safe development without customer images.
 - Staff-only simulator/MacBook source selection, local preview relay to the customer screen, and full-resolution local Host transfer.
+- An Experimental X-M5 Hybrid source that keeps a standard video input live for posing while the Host fires the X-M5 over USB, downloads its full-resolution JPEG automatically, retains JPEG and RAW copies on the camera, and advances the session without an attendant touching the shutter.
 - One-tap automatic layout-defined capture, from one to eight photos, with a Host-controlled three-second countdown before every photo.
 - Mirrored live preview for posing, unmirrored saved photos, countdown-based retakes, and a staff-only session-cancel safety control.
 - A customer URL served by the packaged Host for a real touch-controlled iPad Safari screen.
 - A double-clickable Apple-silicon Mac application and local DMG build.
 - Supplied Wander Press PH artwork and exact blue, lime, yellow, cream, orange, and purple brand tokens.
 
-The prototype now controls standard video cameras and can import a new full-resolution X-M5 JPEG through FUJIFILM TETHER APP, provides event workspaces plus a reusable Template Library, imports owner artwork locally, opens the operating system's printer chooser with a prepared 4×6 sheet, and contains the complete private QR upload/download workflow. The QR service is deployed at [wanderbooth-delivery.wanderpressph.workers.dev](https://wanderbooth-delivery.wanderpressph.workers.dev) and has passed a production synthetic end-to-end test; a physical-phone/mobile-data check remains. The X-M5 path does **not** yet provide automatic shutter control or live preview, and the app does not automatically manage the Epson queue. Camera and Epson paths remain Experimental until the full reliability and print-quality tests are complete.
+The prototype now controls standard video cameras, imports X-M5 JPEGs through the attended FUJIFILM TETHER APP fallback, and automatically fires/downloads the X-M5 through the new Hybrid source. Hybrid live view intentionally comes from a separate video input because direct USB preview fails after capture on the tested camera/firmware; a clean HDMI/UVC device is still required for production X-M5 posing. The app also provides event workspaces, a reusable Template Library, owner artwork import, native print-dialog preparation, and private QR delivery. Camera and Epson paths remain Experimental until the full reliability and print-quality tests are complete.
 
 ## Open the app on this Mac
 
-Run `pnpm package:mac:dmg` to generate `release/WanderBooth-0.14.1-arm64.dmg`, then double-click it in Finder and drag **WanderBooth** into **Applications**. The generated build is for the current Apple-silicon Mac and does not require Terminal after installation.
+Run `pnpm package:mac:dmg` to generate `release/WanderBooth-0.16.0-arm64.dmg`, then double-click it in Finder and drag **WanderBooth** into **Applications**. The generated build is for the current Apple-silicon Mac and does not require Terminal after installation. X-M5 Hybrid currently expects gPhoto2 at a standard Homebrew path on the Host; it is not bundled into the DMG.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

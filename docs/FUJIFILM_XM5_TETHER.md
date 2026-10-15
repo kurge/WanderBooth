@@ -8,6 +8,21 @@ WanderBooth can import the full-resolution JPEG produced by a Fujifilm X-M5 thro
 
 The current app bridge does not yet provide X-M5 live view or programmatic shutter control. A 2026-10-15 direct-control spike proved that this exact X-M5 can provide repeated 1024×768 tether preview frames, fire automatically, deliver a 6240×4160 JPEG plus RAF, and retain both camera copies. However, the camera stopped serving USB preview frames after capture and did not recover through a software-only reconnect. Do not advertise USB-only control as unattended Self-Service. The recommended next adapter uses clean HDMI through a UVC capture device for continuous preview and USB tether for automatic full-resolution capture.
 
+WanderBooth 0.16.0 implements that split as the Experimental **Fujifilm X-M5 · hybrid** source. It can already use the Mac camera as a temporary preview while USB supplies the real saved still; production X-M5 preview requires an HDMI Micro (Type D) cable and UVC capture device.
+
+## Hybrid setup
+
+1. Install gPhoto2 through Homebrew on the pilot Mac. This external dependency is not bundled into the DMG.
+2. Fully quit FUJIFILM TETHER APP so it does not own the USB camera.
+3. Set the X-M5 to still-photo mode and `USB TETHER SHOOTING AUTO`.
+4. Connect the X-M5 directly with its USB data cable.
+5. Connect the X-M5 HDMI Micro (Type D) output to a standard UVC capture device, then connect that device to the Mac.
+6. In the operator sidebar, choose **Fujifilm X-M5 · hybrid**.
+7. Enable video preview and select the HDMI capture device. Until that hardware is available, the Mac camera can exercise the split workflow but is not an X-M5 live-view substitute for production.
+8. Click **Test automatic X-M5 capture**. The camera takes one real test photo; the app must report both video and USB ready before enabling a session.
+
+During a session, the selected video device continues supplying the mirrored posing preview. At zero on each countdown, the Host fires the X-M5 over USB, downloads the full-resolution JPEG into the exact pending slot, keeps JPEG and RAW on the camera, and advances automatically. The temporary Host RAF copy is removed and is never uploaded to the customer's QR gallery.
+
 ## One-time setup
 
 1. Install the current [FUJIFILM TETHER APP](https://www.fujifilm-x.com/global/products/software/tether-app/) from Fujifilm.
@@ -63,3 +78,5 @@ The bridge records a snapshot of the folder before every capture. Files that exi
 - Keep the attended FUJIFILM TETHER APP watched-folder bridge as the fallback until the combined adapter is certified.
 
 See [the 2026-10-15 direct USB tether test record](test-records/2026-10-15-fujifilm-xm5-direct-tether.md) for exact evidence and limitations.
+
+See [the Hybrid adapter implementation record](test-records/2026-10-15-fujifilm-xm5-hybrid-adapter.md) for the current software verification and remaining physical gate.

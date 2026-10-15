@@ -2,7 +2,7 @@
 
 **Status:** Phase 0 testing
 
-**Version:** 0.7.0
+**Version:** 0.8.0
 
 **Updated:** 2026-10-15
 
@@ -23,7 +23,7 @@ This matrix is the source of truth for which camera sources WanderBooth can safe
 |---|---|---|---|---|---|---|---|---|
 | Fujifilm X-M5 through FUJIFILM TETHER APP | Dedicated watched-folder tether | Planned | Physically passed one full-resolution transfer | Tether App live view confirmed, not embedded | Passed one 6240×4160 JPEG transfer | Attended testing only | Experimental | Existing app bridge still waits for an attendant-fired photo; use as fallback while the direct controller is developed |
 | Fujifilm X-M5 through gPhoto2/libgphoto2 | Dedicated direct USB tether | Unavailable | Physical spike reached a known preview blocker | Six repeated 1024×768 frames passed before capture; post-capture resume and software-only reconnect failed | Two automatic still captures passed without a camera power cycle; JPEG and RAF camera copies retained | None | Experimental | Suitable as the future automatic-capture half of a combined adapter, but not as the sole live-view source |
-| Fujifilm X-M5 HDMI preview + USB capture | UVC preview plus dedicated USB tether | Planned | Hardware required | Clean HDMI/UVC test pending | USB automatic full-resolution capture passed once | None | Planned | Recommended Self-Service path; requires an HDMI capture device and exact-cable/hardware certification |
+| Fujifilm X-M5 Hybrid | UVC preview plus dedicated USB tether | Planned | Software implemented; hardware incomplete | Standard video preview path passed; exact clean HDMI/UVC test pending | New Host controller physically passed one 11.5 MB automatic JPEG; USB layer passed repeated stills | None | Experimental | App adapter is available in staff mode; requires an HDMI capture device and reliability certification |
 | Canon EOS 60D | Dedicated camera | Planned | Planned | Not tested | Not tested | None yet | Planned | Owned secondary target; watched-folder bridge may be required |
 | Starting MacBook Pro built-in camera | Standard video device | Not applicable | Passed once on macOS 15.7.5 | Passed once through the local customer relay | Passed once at 1920×1080 | None yet | Experimental | Packaged app completed one automatic three-photo session from a single tap, synchronized countdowns, and all deliverables; physical-iPad, reliability, recovery, crop, and print-quality certification remain |
 | USB/UVC webcam | Standard video device | Planned | Planned | Not tested | Not tested | None yet | Planned | Exact webcam model is not selected |
@@ -76,6 +76,7 @@ Required setup:
 
 - [2026-10-02 starting MacBook camera smoke test](test-records/2026-10-02-macbook-camera.md)
 - [2026-10-15 Fujifilm X-M5 direct USB tether spike](test-records/2026-10-15-fujifilm-xm5-direct-tether.md)
+- [2026-10-15 Fujifilm X-M5 Hybrid adapter implementation](test-records/2026-10-15-fujifilm-xm5-hybrid-adapter.md)
 
 ## Experimental setup guides
 

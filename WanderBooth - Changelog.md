@@ -25,6 +25,9 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Added safe watched-folder capture: WanderBooth snapshots existing files before every shot, waits for a newly completed JPEG, validates that it decodes, copies it into the active session, and refuses to reuse an older photo.
 - Added operator/customer capture messaging, a 45-second missing-transfer failure, focused bridge/reducer tests, an operating guide, and ADR 0021.
 - Added a physical X-M5 direct-tether test record covering USB detection, repeated preview, automatic capture, full-resolution download, camera-copy retention, post-capture recovery, and competing macOS camera ownership.
+- Added the Experimental **Fujifilm X-M5 · hybrid** source: standard video-device live preview plus Host-triggered full-resolution USB still capture.
+- Added a required automatic test capture, readiness status, actionable USB errors, temporary local JPEG/RAW cleanup, and tests that enforce `--keep --keep-raw` camera retention.
+- Added ADR 0022 and a Hybrid implementation test record.
 
 ### Changed
 
@@ -32,6 +35,7 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Marked X-M5 tethering as attended-only Experimental: the attendant fires the shutter after each countdown, and automatic trigger control plus X-M5 live preview remain future work.
 - Recommended `USB TETHER SHOOTING AUTO` instead of Fixed for safer disconnect behavior during the pilot.
 - Selected a combined X-M5 architecture for future Self-Service operation: clean HDMI through a UVC capture device supplies uninterrupted live view, while direct USB supplies automatic shutter and full-resolution capture. The existing watched-folder bridge remains the attended fallback.
+- Kept gPhoto2 as an external pilot-Mac dependency rather than silently bundling GPL software into the default-copyright application.
 
 ### Verified
 
@@ -42,6 +46,8 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Physically detected the X-M5 on macOS through gPhoto2 2.5.32/libgphoto2 2.5.34, received six consecutive real 1024×768 tether previews in one persistent session, and completed two automatic full-resolution still captures without power-cycling. The first downloaded an 11 MB 6240×4160 JPEG plus a 33 MB RAF, and both tests retained JPEG and RAF copies on the camera.
 - Confirmed the exact X-M5 can show tethered live view in FUJIFILM TETHER APP.
 - Preview resume after the direct capture, software-only reconnect, and movie-preview streaming did not pass. USB-only control is therefore not a customer-ready live-view adapter; physical folder-bridge transfer, the combined HDMI/USB path, print quality, and repeated-session reliability still require testing.
+- Passed the full 62-test suite, Host build, web build, disposable-event operator UI review, and one physical automatic 11.5 MB JPEG capture through the new WanderBooth controller class.
+- Built and disk-image-verified the unsigned Apple-silicon `WanderBooth-0.16.0-arm64.dmg` (133 MiB; SHA-256 `87ee2cccb099ae365d2686d284cfad1e548834734c20bcf447173b85e4c236fb`).
 
 ### Pending decisions
 

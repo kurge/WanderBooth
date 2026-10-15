@@ -35,6 +35,7 @@ import {
 import { importCustomOverlay } from "./customOverlay.js";
 import { BoothDatabase } from "./database.js";
 import { buildDeliverables } from "./deliverables.js";
+import { DirectXm5Camera, type DirectXm5Photo } from "./directXm5Camera.js";
 import { TetherCameraBridge, type TetherFolderSnapshot } from "./tetherCamera.js";
 
 const port = Number(process.env.WANDERBOOTH_HOST_PORT ?? 4174);
@@ -48,6 +49,7 @@ const cloudDeliveryConfigStore = new CloudDeliveryConfigStore(dataDirectory);
 await cloudDeliveryConfigStore.load();
 const tetherCameraBridge = new TetherCameraBridge(dataDirectory);
 await tetherCameraBridge.load();
+const directXm5Camera = new DirectXm5Camera();
 const database = new BoothDatabase(dataDirectory);
 const defaultState = initialBoothState();
 const savedState = database.loadState();
@@ -251,8 +253,8 @@ const broadcastPreviewFrame = (frame: Buffer) => {
 };
 
 const receiveCameraPreview = async (request: IncomingMessage, response: ServerResponse) => {
-  if (state.cameraSourceId !== "macbook_camera") {
-    throw new CommandError("The MacBook camera is not the selected source.");
+  if (!["macbook_camera", "fujifilm_xm5_hybrid"].includes(state.cameraSourceId)) {
+    throw new CommandError("A video preview camera is not the selected source.");
   }
   if (request.headers["content-type"]?.split(";")[0] !== "image/jpeg") {
     throw new CommandError("Camera preview frames must be JPEG images.");
@@ -468,6 +470,21 @@ const testTetherCameraTransfer = async (request: IncomingMessage, response: Serv
   });
 };
 
+const testDirectXm5Capture = async (request: IncomingMessage, response: ServerResponse) => {
+  if (!isLoopbackRequest(request)) {
+    sendJson(response, 403, { error: "The direct camera test can run only on this computer." });
+    return;
+  }
+  if (state.phase !== "idle") {
+    throw new CommandError("Run the X-M5 automatic-capture test only while the booth is idle.");
+  }
+  const photo = await directXm5Camera.capture();
+  sendJson(response, 200, {
+    filename: photo.filename,
+    status: await directXm5Camera.status(),
+  });
+};
+
 const httpServer = createServer((request, response) => {
   const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
@@ -520,6 +537,22 @@ const httpServer = createServer((request, response) => {
     return;
   }
 
+  if (request.method === "GET" && requestUrl.pathname === "/api/direct-xm5-camera") {
+    if (!isLoopbackRequest(request)) {
+      sendJson(response, 403, { error: "Camera setup is available only on this computer." });
+      return;
+    }
+    void directXm5Camera
+      .status()
+      .then((status) => sendJson(response, 200, status))
+      .catch((error) =>
+        sendJson(response, 500, {
+          error: error instanceof Error ? error.message : "Camera status could not be checked.",
+        }),
+      );
+    return;
+  }
+
   if (request.method === "PUT" && requestUrl.pathname === "/api/tether-camera") {
     void receiveTetherCameraConfig(request, response).catch((error) => {
       const message =
@@ -534,6 +567,16 @@ const httpServer = createServer((request, response) => {
       const message = error instanceof Error ? error.message : "The camera transfer test failed.";
       sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
     });
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/api/direct-xm5-camera/test") {
+    commandQueue = commandQueue
+      .then(() => testDirectXm5Capture(request, response))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : "The automatic X-M5 test failed.";
+        sendJson(response, error instanceof CommandError ? 409 : 500, { error: message });
+      });
     return;
   }
 
@@ -908,6 +951,78 @@ const runTetherPendingCapture = (sessionId: string, baseline: TetherFolderSnapsh
   );
 };
 
+const directXm5CaptureStillMatches = (
+  sessionId: string,
+  pending: NonNullable<BoothState["pendingCapture"]>,
+) =>
+  state.cameraSourceId === "fujifilm_xm5_hybrid" &&
+  state.phase === "capturing" &&
+  state.sessionId === sessionId &&
+  state.pendingCapture?.kind === pending.kind &&
+  state.pendingCapture.slot === pending.slot &&
+  state.pendingCapture.revision === pending.revision;
+
+const completeDirectXm5Capture = async (
+  sessionId: string,
+  pending: NonNullable<BoothState["pendingCapture"]>,
+  photo: DirectXm5Photo,
+) => {
+  if (!directXm5CaptureStillMatches(sessionId, pending)) return;
+  const eventId = state.activeEventId ? safeEventId(state.activeEventId) : null;
+  const sessionRoot = eventId
+    ? resolve(dataDirectory, "events", eventId, "sessions", sessionId)
+    : resolve(dataDirectory, "sessions", sessionId);
+  const captureDirectory = resolve(sessionRoot, "captures");
+  await mkdir(captureDirectory, { recursive: true });
+  const filename = `photo-${pending.slot}-r${pending.revision}.jpg`;
+  await writeFile(resolve(captureDirectory, filename), photo.buffer);
+
+  systemCommit({
+    type: pending.kind === "retake" ? "RETAKE_COMPLETED" : "CAPTURE_COMPLETED",
+    capture: {
+      slot: pending.slot,
+      revision: pending.revision,
+      mediaUrl: eventId
+        ? `/media/events/${eventId}/sessions/${sessionId}/captures/${filename}`
+        : `/media/sessions/${sessionId}/captures/${filename}`,
+      capturedAt: new Date().toISOString(),
+      filterId: "original",
+    },
+  });
+  scheduleCountdownStep(1_200);
+};
+
+const failDirectXm5Capture = (
+  sessionId: string,
+  pending: NonNullable<BoothState["pendingCapture"]>,
+  error: unknown,
+) => {
+  if (!directXm5CaptureStillMatches(sessionId, pending)) return;
+  systemCommit({
+    type: "CAMERA_CAPTURE_FAILED",
+    message:
+      error instanceof Error
+        ? error.message
+        : "The X-M5 could not take the photo. Check the USB connection and retry.",
+  });
+};
+
+const runDirectXm5PendingCapture = (sessionId: string) => {
+  const pending = state.pendingCapture;
+  if (!pending) throw new CommandError("The X-M5 capture was not scheduled.");
+
+  void directXm5Camera.capture().then(
+    (photo) => {
+      commandQueue = commandQueue
+        .then(() => completeDirectXm5Capture(sessionId, pending, photo))
+        .catch((error) => failDirectXm5Capture(sessionId, pending, error));
+    },
+    (error: unknown) => {
+      commandQueue = commandQueue.then(() => failDirectXm5Capture(sessionId, pending, error));
+    },
+  );
+};
+
 const runCountdownStep = async () => {
   if (state.phase !== "countdown" || !state.captureSequence) return;
 
@@ -926,6 +1041,8 @@ const runCountdownStep = async () => {
   systemCommit({ type: "COUNTDOWN_TRIGGER" });
   if (state.cameraSourceId === "simulator") {
     await runSimulatorPendingCapture(sessionId);
+  } else if (state.cameraSourceId === "fujifilm_xm5_hybrid") {
+    runDirectXm5PendingCapture(sessionId);
   } else if (state.cameraSourceId === "fujifilm_xm5_tether" && tetherBaseline) {
     runTetherPendingCapture(sessionId, tetherBaseline);
   }
@@ -960,6 +1077,10 @@ const runCapture = async (
     state.cameraSourceId === "fujifilm_xm5_tether" ? await tetherCameraBridge.snapshot() : null;
   commit(reduceCommand(state, command, actor), actor, command, id);
   if (state.cameraSourceId === "macbook_camera") return;
+  if (state.cameraSourceId === "fujifilm_xm5_hybrid") {
+    runDirectXm5PendingCapture(sessionId);
+    return;
+  }
   if (state.cameraSourceId === "fujifilm_xm5_tether" && tetherBaseline) {
     runTetherPendingCapture(sessionId, tetherBaseline);
     return;

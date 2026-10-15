@@ -10,7 +10,7 @@ tags:
   - feature-spec
   - offline-first
 status: draft
-document_version: 1.9.2
+document_version: 1.9.3
 created: 2026-10-01
 updated: 2026-10-15
 owner: Kurge
@@ -123,7 +123,7 @@ The business should be able to keep serving customers during internet interrupti
 - Supported source types must include dedicated DSLR/mirrorless cameras, USB/UVC webcams, built-in Windows/Mac laptop cameras, and the iPad camera.
 - The camera system must be extensible so additional brands and models can be added through adapters and tested compatibility profiles.
 - The starting MacBook camera is implemented as an Experimental standard video-device source. One packaged three-photo session passed at 1920×1080; it is not yet certified for customers or prints.
-- The Fujifilm X-M5 has an Experimental attended watched-folder bridge through FUJIFILM TETHER APP. A physical direct-USB spike proved repeated 1024×768 preview frames, programmatic shutter activation, automatic 6240×4160 JPEG plus RAF download, and camera-copy retention. It also proved a blocker: USB preview stops after capture and does not recover through a software-only reconnect on the tested camera/firmware. The planned Self-Service adapter therefore combines clean HDMI through a UVC capture device for continuous preview with USB tether for automatic full-resolution capture.
+- The Fujifilm X-M5 has an Experimental attended watched-folder bridge through FUJIFILM TETHER APP. WanderBooth 0.16.0 also implements an Experimental Hybrid source: any selected video device supplies the mirrored preview while direct USB fires the X-M5 and downloads its full-resolution JPEG automatically. The controller retains JPEG and RAF on the camera and never substitutes a preview frame for the final still. The exact clean HDMI/UVC hardware and reliability gate remain before Self-Service approval.
 - The first printer is an **Epson EcoTank L8050**.
 - Every physical job in the first manual print workflow uses one 4×6 sheet. A single 2×6 design is duplicated on both halves for cutting, while full 4×6 designs print as composed.
 - The operator sees the exact print sheet before opening the native macOS/Windows print dialog. Self-Service completion notifies the operator with a banner and ding; printing and reprinting remain staff-only.
@@ -163,7 +163,7 @@ The first working foundation now exists on the `codex/phase-0-foundation` branch
 - Finished captures and deliverables are stored below event/session-specific directories. Each completed session also owns a stable private QR record with an exact 30-day expiry and honest queued, uploading, ready, failed, or expired state.
 - Master templates can belong to several named folders. Event creation copies one folder's masters; adding, editing, or deleting an event copy is isolated, while an explicit promotion creates a new library master.
 - A development-only camera simulator exercises capture and two-retake behavior safely.
-- Staff can select the simulator, standard video camera, or Fujifilm X-M5 tether bridge only while the booth is idle. The video path includes permission handling, physical device choice, a reduced mirrored preview relayed to the customer screen, and separate unmirrored JPEG transfer. The X-M5 path validates one local download folder, ignores old files, and accepts only a new stable decodable JPEG for the pending session slot.
+- Staff can select the simulator, standard video camera, attended Fujifilm X-M5 folder bridge, or X-M5 Hybrid only while the booth is idle. The video path includes permission handling, physical device choice, and a reduced mirrored preview relayed to the customer screen. Hybrid reuses that preview but disables video-frame capture; only a new full-resolution USB JPEG can complete the pending slot. The attended fallback still validates one local folder, ignores old files, and accepts only a new stable decodable JPEG.
 - One action starts every photo required by the selected layout. The Host advances and broadcasts the three-second countdown before each capture so the Mac and customer screen cannot drift apart.
 - Retakes use the same synchronized countdown, and staff can cancel an active session safely back to idle.
 - The selection menu offers built-in three-photo, four-photo, and six-photo arrangements plus saved portrait or landscape custom templates with one to eight holders and a derived automatic capture count.
@@ -792,7 +792,7 @@ Tasks:
 - Confirm initial products and PHP prices when the business is ready.
 - Use the iPad as the first Self-Service touchscreen, test both iPad and second-monitor display-only attended presentations, and keep the customer client responsive for a future dedicated touchscreen.
 - Use the confirmed MacBook Pro and record storage requirements as real session files are measured.
-- Build the Fujifilm X-M5 combined Mac adapter: use clean HDMI through a UVC capture device for continuous preview and direct USB tether for countdown-triggered capture, full-resolution JPEG download, and camera-copy retention. Keep the attended watched-folder bridge as fallback, run recovery and repeated-session tests, then test the Canon EOS 60D.
+- Connect exact HDMI/UVC hardware to the implemented X-M5 Hybrid Mac adapter, then run live-view latency/orientation, six-capture, retake, disconnect/recovery, print-quality, and 50-session tests. Keep the attended watched-folder bridge as fallback, then test the Canon EOS 60D.
 - Define the shared camera-source contract and implement three feasibility adapters: dedicated camera, standard webcam/built-in camera, and iPad camera.
 - Test Epson L8050 print sizes, margins, speed, quality, paper handling, and failure recovery.
 - Test the confirmed iPad Pro 12.9-inch (6th generation) on iPadOS 18.2.
@@ -1018,6 +1018,7 @@ The repository and product baseline now exist. Most workflow decisions are confi
 
 | Version | Date | Change |
 |---|---|---|
+| 1.9.3 | 2026-10-15 | Implemented the Experimental X-M5 Hybrid source: selected video-device preview plus automatic full-resolution USB still capture, required idle-time test capture, camera-copy retention, safe temporary-file cleanup, and attended folder fallback. HDMI/UVC hardware certification remains. |
 | 1.9.2 | 2026-10-15 | Completed the persistent X-M5 test: repeated USB preview, automatic full-resolution capture, and camera-copy retention passed, but post-capture preview and software-only reconnect failed. Selected HDMI/UVC preview plus USB capture as the Self-Service architecture. |
 | 1.9.1 | 2026-10-15 | Recorded the physical X-M5 direct-tether spike: USB preview and automatic full-resolution capture passed once, while sustained preview, post-capture resume, camera-copy retention, packaging, Windows support, and repeat-session recovery remain required before Self-Service approval. |
 | 1.9.0 | 2026-10-06 | Implemented the private Cloudflare QR workflow: stable locally generated codes, persistent offline retry, authenticated Worker uploads, private R2 media, D1 status, a mobile gallery, exact 30-day expiry, hourly cleanup, operator configuration/retry, and session-history re-display. |

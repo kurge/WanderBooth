@@ -2,7 +2,7 @@
 
 **Status:** Phase 0 testing
 
-**Version:** 0.10.0
+**Version:** 0.11.0
 
 **Updated:** 2026-10-15
 
@@ -17,7 +17,8 @@ This document records the hardware already available for WanderBooth, the suppor
 | Attendant-Operated customer display | Second monitor connected to the Host or iPad in display-only mode | Support both options in the first pilot |
 | Future Self-Service touchscreen | Dedicated touchscreen model not yet selected | Must run the same responsive customer client; evaluate when purchased |
 | Dedicated camera | Canon EOS 60D | Owned secondary integration target |
-| Recommended first dedicated camera | Fujifilm X-M5 | Run the first brand/model-specific Phase 0 control test |
+| Recommended first dedicated camera | Fujifilm X-M5 | Direct USB automatic still capture passed; production live view needs HDMI/UVC hardware |
+| X-M5 live-view adapter | HDMI Micro (Type D) cable plus standard UVC capture device | Not yet owned or selected; required to certify X-M5 Hybrid |
 | Host built-in camera | FaceTime HD Camera on the starting MacBook Pro | Implemented as an Experimental source; automatic three-photo capture, synchronized customer countdown, relayed preview, and 1920×1080 saved frames passed once |
 | External webcam | Any standard USB/UVC device supplied later | Detect generically, then certify individual models as needed |
 | Printer | Epson EcoTank L8050 | First-pilot printer |
@@ -80,7 +81,7 @@ Primary risks:
 
 ### Fujifilm X-M5
 
-Fujifilm lists the X-M5 as compatible with FUJIFILM TETHER APP on Windows and macOS, including macOS 15 Sequoia, and documents USB tether modes. This makes it the recommended first dedicated-camera candidate. The first WanderBooth bridge is now implemented around that manufacturer software: staff select the same dedicated download folder in both applications; WanderBooth ignores old files, waits for a new stable decodable JPEG after each countdown, and copies it into the active session. The bridge still requires the attendant to fire the shutter and has no X-M5 live preview, so physical testing and automatic control remain open.
+Fujifilm lists the X-M5 as compatible with FUJIFILM TETHER APP on Windows and macOS, including macOS 15 Sequoia, and documents USB tether modes. The attended fallback uses that app plus a watched folder. WanderBooth 0.16.0 also adds an Experimental X-M5 Hybrid source: a selected standard video device provides mirrored posing preview, while external gPhoto2 control fires the X-M5 over USB, downloads its full-resolution JPEG, and explicitly retains JPEG and RAW copies on the camera. Direct USB preview failed after capture on the tested firmware, so production preview must use the camera's clean HDMI Micro (Type D) output through a UVC capture device.
 
 Official references:
 
@@ -90,9 +91,9 @@ Official references:
 
 Primary risks:
 
-- Full programmatic shutter control may not be available through a public SDK.
-- A manufacturer-app or watched-folder bridge may be required.
-- The exact live-view and trigger behavior must be tested without relying on internet access.
+- gPhoto2/libgphoto2 is currently an external macOS dependency and is not bundled into the application.
+- macOS `ptpcamerad` and FUJIFILM TETHER APP compete for exclusive USB ownership; Hybrid requires Tether App to be closed.
+- The exact HDMI cable/capture device, live-view delay, six-capture sequence, recovery, and 50-session reliability still require physical certification.
 
 See [FUJIFILM_XM5_TETHER.md](FUJIFILM_XM5_TETHER.md) for the exact pilot setup, operation, recovery, and remaining certification work.
 

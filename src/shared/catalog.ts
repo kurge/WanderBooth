@@ -44,7 +44,7 @@ export type Layout = {
   name: string;
   description: string;
   requiredCaptureCount: number;
-  printSize: "2x6" | "4x6";
+  printSize: "2x4" | "2x6" | "4x6";
   canvasWidth: number;
   canvasHeight: number;
   slots: PhotoSlot[];
@@ -126,8 +126,8 @@ export const products: Product[] = [
   {
     id: "three-photo-strip",
     name: "Photo strip",
-    description: "Three photos on one 2×6 strip, or six unique photos across two strips.",
-    layoutIds: ["vertical-2x6", "double-strip-4x6"],
+    description: "Three photos on a 2×4 or 2×6 strip, or six unique photos across two strips.",
+    layoutIds: ["vertical-2x6", "vertical-2x4", "double-strip-4x6"],
     price: null,
   },
   {
@@ -162,6 +162,21 @@ export const layouts: Layout[] = [
       { captureIndex: 2, x: 30, y: 1015, width: 540, height: 420, shape: "rounded" },
     ],
     brandAreas: [{ x: 30, y: 1480, width: 540, height: 260, align: "center" }],
+  },
+  {
+    id: "vertical-2x4",
+    name: "Classic 2×4",
+    description: "Three landscape captures on a shorter vertical strip, with room for branding.",
+    requiredCaptureCount: 3,
+    printSize: "2x4",
+    canvasWidth: 600,
+    canvasHeight: 1200,
+    slots: [
+      { captureIndex: 0, x: 84, y: 24, width: 432, height: 324, shape: "rounded" },
+      { captureIndex: 1, x: 84, y: 366, width: 432, height: 324, shape: "rounded" },
+      { captureIndex: 2, x: 84, y: 708, width: 432, height: 324, shape: "rounded" },
+    ],
+    brandAreas: [{ x: 30, y: 1050, width: 540, height: 126, align: "center" }],
   },
   {
     id: "double-strip-4x6",

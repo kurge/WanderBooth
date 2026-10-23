@@ -2,7 +2,7 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.18.0
+**Version:** 0.18.1
 
 **Updated:** 2026-10-23
 
@@ -37,7 +37,7 @@ Live view follows the holder shape for each capture, including retakes. If one c
 
 ### Freeform custom layouts
 
-Choose **Custom 4×6 layout** in the Template Gallery when a frame does not fit one of the five built-in arrangements:
+Choose **Custom 4×6 layout** in the Template Gallery when a frame does not fit one of the six built-in arrangements:
 
 1. Choose **Custom portrait 4×6** or **Custom landscape 4×6**, then select or import matching transparent artwork.
 2. Open template setup. The canvas starts with one photo holder.
@@ -68,6 +68,7 @@ When staff create an event, WanderBooth copies every master in the selected star
 
 | Product | Layout | Output | Unique captures | Important behavior |
 |---|---|---:|---:|---|
+| Photo strip | Classic 2×4 | 600×1200 | 3 | A shorter vertical strip; printed twice at actual size on a 4×6 sheet |
 | Photo strip | Classic 2×6 | 600×1800 | 3 | One normal vertical strip |
 | Photo strip | Double strip 4×6 | 1200×1800 | 6 | Photos 1–3 fill the left strip; Photos 4–6 fill the right strip |
 | Four-photo card | Feature portrait | 1200×1800 | 4 | Three smaller photos and one large feature photo |

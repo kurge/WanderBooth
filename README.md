@@ -25,7 +25,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - [Operation modes](docs/OPERATION_MODES.md) — control ownership, screen behavior, permissions, and workflows for Attendant-Operated and Self-Service use.
 - [Events and local storage](docs/EVENTS_AND_STORAGE.md) — event projects, session history, local file ownership, archive/delete behavior, and the boundary with 30-day cloud delivery.
 - [Cloud QR delivery](docs/CLOUD_QR_DELIVERY.md) — Cloudflare setup, operator workflow, security, retention, recovery, and deployment.
-- [Printing and photo filters](docs/PRINTING_AND_FILTERS.md) — manual print-preview flow, 4×6/2×6 sheet rules, print history, six local filters, and future AR options.
+- [Printing and photo filters](docs/PRINTING_AND_FILTERS.md) — manual print-preview flow, 4×6/2×6/2×4 sheet rules, print history, six local filters, and future AR options.
 - [Layouts, frames, and overlays](docs/TEMPLATES_AND_OVERLAYS.md) — the template model, current catalog, supplied-sample findings, and production artwork rules.
 - [iPad setup](docs/IPAD_SETUP.md) — Safari touchscreen and Sidecar second-display instructions.
 - [Architecture decision records](docs/decisions/) — short records explaining why major technical and product choices were made.
@@ -36,9 +36,9 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Product-plan version: **1.9.3 — X-M5 Hybrid Capture Adapter**
 - Development status: **Phase 0 working prototype**
 - Starting Host: **MacBook Pro (Mac15,6), Apple M3 Pro, 18 GB memory, macOS 15.7.5**
-- Current catalog: **two normal product families with five built-in layouts, plus portrait and landscape custom saved templates with up to eight holders**, a mutually exclusive fixed-color or imported event frame, iPad customer screen, and no on-screen price
+- Current catalog: **two normal product families with six built-in layouts, plus portrait and landscape custom saved templates with up to eight holders**, a mutually exclusive fixed-color or imported event frame, iPad customer screen, and no on-screen price
 - Current cameras: **prototype simulator, experimental video-device capture, attended Fujifilm X-M5 folder import, and experimental X-M5 Hybrid**. Hybrid uses a selected video input for live view and direct USB for automatic full-resolution X-M5 stills; final X-M5 live view awaits an HDMI/UVC capture device.
-- First print decision: every job uses an Epson-compatible **4×6 sheet**. A single 2×6 design is duplicated on both halves for cutting; the six-shot Double strip already fills the whole 4×6 sheet.
+- First print decision: every job uses an Epson-compatible **4×6 sheet**. Single 2×6 and 2×4 designs are duplicated side by side for cutting (2×4 keeps one-inch blank margins at the top and bottom); the six-shot Double strip already fills the whole 4×6 sheet.
 - Immediate next step: connect the X-M5's HDMI Micro (Type D) output to a UVC capture device, choose that input inside X-M5 Hybrid, and run the six-capture/retake/recovery gate. Epson L8050 printing has passed its first physical workflow test; exact color, scale, and borderless settings still need a repeatable pilot preset. AR remains a later adapter-backed experiment.
 - Source-code repository: **[github.com/kurge/WanderBooth](https://github.com/kurge/WanderBooth)**
 - Repository visibility: **Public**
@@ -56,7 +56,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - One synchronized session shared by the laptop operator view and iPad/customer view.
 - Staff-selected Attendant-Operated or Self-Service control.
 - Product/layout menu with built-in three-photo, four-photo, and six-photo arrangements; saved custom templates derive one to eight automatic captures from their holder labels.
-- Five data-driven layouts: classic 2×6, six-shot double strip 4×6, feature portrait, heart feature, and party landscape.
+- Six data-driven layouts: classic 2×4, classic 2×6, six-shot double strip 4×6, feature portrait, heart feature, and party landscape.
 - Five reusable fixed-color frames with consistent selection highlights, plus imported custom artwork. Built-in decorations are retired; per-photo filters remain available during review.
 - A mutually exclusive imported-frame path: selecting a custom frame hides and clears fixed colors, while selecting a color clears the custom frame.
 - Operator-only event-frame import for transparent PNG artwork with pre-cut photo openings. The Host preserves a normalized source plus a rendered preview so later alignment is lossless and survives restart; previously imported flat templates remain readable.
@@ -72,7 +72,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Each template holder supports Landscape 4:3, Portrait 3:4, or Custom sizing. Live view follows the next capture's holder shape; a capture reused in different shapes shows full-source preview with crop guides. Layouts and prints use the uncropped local source, so final adjustments are not limited by the initial crop. See [photo framing and backups](docs/PHOTO_FRAMING.md).
 - Local SQLite state and event history so the Host remains authoritative.
 - A layout-defined set of branded individual PNGs, a 300-DPI composite strip/card, and an MP4 slideshow.
-- A dedicated 300-DPI 4×6 print file for every completed session, including duplicated matching 2×6 strips when the guest selected the single-strip product.
+- A dedicated 300-DPI 4×6 print file for every completed session, including duplicated matching 2×4 or 2×6 strips when the guest selected the single-strip product.
 - Operator print preview from the completion screen or event history, followed by the native macOS/Windows print dialog. Self-Service completion raises an operator banner and audible ding, and every print-dialog outcome is saved in session history where Electron can report it.
 - A stable, private QR link for every completed session. The operator and customer screens render the QR locally, show queued/uploading/ready/failed/expired status honestly, and event history can re-display or retry it.
 - A persistent background upload queue that survives restart and sends only branded individual photos, the final layout, and the looping slideshow. Capture, local processing, and printing remain available if internet access fails.
@@ -90,9 +90,9 @@ The prototype now controls standard video cameras, imports X-M5 JPEGs through th
 
 ## Open the app on this Mac
 
-Run `pnpm package:mac:dmg` to generate `release/WanderBooth-0.18.0-arm64.dmg`, then double-click it in Finder and copy **WanderBooth** into **Applications**. The generated build is for the current Apple-silicon Mac and does not require Terminal after installation. Canon USB and X-M5 Hybrid expect gPhoto2 at a standard Homebrew path on the Host; it is not bundled into the DMG. The owner has since reported the Canon working, but template-aware framing still needs a physical check before event use.
+Run `pnpm package:mac:dmg` to generate `release/WanderBooth-0.18.1-arm64.dmg`, then double-click it in Finder and copy **WanderBooth** into **Applications**. The generated build is for the current Apple-silicon Mac and does not require Terminal after installation. Canon USB and X-M5 Hybrid expect gPhoto2 at a standard Homebrew path on the Host; it is not bundled into the DMG. The owner has since reported the Canon working, but template-aware framing still needs a physical check before event use.
 
-If the decorative DMG builder reports `hdiutil: create failed - Operation not supported by device` after producing the `.app`, a plain installation image can be created with `hdiutil create -volname 'WanderBooth 0.18.0' -srcfolder release/mac-arm64 -format UDZO release/WanderBooth-0.18.0-arm64.dmg`. Use this only when that output file does not already exist; it contains the app without the drag-to-Applications shortcut.
+If the decorative DMG builder reports `hdiutil: create failed - Operation not supported by device` after producing the `.app`, a plain installation image can be created with `hdiutil create -volname 'WanderBooth 0.18.1' -srcfolder release/mac-arm64 -format UDZO release/WanderBooth-0.18.1-arm64.dmg`. Use this only when that output file does not already exist; it contains the app without the drag-to-Applications shortcut.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

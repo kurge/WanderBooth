@@ -18,6 +18,20 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 ## Unreleased
 
+## 0.18.1 — 2026-10-23
+
+### Added
+
+- **Classic 2×4** under Photo strip, alongside Classic 2×6. It takes three unique photos on a 600×1200 canvas, with default landscape 4:3 holders and a branding footer.
+- Fixed-color and imported-frame support, including reusable template saving and per-holder orientation controls.
+- The 4×6 print sheet contains two matching, actual-size 2×4 strips centered vertically, with one-inch blank top/bottom margins to trim. Existing 2×6 and full 4×6 layouts are unchanged.
+
+### Verified
+
+- All 134 tests and Host/web/cloud builds passed. Tests cover selection in both operation modes, saved templates, transparent artwork sizing, print dimensions/density, exact duplicate pixels and existing print sizes.
+- A synthetic browser session completed three automatic captures, review, branded downloads, slideshow, event history and the print preview. No physical printer/camera or production cloud was used.
+- Built and verified the unsigned Apple-silicon 0.18.1 installer. See the [Classic 2×4 test record](docs/test-records/2026-10-23-classic-2x4.md).
+
 ## 0.18.0 — 2026-10-23
 
 ### Added

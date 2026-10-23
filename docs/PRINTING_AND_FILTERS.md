@@ -24,7 +24,7 @@ Every completed session contains:
 - a dedicated 300-DPI 4×6 print PNG; and
 - the looping MP4 slideshow when FFmpeg is available.
 
-For a single 2×6 strip, WanderBooth places the same finished strip on the left and right halves of one 4×6 sheet. The attendant prints one supported 4×6 sheet and cuts it into two matching strips. A full 4×6 layout is printed as designed.
+For a single 2×6 strip, WanderBooth places the same finished strip on the left and right halves of one 4×6 sheet. The attendant prints one supported 4×6 sheet and cuts it into two matching strips. For **Classic 2×4**, the downloaded strip is 600×1200 pixels. The print sheet contains two matching 2×4 strips side by side, centered vertically, with one inch of blank paper above and below. Cut down the center and trim those blank margins. The shorter strip is never stretched to 2×6. A full 4×6 layout is printed as designed.
 
 The Epson L8050 documentation lists 4×6 (102 × 152 mm) media. Its documented custom/borderless limits do not establish a native 2×6 sheet workflow, so the first pilot standardizes physical output on 4×6 media. See Epson's [supported borderless paper types](https://files.support.epson.com/docid/cpd6/cpd62777/source/printers/source/paper_loading/reference/l8050_18050/paper_borderless_types_l8050_18050.html) and [paper specifications](https://files.support.epson.com/docid/cpd6/cpd62777/source/printers/source/specifications/reference/l8050_l18050/spex_paper_printer_l8050_18050.html).
 
@@ -73,7 +73,7 @@ Do not choose an AR vendor until a short pilot compares offline behavior, camera
 - Print portrait and landscape samples.
 - Test Actual Size / 100% and borderless settings.
 - Measure edge cropping and color differences from the on-screen preview.
-- Print one single-strip duplicated sheet and one full 4×6 design.
+- Print duplicated 2×6 and 2×4 sheets plus one full 4×6 design. Measure the trimmed 2×4 pieces at Actual Size / 100%.
 - Confirm drying time, cutting guide, throughput, and paper handling.
 - Cancel one dialog and force one printer failure to verify history and operator recovery.
 - Record the approved driver, paper, quality, color, borderless, and orientation settings in the test record.

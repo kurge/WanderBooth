@@ -3342,7 +3342,8 @@ function SessionPanel({
               <h2>Preview the exact 4×6 sheet, then choose the printer.</h2>
               <p>
                 The native print dialog lets you choose the Epson L8050 or any printer installed on
-                this computer. A 2×6 design is duplicated across a 4×6 sheet for cutting.
+                this computer. A 2×4 or 2×6 design is duplicated on a 4×6 sheet for cutting. For
+                2×4, trim the blank top and bottom margins; the strips are not stretched.
               </p>
             </div>
             <button

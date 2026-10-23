@@ -456,16 +456,18 @@ async function createSlideshow(individualPaths: string[], outputPath: string) {
   ]);
 }
 
-async function createPrintSheet(input: {
+export async function createPrintSheet(input: {
   compositePath: string;
   outputPath: string;
   printSize: Layout["printSize"];
   canvasWidth: number;
   canvasHeight: number;
 }) {
-  if (input.printSize === "2x6") {
+  if (input.printSize === "2x6" || input.printSize === "2x4") {
+    const stripHeight = input.printSize === "2x4" ? 1200 : 1800;
+    const top = (1800 - stripHeight) / 2;
     const strip = await sharp(input.compositePath)
-      .resize(600, 1800, { fit: "fill" })
+      .resize(600, stripHeight, { fit: "contain", background: "white" })
       .png()
       .toBuffer();
     await sharp({
@@ -477,8 +479,8 @@ async function createPrintSheet(input: {
       },
     })
       .composite([
-        { input: strip, left: 0, top: 0 },
-        { input: strip, left: 600, top: 0 },
+        { input: strip, left: 0, top },
+        { input: strip, left: 600, top },
       ])
       .withMetadata({ density: 300 })
       .png()
@@ -601,8 +603,8 @@ export async function buildDeliverables(
   deliverables.push({
     kind: "print",
     label:
-      layout.printSize === "2x6"
-        ? "4×6 print sheet · two matching 2×6 strips"
+      layout.printSize === "2x6" || layout.printSize === "2x4"
+        ? `4×6 print sheet · two matching ${layout.printSize.replace("x", "×")} strips`
         : `4×6 print sheet · ${layout.canvasWidth > layout.canvasHeight ? "landscape" : "portrait"}`,
     mediaUrl: publicMediaUrl(dataDirectory, printPath),
     mimeType: "image/png",

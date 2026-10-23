@@ -7,7 +7,7 @@ tags:
   - changelog
 status: active
 created: 2026-10-01
-updated: 2026-10-15
+updated: 2026-10-23
 ---
 
 # WanderBooth — Changelog
@@ -17,6 +17,30 @@ This note records material changes to WanderBooth's product definition, applicat
 The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic versions.
 
 ## Unreleased
+
+## 0.17.0 — 2026-10-23
+
+### Added
+
+- Experimental Mac-only **Canon EOS 60D · USB** source with mirrored live view, automatic full-resolution capture, a visible test-photo result, reconnect and disconnect controls.
+- Canon preview/still coordination: release the streaming connection before the shutter command, import the JPEG, resume preview and use the existing event storage, retakes, branded output, printing and QR flow.
+- Host-enforced readiness requires a fresh preview and a successful test photo before starting a session. Camera-copy retention is explicit; raw camera files are retained and temporary Host downloads are removed.
+- Bounded JPEG parsing, slow-display frame dropping, preview watchdog, shutdown cleanup, exact camera selection and actionable connection/format errors.
+- One bounded restart of the macOS photo-import helper after a USB-claim conflict; shutter/transfer failures are never automatically retried, avoiding duplicate shots.
+- Canon setup guide, ADR 0023 and a test record separating synthetic checks from actual camera results.
+
+### Verified
+
+- All 72 tests, formatting/lint checks and Host/web/cloud production builds passed. An isolated synthetic Canon process completed live view, three automatic captures, a retake, session storage, branded individuals, a layout, print sheet, slideshow and local QR record.
+- Operator UI selection, disabled session start before testing, connection, test-image display and readiness passed with synthetic images.
+- The real EOS 60D was detected over USB and delivered 46 live-view frames before the still test. macOS's photo-import helper had to be restarted to release USB.
+- Built and verified the unsigned Apple-silicon 0.17.0 DMG (148 MiB). Confirmed the packaged version and Sharp JPEG generation; see the test record for the checksum and plain-DMG fallback.
+
+### Known limitation
+
+- Real still capture and post-capture live-view recovery have **not passed**. The physical test failed, and the camera subsequently reported USB I/O busy. A camera power cycle/settings check and another physical test are needed. This build is experimental and not approved for event use. Windows and other Canon models remain planned.
+
+## 0.16.0 and earlier camera work
 
 ### Added
 

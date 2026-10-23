@@ -48,6 +48,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 
 ## What works in the Phase 0 prototype
 
+- Experimental Mac-only **Canon EOS 60D · USB** source with live preview, an automatic full-resolution test photo, and Host-triggered sessions/retakes. Software is implemented; the real camera still needs validation. See [Canon setup](docs/CANON_EOS_USB.md).
 - A local event library is now the operator's starting point. Staff can create, reopen, archive, restore, and permanently delete event projects with dates, client/venue details, notes, and a starting template folder.
 - Every completed customer session is numbered inside its event and keeps its optional customer/group name, captures, final branded files, and slideshow in an event-specific local folder. Local events remain until the operator deliberately deletes them.
 - A reusable master Template Library supports named folders such as Weddings or Birthdays. One master template may belong to several folders; creating an event copies the selected folder's templates into an isolated event set.
@@ -89,7 +90,9 @@ The prototype now controls standard video cameras, imports X-M5 JPEGs through th
 
 ## Open the app on this Mac
 
-Run `pnpm package:mac:dmg` to generate `release/WanderBooth-0.16.0-arm64.dmg`, then double-click it in Finder and drag **WanderBooth** into **Applications**. The generated build is for the current Apple-silicon Mac and does not require Terminal after installation. X-M5 Hybrid currently expects gPhoto2 at a standard Homebrew path on the Host; it is not bundled into the DMG.
+Run `pnpm package:mac:dmg` to generate `release/WanderBooth-0.17.0-arm64.dmg`, then double-click it in Finder and copy **WanderBooth** into **Applications**. The generated build is for the current Apple-silicon Mac and does not require Terminal after installation. Canon USB and X-M5 Hybrid expect gPhoto2 at a standard Homebrew path on the Host; it is not bundled into the DMG. Canon remains experimental: real live view passed once, but still capture and preview recovery require another physical test.
+
+If the decorative DMG builder reports `hdiutil: create failed - Operation not supported by device` after producing the `.app`, a plain installation image can be created with `hdiutil create -volname 'WanderBooth 0.17.0' -srcfolder release/mac-arm64 -format UDZO release/WanderBooth-0.17.0-arm64.dmg`. Use this only when that output file does not already exist; it contains the app without the drag-to-Applications shortcut.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

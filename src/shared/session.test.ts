@@ -774,6 +774,15 @@ describe("WanderBooth session rules", () => {
     ).toThrow("not available");
   });
 
+  it("allows Canon source selection only to staff while idle", () => {
+    const command = { type: "SET_CAMERA_SOURCE", cameraSourceId: "canon_eos_usb" } as const;
+    expect(reduceCommand(initialBoothState(), command, "attendant").cameraSourceId).toBe(
+      "canon_eos_usb",
+    );
+    expect(() => reduceCommand(initialBoothState(), command, "customer")).toThrow("Only staff");
+    expect(() => reduceCommand(beginSelection(), command, "attendant")).toThrow("not available");
+  });
+
   it("tracks the exact photo expected from a real camera", () => {
     let state = completeSelection();
     state = reduceCommand(state, { type: "CONFIRM_CASH" }, "attendant");

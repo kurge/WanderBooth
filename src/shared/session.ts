@@ -22,6 +22,7 @@ export type OperationMode = "attendant" | "self_service";
 export type CameraSourceId =
   | "simulator"
   | "macbook_camera"
+  | "canon_eos_usb"
   | "fujifilm_xm5_tether"
   | "fujifilm_xm5_hybrid";
 export type FrameMode = "color" | "custom";

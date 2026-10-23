@@ -35,9 +35,11 @@ import type {
   SavedTemplate,
 } from "../shared/session";
 import { activeEventFor, galleryTemplatesFor, sessionTemplatesFor } from "../shared/session";
+import { CanonCameraControls } from "./CanonCameraControls";
 import { createId } from "./createId";
 import { type ResizeHandle, resizeTransform } from "./resizeTransform";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
+import { useCanonCamera } from "./useCanonCamera";
 import { useDirectXm5Camera } from "./useDirectXm5Camera";
 import { type CameraStatus, useMacBookCamera } from "./useMacBookCamera";
 import { useTetherCamera } from "./useTetherCamera";
@@ -2516,7 +2518,7 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
       className={`live-camera ${state.cameraSourceId === "simulator" ? "live-camera--simulator" : ""}`}
       aria-label="Live camera preview"
     >
-      {["macbook_camera", "fujifilm_xm5_hybrid"].includes(state.cameraSourceId) ? (
+      {["macbook_camera", "fujifilm_xm5_hybrid", "canon_eos_usb"].includes(state.cameraSourceId) ? (
         <img src={`${hostHttpUrl}/api/camera-preview`} alt="Mirrored live camera preview" />
       ) : state.cameraSourceId === "fujifilm_xm5_tether" ? (
         <div className="live-camera__simulator live-camera__tether">
@@ -2539,11 +2541,13 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
       <span className="live-camera__badge">
         {state.cameraSourceId === "macbook_camera"
           ? "Mirrored preview"
-          : state.cameraSourceId === "fujifilm_xm5_hybrid"
-            ? "HDMI/video preview · X-M5 USB still"
-            : state.cameraSourceId === "fujifilm_xm5_tether"
-              ? "JPEG tether · preview unavailable"
-              : "Synthetic preview"}
+          : state.cameraSourceId === "canon_eos_usb"
+            ? "Canon USB · mirrored live view"
+            : state.cameraSourceId === "fujifilm_xm5_hybrid"
+              ? "HDMI/video preview · X-M5 USB still"
+              : state.cameraSourceId === "fujifilm_xm5_tether"
+                ? "JPEG tether · preview unavailable"
+                : "Synthetic preview"}
       </span>
       {countdown && (
         <div className="countdown-overlay" role="status" aria-live="assertive">
@@ -2559,9 +2563,11 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
       {state.phase === "capturing" && (
         <div className="capture-flash" role="status">
           <strong>
-            {["fujifilm_xm5_tether", "fujifilm_xm5_hybrid"].includes(state.cameraSourceId)
-              ? "Waiting for X-M5 photo…"
-              : "Smile!"}
+            {state.cameraSourceId === "canon_eos_usb"
+              ? "Taking Canon photo…"
+              : ["fujifilm_xm5_tether", "fujifilm_xm5_hybrid"].includes(state.cameraSourceId)
+                ? "Waiting for X-M5 photo…"
+                : "Smile!"}
           </strong>
         </div>
       )}
@@ -3023,9 +3029,11 @@ function SessionPanel({
             {state.phase === "ready"
               ? state.cameraSourceId === "fujifilm_xm5_tether"
                 ? "Each countdown pauses while WanderBooth waits for the full-resolution JPEG. The attendant fires the shutter in this first tether version."
-                : state.cameraSourceId === "fujifilm_xm5_hybrid"
-                  ? "The video input stays live for posing. After each countdown, WanderBooth fires the X-M5 over USB and saves its full-resolution JPEG automatically."
-                  : "There is a three-second countdown before each photo, with a short pause between shots."
+                : state.cameraSourceId === "canon_eos_usb"
+                  ? "After each countdown, WanderBooth takes a full-resolution Canon photo. Live view pauses briefly for the shot and resumes automatically."
+                  : state.cameraSourceId === "fujifilm_xm5_hybrid"
+                    ? "The video input stays live for posing. After each countdown, WanderBooth fires the X-M5 over USB and saves its full-resolution JPEG automatically."
+                    : "There is a three-second countdown before each photo, with a short pause between shots."
               : state.phase === "capturing" && state.cameraSourceId === "fujifilm_xm5_tether"
                 ? isOperator
                   ? "WanderBooth will continue automatically after Fujifilm Tether App saves the JPEG."
@@ -3380,6 +3388,7 @@ function OperatorSidebar({
   state,
   camera,
   directXm5Camera,
+  canonCamera,
   tetherCamera,
   customerUrls,
   sendCommand,
@@ -3395,6 +3404,7 @@ function OperatorSidebar({
     videoRef: React.RefObject<HTMLVideoElement | null>;
   };
   directXm5Camera: ReturnType<typeof useDirectXm5Camera>;
+  canonCamera: ReturnType<typeof useCanonCamera>;
   tetherCamera: ReturnType<typeof useTetherCamera>;
   customerUrls: string[];
   sendCommand: (command: Command) => void;
@@ -3403,6 +3413,7 @@ function OperatorSidebar({
   const macBookSelected = state.cameraSourceId === "macbook_camera";
   const tetherSelected = state.cameraSourceId === "fujifilm_xm5_tether";
   const hybridSelected = state.cameraSourceId === "fujifilm_xm5_hybrid";
+  const canonSelected = state.cameraSourceId === "canon_eos_usb";
   const selectedLayout = resolveLayout(state.layoutId, state.customSlots);
 
   return (
@@ -3410,6 +3421,27 @@ function OperatorSidebar({
       <section>
         <span className="eyebrow">Pilot hardware</span>
         <h2>Camera source</h2>
+        <button
+          className={`device-card device-card--selectable ${canonSelected ? `device-card--selected ${canonCamera.status.ready ? "device-card--ready" : ""}` : ""}`}
+          type="button"
+          disabled={!isIdle || canonCamera.working}
+          onClick={() =>
+            sendCommand({ type: "SET_CAMERA_SOURCE", cameraSourceId: "canon_eos_usb" })
+          }
+        >
+          <span className="device-card__status" />
+          <div>
+            <strong>Canon EOS 60D · USB</strong>
+            <small>
+              {!canonSelected
+                ? "Experimental · Mac · live view + photos"
+                : canonCamera.status.ready
+                  ? "Ready · active source"
+                  : "Selected · setup and test required"}
+            </small>
+          </div>
+        </button>
+        {canonSelected && <CanonCameraControls camera={canonCamera} isIdle={isIdle} />}
         <button
           className={`device-card device-card--selectable ${
             state.cameraSourceId === "simulator" ? "device-card--ready device-card--selected" : ""
@@ -3918,6 +3950,7 @@ function App() {
     isOperator && state?.cameraSourceId === "fujifilm_xm5_hybrid",
   );
   const tetherCamera = useTetherCamera(isOperator);
+  const canonCamera = useCanonCamera(isOperator && state?.cameraSourceId === "canon_eos_usb");
   const interactive = useMemo(
     () => isOperator || state?.operationMode === "self_service",
     [isOperator, state?.operationMode],
@@ -4040,15 +4073,17 @@ function App() {
                 <EventWorkspacePanel
                   state={state}
                   cameraReady={
-                    state.cameraSourceId === "macbook_camera"
-                      ? camera.status === "ready"
-                      : state.cameraSourceId === "fujifilm_xm5_hybrid"
-                        ? camera.status === "ready" &&
-                          directXm5Camera.status.ready &&
-                          !directXm5Camera.testing
-                        : state.cameraSourceId === "fujifilm_xm5_tether"
-                          ? tetherCamera.status.ready && !tetherCamera.testing
-                          : true
+                    state.cameraSourceId === "canon_eos_usb"
+                      ? canonCamera.status.ready && !canonCamera.working
+                      : state.cameraSourceId === "macbook_camera"
+                        ? camera.status === "ready"
+                        : state.cameraSourceId === "fujifilm_xm5_hybrid"
+                          ? camera.status === "ready" &&
+                            directXm5Camera.status.ready &&
+                            !directXm5Camera.testing
+                          : state.cameraSourceId === "fujifilm_xm5_tether"
+                            ? tetherCamera.status.ready && !tetherCamera.testing
+                            : true
                   }
                   sendCommand={sendCommand}
                 />
@@ -4088,6 +4123,7 @@ function App() {
             state={state}
             camera={camera}
             directXm5Camera={directXm5Camera}
+            canonCamera={canonCamera}
             tetherCamera={tetherCamera}
             customerUrls={customerUrls}
             sendCommand={sendCommand}

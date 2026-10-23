@@ -24,6 +24,7 @@ import {
   initialBoothState,
   reduceCommand,
 } from "../shared/session.js";
+import { CanonCamera } from "./canonCamera.js";
 import {
   CloudDeliveryConfigStore,
   createQrDelivery,
@@ -246,11 +247,20 @@ const broadcastPreviewFrame = (frame: Buffer) => {
       previewClients.delete(client);
       continue;
     }
+    // Drop frames for a slow customer display instead of buffering indefinitely.
+    if (client.writableLength > 512 * 1024) continue;
     client.write(header);
     client.write(frame);
     client.write("\r\n");
   }
 };
+
+const canonCamera = new CanonCamera({
+  onFrame: (frame) => {
+    if (state.cameraSourceId === "canon_eos_usb") broadcastPreviewFrame(frame);
+  },
+});
+let canonTestPhoto: Buffer | null = null;
 
 const receiveCameraPreview = async (request: IncomingMessage, response: ServerResponse) => {
   if (!["macbook_camera", "fujifilm_xm5_hybrid"].includes(state.cameraSourceId)) {
@@ -496,6 +506,68 @@ const httpServer = createServer((request, response) => {
       "Access-Control-Allow-Origin": "*",
     });
     response.end();
+    return;
+  }
+
+  if (requestUrl.pathname.startsWith("/api/canon-camera")) {
+    if (!isLoopbackRequest(request)) {
+      sendJson(response, 403, { error: "Canon setup is available only on the operator computer." });
+      return;
+    }
+    if (request.method === "GET" && requestUrl.pathname === "/api/canon-camera") {
+      void canonCamera
+        .status()
+        .then((status) => sendJson(response, 200, status))
+        .catch(() => sendJson(response, 500, { error: "Canon status could not be checked." }));
+      return;
+    }
+    if (request.method === "GET" && requestUrl.pathname === "/api/canon-camera/test-photo") {
+      if (!canonTestPhoto) {
+        sendJson(response, 404, { error: "Take a test photo first." });
+        return;
+      }
+      response.writeHead(200, {
+        "Content-Type": "image/jpeg",
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*",
+      });
+      response.end(canonTestPhoto);
+      return;
+    }
+    const action = requestUrl.pathname.slice("/api/canon-camera/".length);
+    if (request.method === "POST" && ["connect", "disconnect", "test"].includes(action)) {
+      commandQueue = commandQueue
+        .then(async () => {
+          if (state.phase !== "idle" || state.cameraSourceId !== "canon_eos_usb") {
+            throw new CommandError(
+              "Select Canon while the booth is idle before changing camera setup.",
+            );
+          }
+          if (action === "connect") {
+            canonTestPhoto = null;
+            await canonCamera.connect();
+          }
+          if (action === "disconnect") {
+            await canonCamera.disconnect();
+            canonTestPhoto = null;
+          }
+          if (action === "test") {
+            if (!(await canonCamera.status()).previewing)
+              throw new CommandError(
+                "Connect the Canon and enable live preview before taking a test photo.",
+              );
+            canonTestPhoto = (await canonCamera.capture()).buffer;
+          }
+          sendJson(response, 200, await canonCamera.status());
+        })
+        .catch((error) =>
+          sendJson(response, error instanceof CommandError ? 409 : 502, {
+            error: error instanceof Error ? error.message : "Canon setup failed.",
+          }),
+        );
+      return;
+    }
+    sendJson(response, 404, { error: "Unknown Canon camera action." });
     return;
   }
 
@@ -951,23 +1023,25 @@ const runTetherPendingCapture = (sessionId: string, baseline: TetherFolderSnapsh
   );
 };
 
-const directXm5CaptureStillMatches = (
+const directCaptureStillMatches = (
   sessionId: string,
   pending: NonNullable<BoothState["pendingCapture"]>,
+  source: "fujifilm_xm5_hybrid" | "canon_eos_usb",
 ) =>
-  state.cameraSourceId === "fujifilm_xm5_hybrid" &&
+  state.cameraSourceId === source &&
   state.phase === "capturing" &&
   state.sessionId === sessionId &&
   state.pendingCapture?.kind === pending.kind &&
   state.pendingCapture.slot === pending.slot &&
   state.pendingCapture.revision === pending.revision;
 
-const completeDirectXm5Capture = async (
+const completeDirectCapture = async (
   sessionId: string,
   pending: NonNullable<BoothState["pendingCapture"]>,
   photo: DirectXm5Photo,
+  source: "fujifilm_xm5_hybrid" | "canon_eos_usb",
 ) => {
-  if (!directXm5CaptureStillMatches(sessionId, pending)) return;
+  if (!directCaptureStillMatches(sessionId, pending, source)) return;
   const eventId = state.activeEventId ? safeEventId(state.activeEventId) : null;
   const sessionRoot = eventId
     ? resolve(dataDirectory, "events", eventId, "sessions", sessionId)
@@ -992,33 +1066,49 @@ const completeDirectXm5Capture = async (
   scheduleCountdownStep(1_200);
 };
 
-const failDirectXm5Capture = (
+const failDirectCapture = (
   sessionId: string,
   pending: NonNullable<BoothState["pendingCapture"]>,
   error: unknown,
+  source: "fujifilm_xm5_hybrid" | "canon_eos_usb",
 ) => {
-  if (!directXm5CaptureStillMatches(sessionId, pending)) return;
+  if (!directCaptureStillMatches(sessionId, pending, source)) return;
   systemCommit({
     type: "CAMERA_CAPTURE_FAILED",
     message:
       error instanceof Error
         ? error.message
-        : "The X-M5 could not take the photo. Check the USB connection and retry.",
+        : "The camera could not take the photo. Check the USB connection and retry.",
   });
 };
 
-const runDirectXm5PendingCapture = (sessionId: string) => {
+const runDirectPendingCapture = (sessionId: string) => {
   const pending = state.pendingCapture;
-  if (!pending) throw new CommandError("The X-M5 capture was not scheduled.");
+  const source = state.cameraSourceId;
+  if (!pending || (source !== "fujifilm_xm5_hybrid" && source !== "canon_eos_usb")) {
+    throw new CommandError("The USB camera capture was not scheduled.");
+  }
 
-  void directXm5Camera.capture().then(
+  const capture = async () => {
+    if (source === "canon_eos_usb") {
+      const status = await canonCamera.status();
+      if (!status.ready)
+        throw new Error(
+          status.lastError ??
+            "Canon is not ready. Reconnect and test the camera before continuing.",
+        );
+      return canonCamera.capture();
+    }
+    return directXm5Camera.capture();
+  };
+  void capture().then(
     (photo) => {
       commandQueue = commandQueue
-        .then(() => completeDirectXm5Capture(sessionId, pending, photo))
-        .catch((error) => failDirectXm5Capture(sessionId, pending, error));
+        .then(() => completeDirectCapture(sessionId, pending, photo, source))
+        .catch((error) => failDirectCapture(sessionId, pending, error, source));
     },
     (error: unknown) => {
-      commandQueue = commandQueue.then(() => failDirectXm5Capture(sessionId, pending, error));
+      commandQueue = commandQueue.then(() => failDirectCapture(sessionId, pending, error, source));
     },
   );
 };
@@ -1041,8 +1131,11 @@ const runCountdownStep = async () => {
   systemCommit({ type: "COUNTDOWN_TRIGGER" });
   if (state.cameraSourceId === "simulator") {
     await runSimulatorPendingCapture(sessionId);
-  } else if (state.cameraSourceId === "fujifilm_xm5_hybrid") {
-    runDirectXm5PendingCapture(sessionId);
+  } else if (
+    state.cameraSourceId === "fujifilm_xm5_hybrid" ||
+    state.cameraSourceId === "canon_eos_usb"
+  ) {
+    runDirectPendingCapture(sessionId);
   } else if (state.cameraSourceId === "fujifilm_xm5_tether" && tetherBaseline) {
     runTetherPendingCapture(sessionId, tetherBaseline);
   }
@@ -1077,8 +1170,8 @@ const runCapture = async (
     state.cameraSourceId === "fujifilm_xm5_tether" ? await tetherCameraBridge.snapshot() : null;
   commit(reduceCommand(state, command, actor), actor, command, id);
   if (state.cameraSourceId === "macbook_camera") return;
-  if (state.cameraSourceId === "fujifilm_xm5_hybrid") {
-    runDirectXm5PendingCapture(sessionId);
+  if (state.cameraSourceId === "fujifilm_xm5_hybrid" || state.cameraSourceId === "canon_eos_usb") {
+    runDirectPendingCapture(sessionId);
     return;
   }
   if (state.cameraSourceId === "fujifilm_xm5_tether" && tetherBaseline) {
@@ -1145,6 +1238,29 @@ const processMessage = async (socket: WebSocket, rawData: WebSocket.RawData) => 
   }
 
   try {
+    if (
+      state.cameraSourceId === "canon_eos_usb" &&
+      ["BEGIN_SESSION", "CONFIRM_CASH", "START_CAPTURE_SEQUENCE", "RETAKE"].includes(
+        message.command.type,
+      )
+    ) {
+      const status = await canonCamera.status();
+      if (!status.ready)
+        throw new CommandError(
+          status.lastError ??
+            "Connect Canon and pass a test photo with live preview before continuing.",
+        );
+    }
+    if (
+      message.command.type === "SET_CAMERA_SOURCE" &&
+      state.cameraSourceId === "canon_eos_usb" &&
+      message.command.cameraSourceId !== "canon_eos_usb"
+    ) {
+      // Validate staff/idle permissions before releasing the active camera.
+      reduceCommand(state, message.command, message.actor);
+      await canonCamera.disconnect();
+      canonTestPhoto = null;
+    }
     if (message.command.type === "CAPTURE") {
       await runCapture(message.command, message.actor, message.commandId);
     } else if (
@@ -1197,6 +1313,12 @@ socketServer.on("connection", (socket) => {
       .catch((error) => console.error("Command queue failed:", error));
   });
 });
+
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, () => {
+    void canonCamera.shutdown().finally(() => process.exit(0));
+  });
+}
 
 httpServer.listen(port, "0.0.0.0", () => {
   console.log(`WanderBooth Host is ready on http://0.0.0.0:${port}`);

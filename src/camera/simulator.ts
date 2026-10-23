@@ -25,6 +25,8 @@ export type SimulatedCaptureResult = {
   absolutePath: string;
   mediaUrl: string;
   originalMediaUrl: string;
+  pixelWidth: number;
+  pixelHeight: number;
   capturedAt: string;
 };
 
@@ -34,6 +36,7 @@ export async function takeSimulatedPhoto(input: {
   sessionId: string;
   slot: number;
   revision: number;
+  aspectRatio?: number | null;
 }): Promise<SimulatedCaptureResult> {
   const palette = palettes[(input.slot - 1) % palettes.length];
   const sessionRoot = join(
@@ -70,6 +73,7 @@ export async function takeSimulatedPhoto(input: {
     sessionRoot,
     slot: input.slot,
     revision: input.revision,
+    aspectRatio: input.aspectRatio,
   });
 
   return {

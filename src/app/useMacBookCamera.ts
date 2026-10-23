@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  PHOTO_ASPECT_RATIO,
-  PHOTO_PREVIEW_HEIGHT,
-  PHOTO_PREVIEW_WIDTH,
-  photoCrop,
-} from "../shared/photoFraming";
+import { PHOTO_ASPECT_RATIO, PHOTO_PREVIEW_WIDTH } from "../shared/photoFraming";
 import type { BoothState, Command } from "../shared/session";
 import { hostHttpUrl } from "./useBoothConnection";
 
@@ -65,21 +60,19 @@ export const videoFrameToJpeg = async (video: HTMLVideoElement) => {
 export const previewFrameToJpeg = async (video: HTMLVideoElement) => {
   await waitForVideo(video);
   const canvas = document.createElement("canvas");
-  canvas.width = PHOTO_PREVIEW_WIDTH;
-  canvas.height = PHOTO_PREVIEW_HEIGHT;
+  canvas.width = Math.min(PHOTO_PREVIEW_WIDTH, video.videoWidth);
+  canvas.height = Math.round((canvas.width * video.videoHeight) / video.videoWidth);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("The preview frame could not be prepared.");
-
-  const crop = photoCrop(video.videoWidth, video.videoHeight);
 
   context.translate(canvas.width, 0);
   context.scale(-1, 1);
   context.drawImage(
     video,
-    crop.left,
-    crop.top,
-    crop.width,
-    crop.height,
+    0,
+    0,
+    video.videoWidth,
+    video.videoHeight,
     0,
     0,
     canvas.width,

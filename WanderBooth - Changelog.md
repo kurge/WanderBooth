@@ -18,6 +18,30 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 ## Unreleased
 
+## 0.18.0 — 2026-10-23
+
+### Added
+
+- Per-holder Landscape 4:3, Portrait 3:4 and Custom controls in template setup and staff final review. Choices are saved with each master or isolated event template; locked holders must be unlocked first.
+- Capture-specific live framing and matching waiting cards, including retakes. Repeated captures used in differently shaped holders show a full-source preview with all centered crop guides.
+
+### Changed
+
+- Browser and Canon preview relays keep the full mirrored source so each screen can apply the template's crop. All capture adapters use the saved holder geometry without stretching.
+- Layout preview, composition and printing fit photos from their uncropped local originals when available. Final holder adjustments can recover scene area outside the initial crop.
+- Individual branded downloads keep the capture-time shape; portrait downloads are 900×1200. Mixed-shape captures retain the full scene. The slideshow fits these images without stretching.
+- Existing template positions and already-generated session files stay unchanged. Legacy holder shapes are inferred from their dimensions; arbitrary shapes remain Custom.
+
+### Fixed
+
+- Persisted holder and photo transforms retain stable holder IDs on restart, keeping repeated captures independently editable. Orientation metadata also survives reopening.
+
+### Verified
+
+- All 126 tests, formatting/lint and Host/web/cloud builds passed.
+- Isolated browser and Host checks covered mixed-orientation templates, restart persistence, automatic capture, a portrait retake, final orientation editing, uncropped-source recovery, generated print/slideshow files, event history and event-only edits.
+- Built and verified the unsigned Apple-silicon 0.18.0 DMG; its bundled processor produced the expected portrait crop. No physical-camera, iPad, Epson or production-cloud test was performed. See the [orientation test record](docs/test-records/2026-10-23-template-orientation.md).
+
 ## 0.17.2 — 2026-10-23
 
 ### Changed

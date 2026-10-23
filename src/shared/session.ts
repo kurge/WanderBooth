@@ -16,6 +16,13 @@ import {
   resolveLayout,
 } from "./catalog.js";
 import { isPhotoFilterId, type PhotoFilterId } from "./filters.js";
+import {
+  holderAspectRatio,
+  holderTransformFor,
+  isPhotoOrientation,
+  orientHolder,
+  type PhotoOrientation,
+} from "./templateFraming.js";
 
 export type Actor = "owner" | "attendant" | "customer" | "system";
 export type OperationMode = "attendant" | "self_service";
@@ -45,6 +52,8 @@ export type Capture = {
   revision: number;
   mediaUrl: string;
   originalMediaUrl?: string;
+  pixelWidth?: number;
+  pixelHeight?: number;
   capturedAt: string;
   filterId?: PhotoFilterId;
 };
@@ -103,7 +112,11 @@ export type TemplateFolder = {
 };
 
 export type PhotoTransform = MediaTransform & { slot: number; holderId?: string };
-export type HolderTransform = MediaTransform & { slot: number; holderId?: string };
+export type HolderTransform = MediaTransform & {
+  slot: number;
+  holderId?: string;
+  orientation?: PhotoOrientation;
+};
 
 export type SavedTemplate = {
   id: string;
@@ -248,6 +261,7 @@ export type Command =
   | { type: "ADD_TEMPLATE_HOLDER"; holderId: string }
   | { type: "REMOVE_TEMPLATE_HOLDER"; holderId: string }
   | { type: "SET_TEMPLATE_HOLDER_CAPTURE"; holderId: string; captureSlot: number }
+  | { type: "SET_HOLDER_ORIENTATION"; holderId: string; orientation: PhotoOrientation }
   | { type: "BEGIN_SESSION"; sessionId: string; customerName?: string }
   | { type: "SELECT_TEMPLATE"; templateId: string }
   | { type: "SELECT_PRODUCT"; productId: string }
@@ -417,6 +431,7 @@ export function assertCommandAllowed(state: BoothState, command: Command, actor:
     case "ADD_TEMPLATE_HOLDER":
     case "REMOVE_TEMPLATE_HOLDER":
     case "SET_TEMPLATE_HOLDER_CAPTURE":
+    case "SET_HOLDER_ORIENTATION":
     case "RESET":
     case "CONFIRM_CASH":
     case "CAMERA_CAPTURE_FAILED":
@@ -1208,6 +1223,31 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       }
       assertMediaTransform(command.transform);
       return revised(state, { frameTransform: command.transform });
+    case "SET_HOLDER_ORIENTATION": {
+      requirePhase(state, ["reviewing", "template_editing"]);
+      if (
+        state.frameMode !== "custom" ||
+        getOverlay(state.overlayId, state.customOverlays)?.kind !== "custom"
+      ) {
+        throw new CommandError("Photo orientation is available with a custom frame.");
+      }
+      if (!isPhotoOrientation(command.orientation))
+        throw new CommandError("Choose a valid photo orientation.");
+      const slot = stateLayout(state)?.slots.find((item) => photoSlotId(item) === command.holderId);
+      if (!slot) throw new CommandError("Choose a placeholder in this template.");
+      const previous = holderTransformFor(slot, state.holderTransforms);
+      if (previous.locked)
+        throw new CommandError("Unlock this holder before changing orientation.");
+      const transform = orientHolder(slot, previous, command.orientation);
+      return revised(state, {
+        holderTransforms: [
+          ...state.holderTransforms.filter(
+            (item) => !holderMatches(item, command.holderId, slot.captureIndex + 1),
+          ),
+          { ...transform, slot: slot.captureIndex + 1, holderId: command.holderId },
+        ],
+      });
+    }
     case "UPDATE_HOLDER_TRANSFORM": {
       requirePhase(state, ["reviewing", "template_editing"]);
       if (
@@ -1232,6 +1272,13 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
         throw new CommandError("Choose a placeholder in this template.");
       }
       assertMediaTransform(command.transform);
+      const slot = holderLayout.slots.find((item) => photoSlotId(item) === holderId);
+      const previous = slot ? holderTransformFor(slot, state.holderTransforms) : null;
+      const reshaped =
+        slot &&
+        previous &&
+        Math.abs(holderAspectRatio(slot, previous) - holderAspectRatio(slot, command.transform)) >
+          0.001;
       return revised(state, {
         holderTransforms: [
           ...state.holderTransforms.filter((item) => !holderMatches(item, holderId, command.slot)),
@@ -1239,6 +1286,11 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
             slot: command.slot,
             ...(command.holderId ? { holderId: command.holderId } : {}),
             ...command.transform,
+            ...(reshaped
+              ? { orientation: "custom" as const }
+              : previous?.orientation
+                ? { orientation: previous.orientation }
+                : {}),
           },
         ].sort((a, b) => (a.holderId ?? `${a.slot}`).localeCompare(b.holderId ?? `${b.slot}`)),
       });

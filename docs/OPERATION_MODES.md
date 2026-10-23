@@ -62,7 +62,7 @@ Template administration remains staff-only in both modes. Customers select only 
 5. The operator explains the privacy notice and records the customer's consent.
 6. The operator confirms cash received.
 7. The operator starts one automatic layout-defined sequence. Built-in layouts take three, four, or six shots; custom saved templates derive one to eight shots from their holder Capture labels. The customer display shows the mirrored preview and the Host-controlled three-second countdown before every photo.
-8. WanderBooth shows the finished composed layout plus each landscape 4:3 session photo to the customer and operator. Uncropped originals remain in the session's local backup folder; see [photo framing](PHOTO_FRAMING.md).
+8. WanderBooth shows the finished composed layout plus each template-framed session photo to the customer and operator. Uncropped originals remain in the session's local backup folder; see [photo framing](PHOTO_FRAMING.md).
 9. The customer may verbally request a replacement; the operator alone selects the photo slot and starts the replacement/retake.
 10. The operator may change to a compatible frame, then use the direct composition canvas to select, drag, independently resize, rotate, and lock the imported artwork or a photo frame. Crop image mode directly manipulates the capture inside that frame before approval.
 11. WanderBooth renders the deliverables, records the completed session in the event, prints when supported, and shows the QR code when cloud delivery is available.
@@ -87,7 +87,7 @@ Even when the customer display shows captured images, only the operator can subm
 5. The customer accepts the privacy notice.
 6. The interface waits while the attendant confirms cash.
 7. The customer taps once to start the selected layout's complete sequence of up to eight photos. The Host shows the synchronized three-second countdown before every photo.
-8. The customer reviews the final composed layout and the landscape 4:3 session photos. Uncropped originals remain local and are not included in QR delivery.
+8. The customer reviews the final composed layout and the template-framed session photos. Uncropped originals remain local and are not included in QR delivery.
 9. Within the configured limit, the customer may replace a selected photo or retake.
 10. Before final approval, the customer may change to another compatible enabled frame. Detailed imported-frame and photo alignment remains an attendant control on the operator console.
 11. The customer approves the result.

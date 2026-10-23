@@ -24,6 +24,7 @@ import {
   initialBoothState,
   reduceCommand,
 } from "../shared/session.js";
+import { captureFraming, normalizeHolderTransform } from "../shared/templateFraming.js";
 import { CanonCamera } from "./canonCamera.js";
 import {
   CloudDeliveryConfigStore,
@@ -75,12 +76,10 @@ const normalizeSavedTemplate = (
   sourceTemplateId: template.sourceTemplateId ?? null,
   customSlots: template.customSlots ?? null,
   frameTransform: normalizeMediaTransform(template.frameTransform),
-  holderTransforms: (template.holderTransforms ?? []).map(({ slot, ...transform }) => ({
+  holderTransforms: (template.holderTransforms ?? []).map(normalizeHolderTransform),
+  photoTransforms: (template.photoTransforms ?? []).map(({ slot, holderId, ...transform }) => ({
     slot,
-    ...normalizeMediaTransform(transform),
-  })),
-  photoTransforms: (template.photoTransforms ?? []).map(({ slot, ...transform }) => ({
-    slot,
+    ...(holderId ? { holderId } : {}),
     ...normalizePhotoTransform(transform),
   })),
 });
@@ -137,14 +136,14 @@ let state: BoothState = savedState
       frameMode: savedFrameMode,
       designId: savedFrameMode === "custom" ? null : savedState.designId,
       frameTransform: normalizeMediaTransform(savedState.frameTransform),
-      holderTransforms: (savedState.holderTransforms ?? []).map(({ slot, ...transform }) => ({
-        slot,
-        ...normalizeMediaTransform(transform),
-      })),
-      photoTransforms: (savedState.photoTransforms ?? []).map(({ slot, ...transform }) => ({
-        slot,
-        ...normalizePhotoTransform(transform),
-      })),
+      holderTransforms: (savedState.holderTransforms ?? []).map(normalizeHolderTransform),
+      photoTransforms: (savedState.photoTransforms ?? []).map(
+        ({ slot, holderId, ...transform }) => ({
+          slot,
+          ...(holderId ? { holderId } : {}),
+          ...normalizePhotoTransform(transform),
+        }),
+      ),
       captures: (savedState.captures ?? []).map(normalizeCapture),
       sessionCustomerName: savedState.sessionCustomerName ?? null,
       sessionStartedAt: savedState.sessionStartedAt ?? null,
@@ -315,6 +314,7 @@ const receiveCameraCapture = async (request: IncomingMessage, response: ServerRe
     : resolve(dataDirectory, "sessions", sessionId);
   const savedPhoto = await saveSessionPhoto({
     source: body,
+    aspectRatio: captureFraming(state, pending.slot).aspectRatio,
     dataDirectory,
     sessionRoot,
     slot: pending.slot,
@@ -328,6 +328,8 @@ const receiveCameraCapture = async (request: IncomingMessage, response: ServerRe
       revision: pending.revision,
       mediaUrl: savedPhoto.mediaUrl,
       originalMediaUrl: savedPhoto.originalMediaUrl,
+      pixelWidth: savedPhoto.pixelWidth,
+      pixelHeight: savedPhoto.pixelHeight,
       capturedAt: new Date().toISOString(),
       filterId: "original",
     },
@@ -937,6 +939,7 @@ const runSimulatorPendingCapture = async (sessionId: string) => {
     sessionId,
     slot: pending.slot,
     revision: pending.revision,
+    aspectRatio: captureFraming(state, pending.slot).aspectRatio,
   });
   systemCommit({
     type: pending.kind === "retake" ? "RETAKE_COMPLETED" : "CAPTURE_COMPLETED",
@@ -945,6 +948,8 @@ const runSimulatorPendingCapture = async (sessionId: string) => {
       revision: pending.revision,
       mediaUrl: result.mediaUrl,
       originalMediaUrl: result.originalMediaUrl,
+      pixelWidth: result.pixelWidth,
+      pixelHeight: result.pixelHeight,
       capturedAt: result.capturedAt,
       filterId: "original",
     },
@@ -975,6 +980,7 @@ const completeTetherCapture = async (
     : resolve(dataDirectory, "sessions", sessionId);
   const savedPhoto = await saveSessionPhoto({
     source: photo.buffer,
+    aspectRatio: captureFraming(state, pending.slot).aspectRatio,
     dataDirectory,
     sessionRoot,
     slot: pending.slot,
@@ -991,6 +997,8 @@ const completeTetherCapture = async (
       revision: pending.revision,
       mediaUrl: savedPhoto.mediaUrl,
       originalMediaUrl: savedPhoto.originalMediaUrl,
+      pixelWidth: savedPhoto.pixelWidth,
+      pixelHeight: savedPhoto.pixelHeight,
       capturedAt: new Date().toISOString(),
       filterId: "original",
     },
@@ -1054,6 +1062,7 @@ const completeDirectCapture = async (
     : resolve(dataDirectory, "sessions", sessionId);
   const savedPhoto = await saveSessionPhoto({
     source: photo.buffer,
+    aspectRatio: captureFraming(state, pending.slot).aspectRatio,
     dataDirectory,
     sessionRoot,
     slot: pending.slot,
@@ -1067,6 +1076,8 @@ const completeDirectCapture = async (
       revision: pending.revision,
       mediaUrl: savedPhoto.mediaUrl,
       originalMediaUrl: savedPhoto.originalMediaUrl,
+      pixelWidth: savedPhoto.pixelWidth,
+      pixelHeight: savedPhoto.pixelHeight,
       capturedAt: new Date().toISOString(),
       filterId: "original",
     },

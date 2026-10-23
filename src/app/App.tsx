@@ -33,9 +33,16 @@ import type {
   SavedTemplate,
 } from "../shared/session";
 import { activeEventFor, galleryTemplatesFor, sessionTemplatesFor } from "../shared/session";
+import {
+  activeCaptureSlot,
+  captureFraming,
+  guideBounds,
+  sourcePhotoUrl,
+} from "../shared/templateFraming";
 import { CanonCameraControls } from "./CanonCameraControls";
 import { createId } from "./createId";
 import { FrameColorPicker } from "./FrameColorPicker";
+import { HolderOrientationPicker } from "./HolderOrientationPicker";
 import { type ResizeHandle, resizeTransform } from "./resizeTransform";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
 import { useCanonCamera } from "./useCanonCamera";
@@ -375,7 +382,15 @@ function ModeSelector({
   );
 }
 
-function CapturePreview({ state, compact = false }: { state: BoothState; compact?: boolean }) {
+export function CapturePreview({
+  state,
+  compact = false,
+  sourceAspect = 4 / 3,
+}: {
+  state: BoothState;
+  compact?: boolean;
+  sourceAspect?: number;
+}) {
   const slots = Array.from({ length: state.requiredCaptureCount || 3 }, (_, index) => index + 1);
   return (
     <section
@@ -388,7 +403,17 @@ function CapturePreview({ state, compact = false }: { state: BoothState; compact
       {slots.map((slot) => {
         const capture = state.captures.find((item) => item.slot === slot);
         return (
-          <figure className={capture ? "photo-card photo-card--filled" : "photo-card"} key={slot}>
+          <figure
+            className={capture ? "photo-card photo-card--filled" : "photo-card"}
+            key={slot}
+            style={{
+              aspectRatio: capture
+                ? capture.pixelWidth && capture.pixelHeight
+                  ? capture.pixelWidth / capture.pixelHeight
+                  : 4 / 3
+                : (captureFraming(state, slot).aspectRatio ?? sourceAspect),
+            }}
+          >
             {capture ? (
               <img
                 src={mediaSource(capture.mediaUrl)}
@@ -1152,7 +1177,7 @@ function LayoutPreview({
             >
               {capture ? (
                 <img
-                  src={mediaSource(capture.mediaUrl)}
+                  src={mediaSource(sourcePhotoUrl(capture))}
                   style={{
                     ...transformStyle(photoTransform),
                     filter: photoFilterCss(capture.filterId),
@@ -1319,6 +1344,18 @@ function LayoutPreview({
               Reset
             </button>
           </div>
+          {layout.slots
+            .filter(
+              (slot) => photoSlotId(slot) === describeCompositionTarget(activeTarget).holderId,
+            )
+            .map((slot) => (
+              <HolderOrientationPicker
+                key={photoSlotId(slot)}
+                slot={slot}
+                transforms={state.holderTransforms}
+                sendCommand={sendCommand}
+              />
+            ))}
           <p>
             Click a photo to select its frame. Drag a corner to resize proportionally, or a middle
             edge handle to reshape the crop area without stretching the photo. Drag the round handle
@@ -2400,6 +2437,24 @@ function TemplateEditorPanel({
           ))}
         </fieldset>
       )}
+      <section className="holder-orientation-panel" aria-labelledby="holder-orientation-title">
+        <h2 id="holder-orientation-title">Photo orientation</h2>
+        <p>
+          Set each photo holder independently. This does not rotate the paper or artwork. Custom
+          keeps the current size for manual adjustment.
+        </p>
+        <div className="holder-orientation-grid">
+          {(resolveLayout(state.layoutId, state.customSlots)?.slots ?? []).map((slot, index) => (
+            <HolderOrientationPicker
+              key={photoSlotId(slot)}
+              slot={slot}
+              transforms={state.holderTransforms}
+              sendCommand={sendCommand}
+              label={`Holder ${index + 1} · Capture ${slot.captureIndex + 1}`}
+            />
+          ))}
+        </div>
+      </section>
       {customLayout && (
         <section className="holder-mapping-panel" aria-labelledby="holder-mapping-title">
           <div className="holder-mapping-panel__heading">
@@ -2504,21 +2559,41 @@ function TemplateEditorPanel({
   );
 }
 
-function LiveCameraPreview({ state }: { state: BoothState }) {
+export function LiveCameraPreview({
+  state,
+  sourceAspect = 4 / 3,
+  onSourceAspect,
+}: {
+  state: BoothState;
+  sourceAspect?: number;
+  onSourceAspect?: (ratio: number) => void;
+}) {
   const countdown = state.phase === "countdown" ? state.captureSequence?.remaining : null;
   const isRetake = state.captureSequence?.kind === "retake";
-  const activeSlot =
-    state.captureSequence?.kind === "retake"
-      ? state.captureSequence.slot
-      : state.captures.length + 1;
+  const activeSlot = activeCaptureSlot(state);
+  const framing = captureFraming(state, activeSlot);
+  const displayAspect = framing.aspectRatio ?? sourceAspect;
 
   return (
     <section
       className={`live-camera ${state.cameraSourceId === "simulator" ? "live-camera--simulator" : ""}`}
       aria-label="Live camera preview"
+      style={{
+        aspectRatio: displayAspect,
+        maxWidth: `${60 * displayAspect}vh`,
+        marginInline: "auto",
+      }}
     >
       {["macbook_camera", "fujifilm_xm5_hybrid", "canon_eos_usb"].includes(state.cameraSourceId) ? (
-        <img src={`${hostHttpUrl}/api/camera-preview`} alt="Mirrored live camera preview" />
+        <img
+          src={`${hostHttpUrl}/api/camera-preview`}
+          alt="Mirrored live camera preview"
+          onLoad={(event) => {
+            const image = event.currentTarget;
+            if (image.naturalWidth && image.naturalHeight)
+              onSourceAspect?.(image.naturalWidth / image.naturalHeight);
+          }}
+        />
       ) : state.cameraSourceId === "fujifilm_xm5_tether" ? (
         <div className="live-camera__simulator live-camera__tether">
           <span>X-M5</span>
@@ -2531,12 +2606,42 @@ function LiveCameraPreview({ state }: { state: BoothState }) {
           <strong>Camera simulator</strong>
         </div>
       )}
-      <div className="live-camera__guide" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-        <i />
-      </div>
+      {framing.aspectRatio !== null ? (
+        <div className="live-camera__guide" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+        </div>
+      ) : (
+        framing.guides.map((ratio, index) => {
+          const bounds = guideBounds(sourceAspect, ratio);
+          return (
+            <div
+              key={ratio}
+              className="live-camera__crop-guide"
+              style={{
+                left: `${bounds.left * 100}%`,
+                top: `${bounds.top * 100}%`,
+                width: `${bounds.width * 100}%`,
+                height: `${bounds.height * 100}%`,
+                borderColor: index % 2 ? "#ddf426" : "#ffffff",
+              }}
+            >
+              <span>{ratio < 1 ? "Portrait" : "Landscape"} crop</span>
+            </div>
+          );
+        })
+      )}
+      <span className="live-camera__framing-label">
+        {framing.aspectRatio === null
+          ? "Shared photo · full view with crop guides"
+          : Math.abs(displayAspect - 3 / 4) < 0.001
+            ? "Portrait · 3:4"
+            : Math.abs(displayAspect - 4 / 3) < 0.001
+              ? "Landscape · 4:3"
+              : "Custom holder crop"}
+      </span>
       <span className="live-camera__badge">
         {state.cameraSourceId === "macbook_camera"
           ? "Mirrored preview"
@@ -2885,6 +2990,10 @@ function SessionPanel({
   isOperator: boolean;
   sendCommand: (command: Command) => void;
 }) {
+  const [sourceAspect, setSourceAspect] = useState(4 / 3);
+  // Reset framing when switching devices; their uncropped sensor ratios may differ.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Camera identity is the reset trigger.
+  useEffect(() => setSourceAspect(4 / 3), [state.cameraSourceId]);
   if (state.phase === "template_gallery") {
     return isOperator ? (
       <TemplateGalleryPanel state={state} sendCommand={sendCommand} />
@@ -2999,8 +3108,14 @@ function SessionPanel({
           )}
         </div>
         <div className="capture-stage__visual">
-          <LiveCameraPreview state={state} />
-          {state.captures.length > 0 && <CapturePreview state={state} />}
+          <LiveCameraPreview
+            state={state}
+            sourceAspect={sourceAspect}
+            onSourceAspect={setSourceAspect}
+          />
+          {state.captures.length > 0 && (
+            <CapturePreview state={state} sourceAspect={sourceAspect} />
+          )}
         </div>
       </section>
     );
@@ -3039,7 +3154,7 @@ function SessionPanel({
               <span>Captured photos</span>
               <small>
                 {state.captures.every((capture) => capture.originalMediaUrl)
-                  ? "4:3 photos · originals kept locally"
+                  ? "Template framing · originals kept locally"
                   : "Saved session photos"}
               </small>
             </div>

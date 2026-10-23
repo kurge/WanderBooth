@@ -36,6 +36,50 @@ const pixel = async (source: Buffer | string, left: number, top: number) => {
 };
 
 describe("camera framing and local originals", () => {
+  it("supports portrait and custom crops, and full-frame mirrored relays", async () => {
+    const source = await sourceImage();
+    expect(await sharp(await framePhoto(source, false, 3 / 4)).metadata()).toMatchObject({
+      width: 675,
+      height: 900,
+    });
+    expect(await sharp(await framePhoto(source, false, 1)).metadata()).toMatchObject({
+      width: 900,
+      height: 900,
+    });
+    expect(await sharp(await framePhoto(source, true, null)).metadata()).toMatchObject({
+      width: 960,
+      height: 540,
+    });
+    expect(await sharp(await framePhoto(source, false, null)).metadata()).toMatchObject({
+      width: 1600,
+      height: 900,
+    });
+  });
+  it("keeps portrait branded downloads portrait and originals untouched", async () => {
+    const root = await temporary();
+    const source = await sourceImage();
+    const saved = await saveSessionPhoto({
+      source,
+      dataDirectory: root,
+      sessionRoot: root,
+      slot: 1,
+      revision: 1,
+      aspectRatio: 3 / 4,
+    });
+    expect(saved).toMatchObject({ pixelWidth: 675, pixelHeight: 900 });
+    expect(await readFile(join(root, saved.originalMediaUrl.slice("/media/".length)))).toEqual(
+      source,
+    );
+    const outputPath = join(root, "portrait.png");
+    await createBrandedIndividual({
+      capturePath: saved.absolutePath,
+      outputPath,
+      accent: "#000000",
+      background: "#ffffff",
+      photoNumber: 1,
+    });
+    expect(await sharp(outputPath).metadata()).toMatchObject({ width: 900, height: 1200 });
+  });
   it("crops the sides without shrinking or mirroring the saved image", async () => {
     const output = await framePhoto(await sourceImage());
     expect(await sharp(output).metadata()).toMatchObject({ width: 1200, height: 900 });

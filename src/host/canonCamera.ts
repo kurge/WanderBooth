@@ -207,7 +207,7 @@ export class CanonCamera {
       (frame) => {
         if (this.processingFrame || generation !== this.previewGeneration) return;
         this.processingFrame = true;
-        void framePhoto(frame, true)
+        void framePhoto(frame, true, null)
           .then((jpeg) => {
             if (generation !== this.previewGeneration) return;
             this.lastFrameAt = Date.now();

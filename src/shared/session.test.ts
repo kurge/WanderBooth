@@ -433,6 +433,7 @@ describe("WanderBooth session rules", () => {
     expect(state.holderTransforms).toEqual([
       {
         slot: 1,
+        orientation: "custom",
         offsetX: 0.1,
         offsetY: 0.2,
         scaleX: 1.15,

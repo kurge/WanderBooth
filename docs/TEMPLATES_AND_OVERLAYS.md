@@ -2,7 +2,7 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.17.1
+**Version:** 0.18.0
 
 **Updated:** 2026-10-23
 
@@ -22,10 +22,18 @@ The Template Library is the normal path for designs that will be served repeated
 1. From the Event Library, choose **Open Template Library**.
 2. Create or choose one or more organizational folders, then enter a clear template name, choose the product and layout, and select already imported transparent artwork or upload a new PNG.
 3. Choose **Open template setup**. WanderBooth displays one numbered placeholder for every required capture.
-4. Move and resize each photo holder to match the transparent opening. Enter **Crop image** to set the default image position and scale inside that holder. Rotate or lock objects as needed.
+4. In **Photo orientation**, choose **Landscape · 4:3**, **Portrait · 3:4**, or **Custom · free sizing** for each holder. Move and resize it to match the transparent opening. Enter **Crop image** to set the default image position and scale inside that holder. Rotate or lock objects as needed.
 5. Choose **Save template**. The approved master now appears in each selected folder.
 
 When a saved template is selected, real Capture 1 replaces every placeholder labeled 1, Capture 2 replaces every placeholder labeled 2, and so on. WanderBooth also restores the saved artwork position, holder shapes, default image crops, rotation, and lock state. Built-in templates use their catalog capture count—six for Double strip 4×6—while a custom template derives its count from its Capture labels.
+
+### Photo orientation is separate from paper orientation
+
+A vertical strip can hold landscape photos, portrait photos, or a mix. The per-holder control changes the photo opening, not the paper, artwork, or camera rotation. Presets reshape around the holder's center; use canvas handles to finish positioning it against the imported opening.
+
+Corner resizing keeps proportions. Middle-edge resizing can change the aspect ratio and switches the selector to Custom. Locked holders must be unlocked before changing orientation. These controls are available both while preparing templates and for staff final adjustments after capture.
+
+Live view follows the holder shape for each capture, including retakes. If one capture fills differently shaped holders, preview shows the full camera image with all required crop guides. The finished layout fits each holder independently from the uncropped local original. Existing template geometry is retained; legacy non-preset shapes appear as Custom. See [photo framing](PHOTO_FRAMING.md) for backups, downloads and camera limitations.
 
 ### Freeform custom layouts
 

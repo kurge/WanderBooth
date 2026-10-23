@@ -6,9 +6,16 @@ import sharp from "sharp";
 
 import { PHOTO_PREVIEW_WIDTH, photoCrop } from "../shared/photoFraming.js";
 
-export async function framePhoto(source: Buffer, preview = false) {
+export async function framePhoto(
+  source: Buffer,
+  preview = false,
+  aspectRatio: number | null = 4 / 3,
+) {
   const metadata = await sharp(source).metadata();
-  const crop = photoCrop(metadata.autoOrient.width, metadata.autoOrient.height);
+  const crop =
+    aspectRatio === null
+      ? { left: 0, top: 0, width: metadata.autoOrient.width, height: metadata.autoOrient.height }
+      : photoCrop(metadata.autoOrient.width, metadata.autoOrient.height, aspectRatio);
   let pipeline = sharp(source).autoOrient().extract(crop);
   if (preview) {
     pipeline = pipeline.flop().resize({ width: Math.min(crop.width, PHOTO_PREVIEW_WIDTH) });
@@ -23,12 +30,14 @@ export async function saveSessionPhoto(input: {
   sessionRoot: string;
   slot: number;
   revision: number;
+  aspectRatio?: number | null;
 }) {
   const metadata = await sharp(input.source).metadata();
   if (metadata.format !== "jpeg" && metadata.format !== "png") {
     throw new Error("Camera captures must be JPEG or PNG images.");
   }
-  const cropped = await framePhoto(input.source);
+  const cropped = await framePhoto(input.source, false, input.aspectRatio);
+  const framedMetadata = await sharp(cropped).metadata();
   // Unique, exclusive writes also preserve an earlier attempt if persistence fails and is retried.
   const name = `photo-${input.slot}-r${input.revision}-${randomUUID()}`;
   const originalPath = resolve(
@@ -47,5 +56,7 @@ export async function saveSessionPhoto(input: {
     absolutePath,
     mediaUrl: mediaUrl(absolutePath),
     originalMediaUrl: mediaUrl(originalPath),
+    pixelWidth: framedMetadata.width,
+    pixelHeight: framedMetadata.height,
   };
 }

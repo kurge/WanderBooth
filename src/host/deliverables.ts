@@ -24,6 +24,7 @@ import type {
   HolderTransform,
   PhotoTransform,
 } from "../shared/session.js";
+import { sourcePhotoUrl } from "../shared/templateFraming.js";
 import { renderCustomOverlay } from "./customOverlay.js";
 
 const publicMediaUrl = (dataDirectory: string, absolutePath: string) =>
@@ -101,8 +102,13 @@ export async function createBrandedIndividual(input: {
   photoNumber: number;
 }) {
   await mkdir(dirname(input.outputPath), { recursive: true });
+  const metadata = await sharp(input.capturePath).metadata();
+  const aspectRatio = metadata.autoOrient.width / metadata.autoOrient.height;
+  const width = aspectRatio >= 1 ? 1200 : Math.round(1200 * aspectRatio);
+  const height = aspectRatio >= 1 ? Math.round(1200 / aspectRatio) : 1200;
+  const bandHeight = Math.min(height, Math.round(width / 12));
   const caption = Buffer.from(`
-    <svg width="1200" height="100" xmlns="http://www.w3.org/2000/svg">
+    <svg width="${width}" height="${bandHeight}" viewBox="0 0 1200 100" xmlns="http://www.w3.org/2000/svg">
       <rect width="1200" height="100" fill="${input.background}" fill-opacity="0.85" />
       <circle cx="55" cy="50" r="26" fill="${input.accent}" />
       <text x="98" y="60" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="${input.accent}">WanderBooth</text>
@@ -112,8 +118,8 @@ export async function createBrandedIndividual(input: {
 
   await sharp(input.capturePath)
     .autoOrient()
-    .resize(1200, 900, { fit: "cover" })
-    .composite([{ input: caption, top: 800, left: 0 }])
+    .resize(width, height, { fit: "cover" })
+    .composite([{ input: caption, top: height - bandHeight, left: 0 }])
     .png()
     .toFile(input.outputPath);
 }
@@ -527,6 +533,18 @@ export async function buildDeliverables(
     }),
   );
   const individualPaths: string[] = [];
+  const filteredOriginalPaths = await Promise.all(
+    state.captures.map(async (capture, index) => {
+      if (!capture.originalMediaUrl) return filteredCapturePaths[index];
+      const outputPath = join(outputDirectory, `.filtered-original-${capture.slot}.png`);
+      await applyPhotoFilter(
+        mediaUrlToPath(dataDirectory, sourcePhotoUrl(capture)),
+        outputPath,
+        capture.filterId,
+      );
+      return outputPath;
+    }),
+  );
   for (const [index, capture] of state.captures.entries()) {
     const outputPath = join(outputDirectory, `photo-${capture.slot}.png`);
     await createBrandedIndividual({
@@ -541,7 +559,7 @@ export async function buildDeliverables(
 
   const compositePath = join(outputDirectory, `wanderbooth-${layout.id}.png`);
   await createComposite({
-    capturePaths: filteredCapturePaths,
+    capturePaths: filteredOriginalPaths,
     outputPath: compositePath,
     accent: design.accent,
     background: state.frameMode === "custom" ? "#fffaf2" : design.background,

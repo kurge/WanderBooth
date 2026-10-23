@@ -3,7 +3,7 @@ import { previewFrameToJpeg, videoFrameToJpeg } from "./useMacBookCamera";
 
 afterEach(() => vi.restoreAllMocks());
 describe("browser camera frames", () => {
-  it("sends the entire unmirrored video frame for local backup, but crops and mirrors the preview", async () => {
+  it("sends the full unmirrored capture and full mirrored preview so templates can choose either crop", async () => {
     const drawImage = vi.fn();
     const translate = vi.fn();
     const scale = vi.fn();
@@ -30,12 +30,12 @@ describe("browser camera frames", () => {
     expect(drawImage).toHaveBeenLastCalledWith(video, 0, 0, 1920, 1080);
     expect(scale).not.toHaveBeenCalled();
     await previewFrameToJpeg(video);
-    expect(drawImage).toHaveBeenLastCalledWith(video, 240, 0, 1440, 1080, 0, 0, 960, 720);
+    expect(drawImage).toHaveBeenLastCalledWith(video, 0, 0, 1920, 1080, 0, 0, 960, 540);
     expect(translate).toHaveBeenCalledWith(960, 0);
     expect(scale).toHaveBeenCalledWith(-1, 1);
     expect(sizes).toEqual([
       [1920, 1080],
-      [960, 720],
+      [960, 540],
     ]);
   });
 });

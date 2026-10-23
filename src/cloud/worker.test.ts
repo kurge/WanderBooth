@@ -32,5 +32,21 @@ describe("Cloudflare QR gallery", () => {
     expect(page).toContain("Photo &lt;One&gt;");
     expect(page).not.toContain("Photo <One>");
     expect(page).toContain("download=1");
+    expect(page).toContain("/d/abcdefghijklmnopqrstuvwxyzABCDEF/files/individual-1.png?download=1");
+  });
+
+  it("uses the studio attribution without changing the 30-day gallery policy", () => {
+    const page = renderReadyPage(
+      "abcdefghijklmnopqrstuvwxyzABCDEF",
+      [],
+      "2026-11-05T00:03:00.000Z",
+    );
+
+    expect(page).toContain("<title>Your photos · WanderBooth by Wander Press Studio</title>");
+    expect(page).toContain("WanderBooth <small>by Wander Press Studio</small>");
+    expect(page).toContain(
+      "WanderBooth by Wander Press Studio · This private gallery expires after 30 days.",
+    );
+    expect(page).not.toContain("Wander Press PH");
   });
 });

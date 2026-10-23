@@ -30,7 +30,7 @@ function createOperatorWindow() {
     height: 960,
     minWidth: 1120,
     minHeight: 760,
-    title: "WanderBooth Operator",
+    title: "WanderBooth by Wander Press Studio · Operator",
     backgroundColor: "#f7f4ed",
     webPreferences: sharedWebPreferences(),
   });
@@ -46,7 +46,7 @@ function createOperatorWindow() {
             height: 920,
             minWidth: 760,
             minHeight: 700,
-            title: "WanderBooth Print Preview",
+            title: "WanderBooth by Wander Press Studio · Print Preview",
             backgroundColor: "#f7f4ed",
             webPreferences: sharedWebPreferences(),
           }
@@ -54,7 +54,7 @@ function createOperatorWindow() {
             width: 1024,
             height: 768,
             fullscreenable: true,
-            title: "WanderBooth Customer Display",
+            title: "WanderBooth by Wander Press Studio · Customer Display",
             backgroundColor: "#fff23c",
             webPreferences: sharedWebPreferences(),
           },

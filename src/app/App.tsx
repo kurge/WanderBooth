@@ -331,7 +331,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
       </span>
       <span>
         <strong>WanderBooth</strong>
-        <small>by Wander Press PH</small>
+        <small>by Wander Press Studio</small>
       </span>
     </div>
   );
@@ -1213,7 +1213,7 @@ function LayoutPreview({
                 }}
               >
                 <strong>WanderBooth</strong>
-                <small>by Wander Press PH</small>
+                <small>by Wander Press Studio</small>
               </div>
             ))}
           </div>

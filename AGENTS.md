@@ -1,6 +1,6 @@
 # WanderBooth Development Guide
 
-This repository contains WanderBooth, an offline-first photo booth application for Wander Press PH. The operator experience runs on a Mac or Windows laptop. A responsive browser view is used by the iPad or a second customer-facing screen.
+This repository contains WanderBooth by Wander Press Studio, an offline-first photo booth application. The operator experience runs on a Mac or Windows laptop. A responsive browser view is used by the iPad or a second customer-facing screen.
 
 ## Development commands
 
@@ -62,7 +62,7 @@ The Host is authoritative. Every screen sends a command, the Host applies role a
 
 ## Current Phase 0 boundaries
 
-- Brand logo: `assets/brand/source/Photobooth.png` is the owner-supplied 2000×2000 blue Wander Press Studio logo used in app chrome, customer welcome, browser favicon and Mac icon. Keep the source unchanged and preserve its square proportions. The app name remains WanderBooth; generated photo-footer text and saved template artwork are unchanged. See `assets/brand/README.md`.
+- Branding: display **WanderBooth by Wander Press Studio** in app chrome/titles, layout previews and new generated photo footers. `assets/brand/source/Photobooth.png` is the owner-supplied 2000×2000 logo used in app chrome, customer welcome, browser favicon and Mac icon. Keep the source unchanged and preserve its square proportions. Keep the installed product name **WanderBooth**, application ID and runtime paths unchanged so saved events remain accessible. Existing photos and imported template artwork are not rewritten. Social handles and the QR domain are not brand-copy replacements. See `assets/brand/README.md`.
 - Products/templates: two normal product families expose seven selectable built-in layouts, five frame palettes, locally imported event frames, and a persistent staff-managed Template Library. Four-photo strip 2×6 (`vertical-four-photo-2x6`) takes four photos once on a 600×1800 strip and prints two pixel-identical copies on 4×6. Its artwork and edits apply to the single strip before duplication. The mistaken eight-shot layout from 0.18.2 has `hiddenFromMenu` set; both new-layout menus use `selectableLayoutsForProduct`, while the old catalog ID/geometry stays readable for saved work. The original six-shot double strip is unchanged. Built-in decorations are retired from selection/review and rejected for new commands; their catalog/rendering remains for legacy records. Staff can also build portrait or landscape custom 4×6 templates with one to eight holders. Each holder maps to Capture 1–8, repeated capture labels are allowed, and the normalized labels determine the unique capture count.
 - Events: the operator starts in a local event library. Each event owns isolated template copies and completed session records. Captures and deliverables are written below `data/events/<event-id>/sessions/<session-id>/`; archiving hides an event without deleting it, while confirmed event deletion removes both its state record and local event directory.
 - Template collections: reusable library templates may belong to multiple folders. New events copy one selected folder. Event edits never mutate the master; an explicit promote action creates a new library master in selected folders.

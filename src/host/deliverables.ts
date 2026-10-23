@@ -113,7 +113,7 @@ export async function createBrandedIndividual(input: {
       <rect width="1200" height="100" fill="${input.background}" fill-opacity="0.85" />
       <circle cx="55" cy="50" r="26" fill="${input.accent}" />
       <text x="98" y="60" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="${input.accent}">WanderBooth</text>
-      <text x="1145" y="59" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="${input.accent}">by Wander Press PH · Photo ${input.photoNumber}</text>
+      <text x="1145" y="59" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="${input.accent}">by Wander Press Studio · Photo ${input.photoNumber}</text>
     </svg>
   `);
 
@@ -369,7 +369,7 @@ async function createComposite(input: {
       return `
         <text x="${brandX}" y="${brandArea.y + Math.round(brandArea.height * 0.36)}" text-anchor="${anchor}" font-family="Arial, Helvetica, sans-serif" font-size="${titleSize}" font-weight="800" fill="${input.accent}">WanderBooth</text>
         <text x="${brandX}" y="${brandArea.y + Math.round(brandArea.height * 0.58)}" text-anchor="${anchor}" font-family="Arial, Helvetica, sans-serif" font-size="${detailSize}" font-weight="700" fill="${input.accent}">${escapeXml(input.designName)}</text>
-        <text x="${brandX}" y="${brandArea.y + Math.round(brandArea.height * 0.77)}" text-anchor="${anchor}" font-family="Arial, Helvetica, sans-serif" font-size="${Math.max(16, Math.round(detailSize * 0.74))}" fill="${input.accent}">Wander Press PH${input.overlayKind === "none" ? "" : ` · ${escapeXml(input.overlayName)}`}</text>
+        <text x="${brandX}" y="${brandArea.y + Math.round(brandArea.height * 0.77)}" text-anchor="${anchor}" font-family="Arial, Helvetica, sans-serif" font-size="${Math.max(16, Math.round(detailSize * 0.74))}" fill="${input.accent}">by Wander Press Studio${input.overlayKind === "none" ? "" : ` · ${escapeXml(input.overlayName)}`}</text>
       `;
     })
     .join("");

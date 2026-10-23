@@ -1,4 +1,4 @@
-# Wander Press PH brand assets
+# Wander Press Studio brand assets
 
 These source files were supplied by the business owner on 2026-10-02 and 2026-10-23. They are preserved as provided; the earlier files were renamed only so their purpose is understandable in the repository.
 
@@ -6,7 +6,9 @@ These source files were supplied by the business owner on 2026-10-02 and 2026-10
 
 As of WanderBooth 0.18.4, **`source/Photobooth.png`** is the app logo: white “wander press studio” lettering on a textured blue square. It is used in the shared app header/loading state, customer welcome screen, browser tab icon and packaged Mac application icon.
 
-The supplied 2000×2000 PNG is used unchanged. On-screen sizing preserves its full square composition and keeps it upright; the Mac packaging tool creates the platform icon automatically. The app is still named **WanderBooth**. This update does not recolor the interface, change generated photo-footer text or replace artwork inside saved templates or existing photos.
+The supplied 2000×2000 PNG is used unchanged. On-screen sizing preserves its full square composition and keeps it upright; the Mac packaging tool creates the platform icon automatically.
+
+As of 0.18.5, the displayed brand is **WanderBooth by Wander Press Studio** in app headers, window/browser titles, layout previews, newly generated photo footers and the live QR gallery. The installed app name remains **WanderBooth**, preserving its existing local data directory and saved events. The application ID, social handles and QR domain are not renamed. Existing completed photos and text embedded inside imported artwork are not rewritten.
 
 ## Core colors sampled from the supplied artwork
 

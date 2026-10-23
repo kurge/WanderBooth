@@ -251,7 +251,7 @@ const pageShell = (
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     ${options?.refresh ? '<meta http-equiv="refresh" content="8" />' : ""}
-    <title>${escapeHtml(options?.title ?? "WanderBooth photos")}</title>
+    <title>${escapeHtml(options?.title ?? "Your photos")} · WanderBooth by Wander Press Studio</title>
     <style>
       :root { color-scheme: light; font-family: Inter, ui-rounded, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #28083f; background: #fffaf0; }
       * { box-sizing: border-box; }
@@ -259,7 +259,8 @@ const pageShell = (
       main { width: min(100% - 2rem, 54rem); margin: 0 auto; padding: 2rem 0 4rem; }
       header { padding: 1.5rem 0 2rem; }
       .brand { display: inline-flex; align-items: center; gap: .7rem; font-weight: 900; font-size: 1.25rem; }
-      .brand i { display: block; width: 2.4rem; height: 2.4rem; border-radius: 45% 55% 52% 48%; background: #3572c4; box-shadow: .45rem .4rem 0 #ddf426; transform: rotate(-9deg); }
+      .brand i { display: block; flex-shrink: 0; width: 2.4rem; height: 2.4rem; border-radius: 45% 55% 52% 48%; background: #3572c4; box-shadow: .45rem .4rem 0 #ddf426; transform: rotate(-9deg); }
+      .brand small { display: block; margin-top: .2rem; font-size: .78rem; font-weight: 650; }
       h1 { max-width: 14ch; margin: .8rem 0; font-size: clamp(2.4rem, 11vw, 5.5rem); line-height: .94; letter-spacing: -.055em; }
       p { color: #646a82; line-height: 1.55; }
       .card, .state { padding: 1rem; border: 1px solid rgba(40, 8, 63, .11); border-radius: 1.5rem; background: rgba(255,255,255,.9); box-shadow: 0 1.1rem 3rem rgba(35, 45, 88, .1); }
@@ -277,9 +278,9 @@ const pageShell = (
   </head>
   <body>
     <main>
-      <header><span class="brand"><i aria-hidden="true"></i> WanderBooth</span></header>
+      <header><span class="brand"><i aria-hidden="true"></i><span>WanderBooth <small>by Wander Press Studio</small></span></span></header>
       ${content}
-      <footer>Created by Wander Press PH · This private gallery expires after 30 days.</footer>
+      <footer>WanderBooth by Wander Press Studio · This private gallery expires after 30 days.</footer>
     </main>
   </body>
 </html>`;
@@ -287,13 +288,13 @@ const pageShell = (
 const pendingPage = () =>
   pageShell(
     `<section class="state"><b>Your photos are still being prepared.</b><p>Keep this page or scan the same QR again shortly. It updates automatically while WanderBooth finishes the secure upload.</p></section>`,
-    { refresh: true, title: "Preparing your WanderBooth photos" },
+    { refresh: true, title: "Preparing your photos" },
   );
 
 const expiredPage = () =>
   pageShell(
     `<section class="state"><b>This private gallery has expired.</b><p>WanderBooth links are available for 30 days. Please contact the event organizer if you need help.</p></section>`,
-    { title: "WanderBooth gallery expired" },
+    { title: "Gallery expired" },
   );
 
 export const renderReadyPage = (token: string, files: DeliveryFileRow[], expiresAt: string) => {

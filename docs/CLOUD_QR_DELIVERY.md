@@ -6,7 +6,9 @@
 
 The production Mac is connected. Its four authorized existing sessions were uploaded successfully on 2026-10-06, and all four persisted as `ready` after a Host restart. Customer gallery tokens and media details are intentionally excluded from this repository.
 
-**Updated:** 2026-10-06
+**Updated:** 2026-10-23
+
+The owner-approved 0.18.5 branding update was deployed on 2026-10-23: the gallery header, page titles and footer now identify **WanderBooth by Wander Press Studio**. The existing domain, QR tokens, files, expiry rules, credentials and storage bindings are unchanged; no data migration or re-upload was performed.
 
 ## Outcome
 

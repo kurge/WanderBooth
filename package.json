@@ -1,9 +1,9 @@
 {
   "name": "wanderbooth",
-  "version": "0.18.4",
+  "version": "0.18.5",
   "private": true,
-  "author": "Wander Press PH",
-  "description": "Offline-first photo booth host and customer experience for Wander Press PH.",
+  "author": "Wander Press Studio",
+  "description": "WanderBooth by Wander Press Studio — offline-first photo booth.",
   "type": "module",
   "main": "electron/main.cjs",
   "packageManager": "pnpm@10.14.0",
@@ -74,7 +74,7 @@
   "build": {
     "appId": "ph.wanderpress.wanderbooth",
     "productName": "WanderBooth",
-    "copyright": "Copyright © 2026 Wander Press PH. All rights reserved.",
+    "copyright": "Copyright © 2026 Wander Press Studio. All rights reserved.",
     "asar": true,
     "asarUnpack": [
       "node_modules/@img/**/*",

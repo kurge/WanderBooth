@@ -23,6 +23,20 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Standardized ten local sample-frame copies to their existing 2×6/4×6 dimensions at 300 DPI, retaining transparency and original files. Six were already correctly sized; four needed proportional resizing. No app behavior or installed template was changed.
 - Added a non-overwriting local preparation script and a plain-language [artwork guide](docs/ARTWORK_PREPARATION.md). Private artwork and generated manifests are excluded from Git.
 
+## 0.18.5 — 2026-10-23
+
+### Changed
+
+- Updated the displayed brand to **WanderBooth by Wander Press Studio** across app headers, window/browser titles, layout previews and newly generated photo footers.
+- Published the owner-approved name update to the online QR gallery header, titles and footer. Existing QR addresses, tokens, downloads and 30-day expiry remain unchanged.
+- Kept the installed app named **WanderBooth**, with the same application ID and local data location. Existing photos, imported artwork and saved events are not rewritten.
+
+### Verified
+
+- All 149 tests, formatting/lint and Host/web/cloud builds passed.
+- A synthetic four-photo session completed capture, processing, print-sheet and slideshow generation. Visually checked the app header and exported photo/strip footers.
+- Verified the live QR service's updated branding and the unsigned Apple-silicon 0.18.5 installer. See the [brand-name test record](docs/test-records/2026-10-23-brand-name.md).
+
 ## 0.18.4 — 2026-10-23
 
 ### Changed

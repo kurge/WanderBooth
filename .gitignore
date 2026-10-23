@@ -19,6 +19,7 @@ cloud/.wrangler/
 *.key
 
 # Customer, session, and business data — never commit
+Photo Templates/
 data/
 sessions/
 captures/

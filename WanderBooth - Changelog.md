@@ -18,6 +18,11 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 ## Unreleased
 
+### Artwork preparation — 2026-10-23
+
+- Standardized ten local sample-frame copies to their existing 2×6/4×6 dimensions at 300 DPI, retaining transparency and original files. Six were already correctly sized; four needed proportional resizing. No app behavior or installed template was changed.
+- Added a non-overwriting local preparation script and a plain-language [artwork guide](docs/ARTWORK_PREPARATION.md). Private artwork and generated manifests are excluded from Git.
+
 ## 0.18.1 — 2026-10-23
 
 ### Added

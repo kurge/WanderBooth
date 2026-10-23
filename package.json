@@ -1,6 +1,6 @@
 {
   "name": "wanderbooth",
-  "version": "0.18.3",
+  "version": "0.18.4",
   "private": true,
   "author": "Wander Press PH",
   "description": "Offline-first photo booth host and customer experience for Wander Press PH.",
@@ -91,7 +91,7 @@
     ],
     "mac": {
       "category": "public.app-category.photography",
-      "icon": "assets/brand/source/wander-press-splash-shadow.png",
+      "icon": "assets/brand/source/Photobooth.png",
       "identity": null,
       "extendInfo": {
         "NSCameraUsageDescription": "WanderBooth uses the selected camera to take guest photos."

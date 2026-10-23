@@ -1,7 +1,7 @@
 import QRCode from "qrcode";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import wanderPressSplashLogo from "../../assets/brand/source/wander-press-splash-shadow.png";
+import wanderPressStudioLogo from "../../assets/brand/source/Photobooth.png";
 import {
   type CustomOverlay,
   getDesign,
@@ -326,8 +326,8 @@ const openPrintPreview = (eventId: string, sessionId: string) => {
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`brand-mark ${compact ? "brand-mark--compact" : ""}`}>
-      <span className="brand-mark__splat" aria-hidden="true">
-        <img src={wanderPressSplashLogo} alt="" />
+      <span className="brand-mark__logo" aria-hidden="true">
+        <img src={wanderPressStudioLogo} alt="" width={2000} height={2000} />
       </span>
       <span>
         <strong>WanderBooth</strong>
@@ -4124,8 +4124,10 @@ function App() {
                 <div className="customer-hero__splat" aria-hidden="true" />
                 <img
                   className="customer-hero__brand"
-                  src={wanderPressSplashLogo}
-                  alt="Wander Press PH"
+                  src={wanderPressStudioLogo}
+                  alt="Wander Press Studio"
+                  width={2000}
+                  height={2000}
                 />
                 <span className="eyebrow">
                   {activeEvent ? activeEvent.name : "Waiting for an event"}

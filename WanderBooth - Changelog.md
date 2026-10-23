@@ -23,6 +23,20 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Standardized ten local sample-frame copies to their existing 2×6/4×6 dimensions at 300 DPI, retaining transparency and original files. Six were already correctly sized; four needed proportional resizing. No app behavior or installed template was changed.
 - Added a non-overwriting local preparation script and a plain-language [artwork guide](docs/ARTWORK_PREPARATION.md). Private artwork and generated manifests are excluded from Git.
 
+## 0.18.4 — 2026-10-23
+
+### Changed
+
+- Replaced the splash logo with the owner's supplied **Photobooth.png**: white Wander Press Studio lettering on textured blue.
+- Applied it to the shared app header/loading state, customer welcome screen, browser favicon and packaged Mac icon. Display sizing preserves the square proportions, and the logo is upright.
+- Preserved the original PNG unchanged and retained earlier brand assets. The WanderBooth app name, generated photo-footer text, custom template artwork and existing event files are unchanged.
+
+### Verified
+
+- All 148 tests, formatting/lint and Host/web/cloud builds passed.
+- Visually checked operator/customer screens and the actual packaged Mac icon. Confirmed that the packaged logo exactly matches the supplied source bytes.
+- Built and verified the unsigned Apple-silicon 0.18.4 installer. See the [logo update test record](docs/test-records/2026-10-23-brand-logo.md).
+
 ## 0.18.3 — 2026-10-23
 
 ### Corrected

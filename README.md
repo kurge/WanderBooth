@@ -65,11 +65,11 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - One-tap approved-template selection at the start of a session. Real captures automatically fill the saved numbered positions, while the existing review editor remains available for session-specific staff adjustments.
 - Rectangle, rounded, heart-shaped, portrait, and landscape rendering.
 - Cash confirmation before capture, with no price shown in the application.
-- Two retakes, full uncropped source-photo review, a final composed-layout preview, and final approval.
+- Two retakes, landscape 4:3 session-photo review, a final composed-layout preview, and final approval. New captures keep an untouched, uncropped original locally.
 - Six per-photo, non-destructive local filters after capture: Original, B&W, Warm, Cool, Vintage, and High Contrast. The preview uses a fast browser approximation, while Sharp renders the selected look into every final photo, layout, slideshow, and print.
 - Operator-only direct composition canvas for imported frames: click the artwork or a photo frame, drag it in place, use corners for proportional scaling, use middle edge handles to reshape the crop frame without stretching the photo, rotate it from the round handle, enter Crop image mode to reposition or proportionally scale the capture, and lock finished objects. There is no zoom slider. The precise stored adjustment is rendered into the final file.
 - Separate confirmed deletion for saved templates and imported artwork. Artwork referenced by a saved template is protected from deletion so gallery items cannot break silently.
-- Captured and waiting review cards share the same 16:9 footprint while preserving the full source image with `contain` fitting.
+- Live view and captured/waiting cards use landscape 4:3. Wider camera images are center-cropped, never stretched; older captures retain their original files and use `contain` fitting. See [photo framing and backups](docs/PHOTO_FRAMING.md).
 - Local SQLite state and event history so the Host remains authoritative.
 - A layout-defined set of branded individual PNGs, a 300-DPI composite strip/card, and an MP4 slideshow.
 - A dedicated 300-DPI 4×6 print file for every completed session, including duplicated matching 2×6 strips when the guest selected the single-strip product.
@@ -90,9 +90,9 @@ The prototype now controls standard video cameras, imports X-M5 JPEGs through th
 
 ## Open the app on this Mac
 
-Run `pnpm package:mac:dmg` to generate `release/WanderBooth-0.17.1-arm64.dmg`, then double-click it in Finder and copy **WanderBooth** into **Applications**. The generated build is for the current Apple-silicon Mac and does not require Terminal after installation. Canon USB and X-M5 Hybrid expect gPhoto2 at a standard Homebrew path on the Host; it is not bundled into the DMG. Canon remains experimental: real live view passed once, but still capture and preview recovery require another physical test.
+Run `pnpm package:mac:dmg` to generate `release/WanderBooth-0.17.2-arm64.dmg`, then double-click it in Finder and copy **WanderBooth** into **Applications**. The generated build is for the current Apple-silicon Mac and does not require Terminal after installation. Canon USB and X-M5 Hybrid expect gPhoto2 at a standard Homebrew path on the Host; it is not bundled into the DMG. The owner has since reported the Canon working, but the new 4:3 framing still needs a physical check before event use.
 
-If the decorative DMG builder reports `hdiutil: create failed - Operation not supported by device` after producing the `.app`, a plain installation image can be created with `hdiutil create -volname 'WanderBooth 0.17.1' -srcfolder release/mac-arm64 -format UDZO release/WanderBooth-0.17.1-arm64.dmg`. Use this only when that output file does not already exist; it contains the app without the drag-to-Applications shortcut.
+If the decorative DMG builder reports `hdiutil: create failed - Operation not supported by device` after producing the `.app`, a plain installation image can be created with `hdiutil create -volname 'WanderBooth 0.17.2' -srcfolder release/mac-arm64 -format UDZO release/WanderBooth-0.17.2-arm64.dmg`. Use this only when that output file does not already exist; it contains the app without the drag-to-Applications shortcut.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

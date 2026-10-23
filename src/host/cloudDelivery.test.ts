@@ -146,7 +146,7 @@ describe("cloud QR delivery", () => {
     ).toThrow("HTTPS");
   });
 
-  it("uploads branded guest files but excludes the printer-only sheet", async () => {
+  it("uploads branded guest files but excludes raw captures, originals and the printer-only sheet", async () => {
     const root = await mkdtemp(join(tmpdir(), "wanderbooth-qr-"));
     temporaryDirectories.push(root);
     const directory = join(root, "events/event-qr/sessions/session-qr-test/deliverables");
@@ -155,6 +155,15 @@ describe("cloud QR delivery", () => {
     await writeFile(join(directory, "layout.png"), "layout");
     await writeFile(join(directory, "print.png"), "print");
     const session = makeSession();
+    session.captures = [
+      {
+        slot: 1,
+        revision: 1,
+        capturedAt: session.startedAt,
+        mediaUrl: "/media/events/event-qr/sessions/session-qr-test/captures/photo-1.jpg",
+        originalMediaUrl: "/media/events/event-qr/sessions/session-qr-test/originals/photo-1.jpg",
+      },
+    ];
     const calls: Array<{ url: string; method: string }> = [];
     const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
@@ -186,5 +195,6 @@ describe("cloud QR delivery", () => {
     expect(calls).toHaveLength(4);
     expect(calls.map((call) => call.method)).toEqual(["PUT", "PUT", "PUT", "POST"]);
     expect(calls.some((call) => call.url.includes("print"))).toBe(false);
+    expect(calls.some((call) => /originals|captures/.test(call.url))).toBe(false);
   });
 });

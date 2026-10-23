@@ -1,5 +1,5 @@
 import { createReadStream, existsSync } from "node:fs";
-import { mkdir, rm, unlink, writeFile } from "node:fs/promises";
+import { mkdir, rm, unlink } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { networkInterfaces } from "node:os";
 import { extname, resolve } from "node:path";
@@ -37,6 +37,7 @@ import { importCustomOverlay } from "./customOverlay.js";
 import { BoothDatabase } from "./database.js";
 import { buildDeliverables } from "./deliverables.js";
 import { DirectXm5Camera, type DirectXm5Photo } from "./directXm5Camera.js";
+import { framePhoto, saveSessionPhoto } from "./photoFraming.js";
 import { TetherCameraBridge, type TetherFolderSnapshot } from "./tetherCamera.js";
 
 const port = Number(process.env.WANDERBOOTH_HOST_PORT ?? 4174);
@@ -312,19 +313,21 @@ const receiveCameraCapture = async (request: IncomingMessage, response: ServerRe
   const sessionRoot = eventId
     ? resolve(dataDirectory, "events", eventId, "sessions", sessionId)
     : resolve(dataDirectory, "sessions", sessionId);
-  const captureDirectory = resolve(sessionRoot, "captures");
-  await mkdir(captureDirectory, { recursive: true });
-  const filename = `photo-${pending.slot}-r${pending.revision}.jpg`;
-  await writeFile(resolve(captureDirectory, filename), body);
+  const savedPhoto = await saveSessionPhoto({
+    source: body,
+    dataDirectory,
+    sessionRoot,
+    slot: pending.slot,
+    revision: pending.revision,
+  });
 
   systemCommit({
     type: pending.kind === "retake" ? "RETAKE_COMPLETED" : "CAPTURE_COMPLETED",
     capture: {
       slot: pending.slot,
       revision: pending.revision,
-      mediaUrl: eventId
-        ? `/media/events/${eventId}/sessions/${sessionId}/captures/${filename}`
-        : `/media/sessions/${sessionId}/captures/${filename}`,
+      mediaUrl: savedPhoto.mediaUrl,
+      originalMediaUrl: savedPhoto.originalMediaUrl,
       capturedAt: new Date().toISOString(),
       filterId: "original",
     },
@@ -556,7 +559,7 @@ const httpServer = createServer((request, response) => {
               throw new CommandError(
                 "Connect the Canon and enable live preview before taking a test photo.",
               );
-            canonTestPhoto = (await canonCamera.capture()).buffer;
+            canonTestPhoto = await framePhoto((await canonCamera.capture()).buffer);
           }
           sendJson(response, 200, await canonCamera.status());
         })
@@ -941,6 +944,7 @@ const runSimulatorPendingCapture = async (sessionId: string) => {
       slot: pending.slot,
       revision: pending.revision,
       mediaUrl: result.mediaUrl,
+      originalMediaUrl: result.originalMediaUrl,
       capturedAt: result.capturedAt,
       filterId: "original",
     },
@@ -969,10 +973,13 @@ const completeTetherCapture = async (
   const sessionRoot = eventId
     ? resolve(dataDirectory, "events", eventId, "sessions", sessionId)
     : resolve(dataDirectory, "sessions", sessionId);
-  const captureDirectory = resolve(sessionRoot, "captures");
-  await mkdir(captureDirectory, { recursive: true });
-  const filename = `photo-${pending.slot}-r${pending.revision}.jpg`;
-  await writeFile(resolve(captureDirectory, filename), photo.buffer);
+  const savedPhoto = await saveSessionPhoto({
+    source: photo.buffer,
+    dataDirectory,
+    sessionRoot,
+    slot: pending.slot,
+    revision: pending.revision,
+  });
   await tetherCameraBridge
     .markVerified(photo.filename)
     .catch((error) => console.error("Fujifilm verification time could not be saved:", error));
@@ -982,9 +989,8 @@ const completeTetherCapture = async (
     capture: {
       slot: pending.slot,
       revision: pending.revision,
-      mediaUrl: eventId
-        ? `/media/events/${eventId}/sessions/${sessionId}/captures/${filename}`
-        : `/media/sessions/${sessionId}/captures/${filename}`,
+      mediaUrl: savedPhoto.mediaUrl,
+      originalMediaUrl: savedPhoto.originalMediaUrl,
       capturedAt: new Date().toISOString(),
       filterId: "original",
     },
@@ -1046,19 +1052,21 @@ const completeDirectCapture = async (
   const sessionRoot = eventId
     ? resolve(dataDirectory, "events", eventId, "sessions", sessionId)
     : resolve(dataDirectory, "sessions", sessionId);
-  const captureDirectory = resolve(sessionRoot, "captures");
-  await mkdir(captureDirectory, { recursive: true });
-  const filename = `photo-${pending.slot}-r${pending.revision}.jpg`;
-  await writeFile(resolve(captureDirectory, filename), photo.buffer);
+  const savedPhoto = await saveSessionPhoto({
+    source: photo.buffer,
+    dataDirectory,
+    sessionRoot,
+    slot: pending.slot,
+    revision: pending.revision,
+  });
 
   systemCommit({
     type: pending.kind === "retake" ? "RETAKE_COMPLETED" : "CAPTURE_COMPLETED",
     capture: {
       slot: pending.slot,
       revision: pending.revision,
-      mediaUrl: eventId
-        ? `/media/events/${eventId}/sessions/${sessionId}/captures/${filename}`
-        : `/media/sessions/${sessionId}/captures/${filename}`,
+      mediaUrl: savedPhoto.mediaUrl,
+      originalMediaUrl: savedPhoto.originalMediaUrl,
       capturedAt: new Date().toISOString(),
       filterId: "original",
     },

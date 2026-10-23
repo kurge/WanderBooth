@@ -74,11 +74,12 @@ export function CanonCameraControls({
           <img
             className="canon-camera-preview"
             src={testPhotoUrl}
-            alt="Full Canon test photograph, not mirrored"
+            alt="4:3 Canon test photograph, not mirrored"
           />
           <p>
-            Test photo: {status.lastPhoto?.width} × {status.lastPhoto?.height}. Camera copy
-            retained. This test is not added to a customer session.
+            4:3 test view · original camera resolution: {status.lastPhoto?.width} ×{" "}
+            {status.lastPhoto?.height}. Camera copy retained. This test is not added to a customer
+            session.
           </p>
         </>
       )}

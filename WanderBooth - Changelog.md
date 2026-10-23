@@ -18,6 +18,21 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 ## Unreleased
 
+## 0.17.2 — 2026-10-23
+
+### Changed
+
+- New camera photos, live previews and waiting/captured cards use landscape 4:3. Wider sources are center-cropped without stretching; saved photos remain unmirrored while preview remains mirrored.
+- Webcam, Canon, X-M5 folder/hybrid and simulator sessions save untouched incoming files in a separate local `originals/` folder, including earlier retakes. Existing sessions are not rewritten; originals never join the cloud upload list.
+- Individual branded downloads retain the 4:3 scene with branding over the bottom edge instead of a second scene crop. Print sizes and saved template geometry are unchanged.
+- Canon test-photo display shows the 4:3 crop while reporting the original camera resolution.
+
+### Verified
+
+- All 108 tests and Host/web/cloud builds passed. Synthetic browser checks covered capture/waiting cards, review, filters, retakes and event history.
+- Verified three synthetic wide webcam uploads, untouched local backups and branded 4:3 exports. Built and checksum-verified the unsigned Apple-silicon 0.17.2 installer and tested its bundled image processor.
+- See the [4:3 test record](docs/test-records/2026-10-23-landscape-framing.md) for integration checks, packaging and remaining physical-camera checks.
+
 ## 0.17.1 — 2026-10-23
 
 ### Changed

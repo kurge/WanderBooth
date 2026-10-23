@@ -2,7 +2,9 @@
 
 Updated: 2026-10-23 · WanderBooth 0.17.0 · Experimental, macOS only
 
-The Canon option is designed to provide live view and automatic full-resolution photos over one USB data connection. An HDMI capture card is not part of this setup. The actual 60D still needs a physical test before event use; software tests cannot establish hardware reliability.
+The Canon option is designed to provide live view and automatic full-resolution photos over one USB data connection. An HDMI capture card is not part of this setup. The owner has reported the 60D working since the initial test record. The 0.17.2 landscape 4:3 crop still needs an on-camera framing check; software tests cannot establish hardware reliability.
+
+New live views, test-photo displays and session photos use landscape 4:3. Session photos retain an untouched local original; test photos remain temporary and retain the camera copy. See [photo framing and backups](PHOTO_FRAMING.md).
 
 First physical test: USB detection and live view passed. Still capture and preview recovery did not pass; the camera reported USB I/O busy afterward. See the [test record](test-records/2026-10-23-canon-60d-usb.md). Power-cycle and reconnect the camera before repeating that test.
 

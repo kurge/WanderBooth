@@ -3037,7 +3037,11 @@ function SessionPanel({
           <section className="source-review">
             <div className="source-review__heading">
               <span>Captured photos</span>
-              <small>Full images · not cropped</small>
+              <small>
+                {state.captures.every((capture) => capture.originalMediaUrl)
+                  ? "4:3 photos · originals kept locally"
+                  : "Saved session photos"}
+              </small>
             </div>
             <CapturePreview state={state} compact />
             {interactive && <PhotoFilterPicker state={state} sendCommand={sendCommand} />}

@@ -44,6 +44,7 @@ export type Capture = {
   slot: number;
   revision: number;
   mediaUrl: string;
+  originalMediaUrl?: string;
   capturedAt: string;
   filterId?: PhotoFilterId;
 };

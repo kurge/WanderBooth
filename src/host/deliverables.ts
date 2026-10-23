@@ -93,7 +93,7 @@ async function applyPhotoFilter(
   await pipeline.png().toFile(outputPath);
 }
 
-async function createBrandedIndividual(input: {
+export async function createBrandedIndividual(input: {
   capturePath: string;
   outputPath: string;
   accent: string;
@@ -103,7 +103,7 @@ async function createBrandedIndividual(input: {
   await mkdir(dirname(input.outputPath), { recursive: true });
   const caption = Buffer.from(`
     <svg width="1200" height="100" xmlns="http://www.w3.org/2000/svg">
-      <rect width="1200" height="100" fill="${input.background}" />
+      <rect width="1200" height="100" fill="${input.background}" fill-opacity="0.85" />
       <circle cx="55" cy="50" r="26" fill="${input.accent}" />
       <text x="98" y="60" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="${input.accent}">WanderBooth</text>
       <text x="1145" y="59" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="${input.accent}">by Wander Press PH · Photo ${input.photoNumber}</text>
@@ -111,8 +111,8 @@ async function createBrandedIndividual(input: {
   `);
 
   await sharp(input.capturePath)
-    .resize(1200, 800, { fit: "cover" })
-    .extend({ bottom: 100, background: input.background })
+    .autoOrient()
+    .resize(1200, 900, { fit: "cover" })
     .composite([{ input: caption, top: 800, left: 0 }])
     .png()
     .toFile(input.outputPath);

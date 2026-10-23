@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  PHOTO_ASPECT_RATIO,
+  PHOTO_PREVIEW_HEIGHT,
+  PHOTO_PREVIEW_WIDTH,
+  photoCrop,
+} from "../shared/photoFraming";
 import type { BoothState, Command } from "../shared/session";
 import { hostHttpUrl } from "./useBoothConnection";
 
@@ -38,7 +44,7 @@ const waitForVideo = (video: HTMLVideoElement) =>
     video.addEventListener("loadeddata", ready, { once: true });
   });
 
-const videoFrameToJpeg = async (video: HTMLVideoElement) => {
+export const videoFrameToJpeg = async (video: HTMLVideoElement) => {
   await waitForVideo(video);
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
@@ -56,36 +62,24 @@ const videoFrameToJpeg = async (video: HTMLVideoElement) => {
   });
 };
 
-const previewFrameToJpeg = async (video: HTMLVideoElement) => {
+export const previewFrameToJpeg = async (video: HTMLVideoElement) => {
   await waitForVideo(video);
   const canvas = document.createElement("canvas");
-  canvas.width = 960;
-  canvas.height = 540;
+  canvas.width = PHOTO_PREVIEW_WIDTH;
+  canvas.height = PHOTO_PREVIEW_HEIGHT;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("The preview frame could not be prepared.");
 
-  const targetAspect = canvas.width / canvas.height;
-  const sourceAspect = video.videoWidth / video.videoHeight;
-  let sourceX = 0;
-  let sourceY = 0;
-  let sourceWidth = video.videoWidth;
-  let sourceHeight = video.videoHeight;
-  if (sourceAspect > targetAspect) {
-    sourceWidth = video.videoHeight * targetAspect;
-    sourceX = (video.videoWidth - sourceWidth) / 2;
-  } else if (sourceAspect < targetAspect) {
-    sourceHeight = video.videoWidth / targetAspect;
-    sourceY = (video.videoHeight - sourceHeight) / 2;
-  }
+  const crop = photoCrop(video.videoWidth, video.videoHeight);
 
   context.translate(canvas.width, 0);
   context.scale(-1, 1);
   context.drawImage(
     video,
-    sourceX,
-    sourceY,
-    sourceWidth,
-    sourceHeight,
+    crop.left,
+    crop.top,
+    crop.width,
+    crop.height,
     0,
     0,
     canvas.width,
@@ -139,10 +133,15 @@ export function useMacBookCamera({
         video: requestedDeviceId
           ? {
               deviceId: { exact: requestedDeviceId },
-              height: { ideal: 1080 },
+              aspectRatio: { ideal: PHOTO_ASPECT_RATIO },
+              height: { ideal: 1440 },
               width: { ideal: 1920 },
             }
-          : { height: { ideal: 1080 }, width: { ideal: 1920 } },
+          : {
+              aspectRatio: { ideal: PHOTO_ASPECT_RATIO },
+              height: { ideal: 1440 },
+              width: { ideal: 1920 },
+            },
       });
 
       const videoDevices = (await navigator.mediaDevices.enumerateDevices()).filter(
@@ -161,7 +160,8 @@ export function useMacBookCamera({
             audio: false,
             video: {
               deviceId: { exact: builtIn.deviceId },
-              height: { ideal: 1080 },
+              aspectRatio: { ideal: PHOTO_ASPECT_RATIO },
+              height: { ideal: 1440 },
               width: { ideal: 1920 },
             },
           });

@@ -9,6 +9,7 @@ import sharp from "sharp";
 import type { CanonCameraStatus } from "../shared/canonCamera.js";
 import { resolveGPhotoBinary } from "./directXm5Camera.js";
 import { type PreviewProcess, type StartPreview, startGPhotoPreview } from "./gphotoPreview.js";
+import { framePhoto } from "./photoFraming.js";
 
 type RunCommand = (
   binary: string,
@@ -206,12 +207,7 @@ export class CanonCamera {
       (frame) => {
         if (this.processingFrame || generation !== this.previewGeneration) return;
         this.processingFrame = true;
-        void sharp(frame)
-          .autoOrient()
-          .flop()
-          .resize({ width: 960, withoutEnlargement: true })
-          .jpeg({ quality: 65 })
-          .toBuffer()
+        void framePhoto(frame, true)
           .then((jpeg) => {
             if (generation !== this.previewGeneration) return;
             this.lastFrameAt = Date.now();

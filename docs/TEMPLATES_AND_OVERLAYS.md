@@ -2,7 +2,7 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.18.2
+**Version:** 0.18.3
 
 **Updated:** 2026-10-23
 
@@ -25,7 +25,7 @@ The Template Library is the normal path for designs that will be served repeated
 4. In **Photo orientation**, choose **Landscape · 4:3**, **Portrait · 3:4**, or **Custom · free sizing** for each holder. Move and resize it to match the transparent opening. Enter **Crop image** to set the default image position and scale inside that holder. Rotate or lock objects as needed.
 5. Choose **Save template**. The approved master now appears in each selected folder.
 
-When a saved template is selected, real Capture 1 replaces every placeholder labeled 1, Capture 2 replaces every placeholder labeled 2, and so on. WanderBooth also restores the saved artwork position, holder shapes, default image crops, rotation, and lock state. Built-in templates use their catalog capture count—six for Double strip 4×6, eight for Four-photo double strip—while a custom template derives its count from its Capture labels.
+When a saved template is selected, real Capture 1 replaces every placeholder labeled 1, Capture 2 replaces every placeholder labeled 2, and so on. WanderBooth also restores the saved artwork position, holder shapes, default image crops, rotation, and lock state. Built-in templates use their catalog capture count—four for Four-photo strip 2×6, six for Double strip 4×6—while a custom template derives its count from its Capture labels.
 
 ### Photo orientation is separate from paper orientation
 
@@ -71,18 +71,20 @@ When staff create an event, WanderBooth copies every master in the selected star
 | Photo strip | Classic 2×4 | 600×1200 | 3 | A shorter vertical strip; printed twice at actual size on a 4×6 sheet |
 | Photo strip | Classic 2×6 | 600×1800 | 3 | One normal vertical strip |
 | Photo strip | Double strip 4×6 | 1200×1800 | 6 | Photos 1–3 fill the left strip; Photos 4–6 fill the right strip |
-| Photo strip | Four-photo double strip | 1200×1800 | 8 | Photos 1–4 fill the left strip; Photos 5–8 fill the right strip |
+| Photo strip | Four-photo strip 2×6 | 600×1800 | 4 | One strip with Photos 1–4; the print sheet repeats that same strip twice |
 | Four-photo card | Feature portrait | 1200×1800 | 4 | Three smaller photos and one large feature photo |
 | Four-photo card | Heart feature | 1200×1800 | 4 | Three rectangles and one heart-shaped photo |
 | Four-photo card | Party landscape | 1800×1200 | 4 | Three photos across the top and one larger photo below |
 | Custom 4×6 template | Custom portrait | 1200×1800 | 1–8 | Staff adds up to eight holders and maps each to a Capture label |
 | Custom 4×6 template | Custom landscape | 1800×1200 | 1–8 | Same freeform holder mapping on a horizontal canvas |
 
-### Two strips with four photos each
+### Four photos once, two identical printed strips
 
-Choose **Photo strip → Four-photo double strip** in session selection or template setup. This means two columns of four holders, not a physically 2×8-inch strip. The complete sheet is **4×6 inches**; cutting down the middle gives two **2×6-inch strips**, each holding four different photos. The automatic sequence takes eight unique shots.
+Choose **Photo strip → Four-photo strip 2×6** in session selection or template setup. Take **four photos total**, arrange Photos 1–4 on one strip, and print that exact strip twice on a 4×6 sheet. Both sides contain the **same four photos, artwork, filters and edits**. Cut down the middle for two matching 2×6 strips. The digital layout download is one 600×1800 strip, just like Classic 2×6 but with four photos instead of three.
 
-For imported artwork, prepare one transparent **1200×1800 PNG** covering the whole sheet, with four openings on each side. A proportional larger canvas also works. A single-strip 600×1800 or 600×2400 image is not the correct aspect ratio for this layout. Default holders are landscape 4:3; staff can adjust their orientation and placement, then save the setup as a reusable template. Existing six-shot and single-strip templates are unchanged.
+For imported artwork, prepare one transparent **600×1800 PNG** with four openings, or the same aspect ratio at a larger resolution. Edit only that one strip; printing duplicates the finished design automatically. Default holders are landscape 4:3; staff can adjust their orientation and placement before saving a reusable template.
+
+The eight-shot option in 0.18.2 was a misunderstanding and is hidden from new-layout menus. Its old ID and geometry remain readable for any saved templates/sessions; existing files are not rewritten. Earlier single-strip and six-shot layouts are unchanged.
 
 ### Fixed-color frames
 

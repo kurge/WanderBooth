@@ -11,7 +11,6 @@ import {
   identityMediaTransform,
   isCustomLayoutId,
   type Layout,
-  layouts,
   MAX_CUSTOM_HOLDERS,
   type MediaTransform,
   type Overlay,
@@ -19,6 +18,7 @@ import {
   photoSlotId,
   products,
   resolveLayout,
+  selectableLayoutsForProduct,
 } from "../shared/catalog";
 import { photoFilterCss, photoFilters } from "../shared/filters";
 import type {
@@ -2272,32 +2272,29 @@ function TemplateGalleryPanel({
             isCustomLayoutId(layoutId) ? "layout-grid--orientation" : ""
           }`}
         >
-          {(selectedProduct?.layoutIds ?? [])
-            .map((id) => getLayout(id))
-            .filter((layout): layout is Layout => Boolean(layout))
-            .map((layout) => (
-              <button
-                className={`layout-card ${
-                  layoutId === layout.id ? "layout-card--selected" : ""
-                } ${isCustomLayoutId(layout.id) ? "layout-card--orientation" : ""}`}
-                type="button"
-                key={layout.id}
-                onClick={() => {
-                  setLayoutId(layout.id);
-                  setOverlayId(null);
-                }}
-              >
-                <LayoutThumbnail layout={layout} />
-                <span>
-                  <strong>{layout.name}</strong>
-                  <small>
-                    {isCustomLayoutId(layout.id)
-                      ? "Add up to 8 holders"
-                      : `${layout.requiredCaptureCount} placeholders`}
-                  </small>
-                </span>
-              </button>
-            ))}
+          {selectableLayoutsForProduct(selectedProduct).map((layout) => (
+            <button
+              className={`layout-card ${
+                layoutId === layout.id ? "layout-card--selected" : ""
+              } ${isCustomLayoutId(layout.id) ? "layout-card--orientation" : ""}`}
+              type="button"
+              key={layout.id}
+              onClick={() => {
+                setLayoutId(layout.id);
+                setOverlayId(null);
+              }}
+            >
+              <LayoutThumbnail layout={layout} />
+              <span>
+                <strong>{layout.name}</strong>
+                <small>
+                  {isCustomLayoutId(layout.id)
+                    ? "Add up to 8 holders"
+                    : `${layout.requiredCaptureCount} placeholders`}
+                </small>
+              </span>
+            </button>
+          ))}
         </div>
 
         {selectedLayout && (
@@ -2694,11 +2691,7 @@ function SelectionPanel({
   const selectedLayout = resolveLayout(state.layoutId, state.customSlots);
   const manualSelectionEnabled = !selectedProduct?.templateOnly;
   const availableLayouts =
-    selectedProduct && manualSelectionEnabled
-      ? selectedProduct.layoutIds
-          .map((layoutId) => layouts.find((layout) => layout.id === layoutId))
-          .filter((layout): layout is Layout => Boolean(layout))
-      : [];
+    selectedProduct && manualSelectionEnabled ? selectableLayoutsForProduct(selectedProduct) : [];
   const availableCustomOverlays = selectedLayout
     ? state.customOverlays.filter((overlay) => overlaySupportsLayout(overlay, selectedLayout.id))
     : [];

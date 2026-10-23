@@ -23,7 +23,23 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Standardized ten local sample-frame copies to their existing 2×6/4×6 dimensions at 300 DPI, retaining transparency and original files. Six were already correctly sized; four needed proportional resizing. No app behavior or installed template was changed.
 - Added a non-overwriting local preparation script and a plain-language [artwork guide](docs/ARTWORK_PREPARATION.md). Private artwork and generated manifests are excluded from Git.
 
+## 0.18.3 — 2026-10-23
+
+### Corrected
+
+- Corrected the misunderstood four-photo-strip request: take **four photos total**, make one **Four-photo strip 2×6**, and print **two identical copies** on the 4×6 sheet. This is the same workflow as Classic 2×6, with four photos instead of three.
+- The digital strip and imported frame canvas are **600×1800**, with four holders. Editing the strip once applies to both printed copies, including artwork, orientation, crop and filters.
+- Hid the mistaken eight-shot choice from session and new-template layout menus. Its catalog ID, geometry and saved work remain readable; existing event/session files are not rewritten.
+
+### Verified
+
+- All 148 tests, formatting/lint and Host/web/cloud builds passed. Pixel comparisons confirm both print halves exactly match the finished single strip for fixed-color and imported frames.
+- Browser QA confirmed four automatic shots, four-photo review, a per-photo filter and two matching printed copies. The Mac installer is version 0.18.3.
+- See the [matching four-photo strip test record](docs/test-records/2026-10-23-matching-four-photo-strips.md). No physical print or production-cloud upload was performed.
+
 ## 0.18.2 — 2026-10-23
+
+> Superseded by 0.18.3: this release incorrectly interpreted the request as eight unique shots. The intended flow takes four shots and prints the same strip twice.
 
 ### Added
 

@@ -46,6 +46,8 @@ export type Layout = {
   id: string;
   name: string;
   description: string;
+  /** Retain old saved work without offering this arrangement in new-layout menus. */
+  hiddenFromMenu?: boolean;
   requiredCaptureCount: number;
   printSize: "2x4" | "2x6" | "4x6";
   canvasWidth: number;
@@ -129,9 +131,14 @@ export const products: Product[] = [
   {
     id: "three-photo-strip",
     name: "Photo strip",
-    description:
-      "A classic single strip, or two strips with six or eight unique photos on 4×6 paper.",
-    layoutIds: ["vertical-2x6", "vertical-2x4", "double-strip-4x6", "double-strip-8-photo-4x6"],
+    description: "Three or four photos on one strip, printed twice on 4×6 paper.",
+    layoutIds: [
+      "vertical-2x6",
+      "vertical-four-photo-2x6",
+      "vertical-2x4",
+      "double-strip-4x6",
+      "double-strip-8-photo-4x6",
+    ],
     price: null,
   },
   {
@@ -166,6 +173,22 @@ export const layouts: Layout[] = [
       { captureIndex: 2, x: 30, y: 1015, width: 540, height: 420, shape: "rounded" },
     ],
     brandAreas: [{ x: 30, y: 1480, width: 540, height: 260, align: "center" }],
+  },
+  {
+    id: "vertical-four-photo-2x6",
+    name: "Four-photo strip 2×6",
+    description: "Take four photos once. Print two identical strips on one 4×6 sheet.",
+    requiredCaptureCount: 4,
+    printSize: "2x6",
+    canvasWidth: 600,
+    canvasHeight: 1800,
+    slots: [
+      { captureIndex: 0, x: 60, y: 40, width: 480, height: 360, shape: "rounded" },
+      { captureIndex: 1, x: 60, y: 420, width: 480, height: 360, shape: "rounded" },
+      { captureIndex: 2, x: 60, y: 800, width: 480, height: 360, shape: "rounded" },
+      { captureIndex: 3, x: 60, y: 1180, width: 480, height: 360, shape: "rounded" },
+    ],
+    brandAreas: [{ x: 60, y: 1580, width: 480, height: 170, align: "center" }],
   },
   {
     id: "vertical-2x4",
@@ -205,7 +228,8 @@ export const layouts: Layout[] = [
   },
   {
     id: "double-strip-8-photo-4x6",
-    name: "Four-photo double strip",
+    name: "Eight-shot double strip (legacy)",
+    hiddenFromMenu: true,
     description: "Eight unique shots: four per 2×6 strip, side by side on one 4×6 sheet.",
     requiredCaptureCount: 8,
     printSize: "4x6",
@@ -369,6 +393,11 @@ export const overlays: Overlay[] = [
 
 export const getLayout = (layoutId: string | null) =>
   layouts.find((layout) => layout.id === layoutId) ?? null;
+
+export const selectableLayoutsForProduct = (product: Product | null | undefined): Layout[] =>
+  (product?.layoutIds ?? [])
+    .map(getLayout)
+    .filter((layout): layout is Layout => Boolean(layout && !layout.hiddenFromMenu));
 
 export const resolveLayout = (
   layoutId: string | null,

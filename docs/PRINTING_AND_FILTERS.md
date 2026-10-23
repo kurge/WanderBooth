@@ -28,6 +28,12 @@ For a single 2×6 strip, WanderBooth places the same finished strip on the left 
 
 The Epson L8050 documentation lists 4×6 (102 × 152 mm) media. Its documented custom/borderless limits do not establish a native 2×6 sheet workflow, so the first pilot standardizes physical output on 4×6 media. See Epson's [supported borderless paper types](https://files.support.epson.com/docid/cpd6/cpd62777/source/printers/source/paper_loading/reference/l8050_18050/paper_borderless_types_l8050_18050.html) and [paper specifications](https://files.support.epson.com/docid/cpd6/cpd62777/source/printers/source/specifications/reference/l8050_l18050/spex_paper_printer_l8050_18050.html).
 
+### Four photos on each of two strips
+
+**Photo strip → Four-photo double strip** takes eight unique shots on one 4×6 sheet: Photos 1–4 run down the left side and Photos 5–8 down the right. After the center cut, each piece is still 2×6 inches, with four photos instead of three. This is not a physical 2×8-inch paper size. Keep the printer set to **4×6, portrait, Actual Size / 100%** and inspect the first print for driver cropping.
+
+The original six-shot Double strip 4×6 remains available. Both double-strip layouts already fill the whole sheet; WanderBooth does not duplicate their photos.
+
 ## Manual print flow
 
 1. Complete and approve the session.

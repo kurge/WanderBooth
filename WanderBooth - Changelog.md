@@ -23,6 +23,20 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 - Standardized ten local sample-frame copies to their existing 2×6/4×6 dimensions at 300 DPI, retaining transparency and original files. Six were already correctly sized; four needed proportional resizing. No app behavior or installed template was changed.
 - Added a non-overwriting local preparation script and a plain-language [artwork guide](docs/ARTWORK_PREPARATION.md). Private artwork and generated manifests are excluded from Git.
 
+## 0.18.2 — 2026-10-23
+
+### Added
+
+- **Photo strip → Four-photo double strip**: eight unique captures, four down each side of one 4×6 sheet. Each cut strip remains physically 2×6 inches; this is not a 2×8-inch paper format.
+- A 1200×1800 canvas with eight default landscape 4:3 holders, independent orientation/editing, two branding footers, and a generated center cut guide. Imported transparent artwork uses the whole 4×6 canvas and can be saved in the Template Library.
+- Existing single-strip and six-shot double-strip options remain unchanged. Printing continues through the existing 4×6 preview and native dialog.
+
+### Verified
+
+- All 141 tests, formatting/lint, and Host/web/cloud builds passed. New coverage includes both operation modes, all eight automatic captures, retaking photo 8, template save/reopen, artwork validation, and distinct capture placement in the 300-DPI print.
+- A synthetic browser session completed eight captures, a retake and B&W filter on photo 8, eight branded downloads, an exact 4×6 print sheet, a 12-second slideshow, and a locally persisted 30-day QR record. Production cloud and physical equipment were not used.
+- Built and verified the unsigned Apple-silicon 0.18.2 installer. See the [eight-photo double-strip test record](docs/test-records/2026-10-23-eight-photo-double-strip.md).
+
 ## 0.18.1 — 2026-10-23
 
 ### Added

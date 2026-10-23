@@ -10,6 +10,7 @@ import {
   getDesign,
   getOverlay,
   identityMediaTransform,
+  isDoubleStripLayoutId,
   type Layout,
   type MediaTransform,
   type OverlayKind,
@@ -272,15 +273,14 @@ const overlayMarkup = (kind: OverlayKind, layout: Layout, accent: string) => {
     const holeWidth = Math.max(14, Math.round(Math.min(width, height) * 0.025));
     const holeHeight = Math.round(holeWidth * 0.7);
     const step = Math.round(holeHeight * 2.15);
-    const xPositions =
-      layout.id === "double-strip-4x6"
-        ? [
-            Math.round(holeWidth * 0.45),
-            Math.round(width / 2 - holeWidth * 1.45),
-            Math.round(width / 2 + holeWidth * 0.45),
-            width - Math.round(holeWidth * 1.45),
-          ]
-        : [Math.round(holeWidth * 0.45), width - Math.round(holeWidth * 1.45)];
+    const xPositions = isDoubleStripLayoutId(layout.id)
+      ? [
+          Math.round(holeWidth * 0.45),
+          Math.round(width / 2 - holeWidth * 1.45),
+          Math.round(width / 2 + holeWidth * 0.45),
+          width - Math.round(holeWidth * 1.45),
+        ]
+      : [Math.round(holeWidth * 0.45), width - Math.round(holeWidth * 1.45)];
     return Array.from({ length: Math.ceil(height / step) }, (_, index) => {
       const y = index * step + Math.round(holeHeight * 0.45);
       return xPositions
@@ -376,7 +376,7 @@ async function createComposite(input: {
   const frame = Buffer.from(`
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       ${replacesGeneratedFrame ? "" : input.layout.slots.map((slot) => slotOutline(slot, input.accent, strokeWidth)).join("")}
-      ${replacesGeneratedFrame || input.layout.id !== "double-strip-4x6" ? "" : `<path d="M600 28 V1772" stroke="${input.accent}" stroke-width="3" stroke-dasharray="14 14" opacity="0.55" />`}
+      ${replacesGeneratedFrame || !isDoubleStripLayoutId(input.layout.id) ? "" : `<path d="M600 28 V1772" stroke="${input.accent}" stroke-width="3" stroke-dasharray="14 14" opacity="0.55" />`}
       ${replacesGeneratedFrame ? "" : overlayMarkup(input.overlayKind, input.layout, input.accent)}
       ${replacesGeneratedFrame ? "" : brandMarkup}
     </svg>

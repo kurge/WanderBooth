@@ -25,6 +25,9 @@ export const customLayoutIds = ["custom-portrait-4x6", "custom-landscape-4x6"] a
 export const isCustomLayoutId = (layoutId: string | null): boolean =>
   customLayoutIds.includes(layoutId as (typeof customLayoutIds)[number]);
 
+export const isDoubleStripLayoutId = (layoutId: string): boolean =>
+  layoutId === "double-strip-4x6" || layoutId === "double-strip-8-photo-4x6";
+
 export const photoSlotId = (slot: PhotoSlot): string =>
   slot.id ?? `capture-${slot.captureIndex + 1}`;
 
@@ -126,8 +129,9 @@ export const products: Product[] = [
   {
     id: "three-photo-strip",
     name: "Photo strip",
-    description: "Three photos on a 2×4 or 2×6 strip, or six unique photos across two strips.",
-    layoutIds: ["vertical-2x6", "vertical-2x4", "double-strip-4x6"],
+    description:
+      "A classic single strip, or two strips with six or eight unique photos on 4×6 paper.",
+    layoutIds: ["vertical-2x6", "vertical-2x4", "double-strip-4x6", "double-strip-8-photo-4x6"],
     price: null,
   },
   {
@@ -197,6 +201,29 @@ export const layouts: Layout[] = [
     brandAreas: [
       { x: 45, y: 1400, width: 510, height: 310, align: "center" },
       { x: 645, y: 1400, width: 510, height: 310, align: "center" },
+    ],
+  },
+  {
+    id: "double-strip-8-photo-4x6",
+    name: "Four-photo double strip",
+    description: "Eight unique shots: four per 2×6 strip, side by side on one 4×6 sheet.",
+    requiredCaptureCount: 8,
+    printSize: "4x6",
+    canvasWidth: 1200,
+    canvasHeight: 1800,
+    slots: [
+      { captureIndex: 0, x: 60, y: 40, width: 480, height: 360, shape: "rounded" },
+      { captureIndex: 1, x: 60, y: 420, width: 480, height: 360, shape: "rounded" },
+      { captureIndex: 2, x: 60, y: 800, width: 480, height: 360, shape: "rounded" },
+      { captureIndex: 3, x: 60, y: 1180, width: 480, height: 360, shape: "rounded" },
+      { captureIndex: 4, x: 660, y: 40, width: 480, height: 360, shape: "rounded" },
+      { captureIndex: 5, x: 660, y: 420, width: 480, height: 360, shape: "rounded" },
+      { captureIndex: 6, x: 660, y: 800, width: 480, height: 360, shape: "rounded" },
+      { captureIndex: 7, x: 660, y: 1180, width: 480, height: 360, shape: "rounded" },
+    ],
+    brandAreas: [
+      { x: 60, y: 1580, width: 480, height: 170, align: "center" },
+      { x: 660, y: 1580, width: 480, height: 170, align: "center" },
     ],
   },
   {

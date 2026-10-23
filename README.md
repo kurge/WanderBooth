@@ -57,7 +57,7 @@ WanderBooth is an offline-first photo booth application being developed for our 
 - Staff-selected Attendant-Operated or Self-Service control.
 - Product/layout menu with built-in three-photo, four-photo, and six-photo arrangements; saved custom templates derive one to eight automatic captures from their holder labels.
 - Five data-driven layouts: classic 2×6, six-shot double strip 4×6, feature portrait, heart feature, and party landscape.
-- Five reusable fixed-color frames with optional no-overlay, film-edge, confetti, and heart treatments.
+- Five reusable fixed-color frames with consistent selection highlights, plus imported custom artwork. Built-in decorations are retired; per-photo filters remain available during review.
 - A mutually exclusive imported-frame path: selecting a custom frame hides and clears fixed colors, while selecting a color clears the custom frame.
 - Operator-only event-frame import for transparent PNG artwork with pre-cut photo openings. The Host preserves a normalized source plus a rendered preview so later alignment is lossless and survives restart; previously imported flat templates remain readable.
 - A persistent staff-only Template Library: upload or reuse artwork, align numbered photo placeholders before service, save the complete product/layout/frame/holder/crop setup, assign it to folders, update it or save a copy, and delete it without destroying shared artwork.
@@ -90,9 +90,9 @@ The prototype now controls standard video cameras, imports X-M5 JPEGs through th
 
 ## Open the app on this Mac
 
-Run `pnpm package:mac:dmg` to generate `release/WanderBooth-0.17.0-arm64.dmg`, then double-click it in Finder and copy **WanderBooth** into **Applications**. The generated build is for the current Apple-silicon Mac and does not require Terminal after installation. Canon USB and X-M5 Hybrid expect gPhoto2 at a standard Homebrew path on the Host; it is not bundled into the DMG. Canon remains experimental: real live view passed once, but still capture and preview recovery require another physical test.
+Run `pnpm package:mac:dmg` to generate `release/WanderBooth-0.17.1-arm64.dmg`, then double-click it in Finder and copy **WanderBooth** into **Applications**. The generated build is for the current Apple-silicon Mac and does not require Terminal after installation. Canon USB and X-M5 Hybrid expect gPhoto2 at a standard Homebrew path on the Host; it is not bundled into the DMG. Canon remains experimental: real live view passed once, but still capture and preview recovery require another physical test.
 
-If the decorative DMG builder reports `hdiutil: create failed - Operation not supported by device` after producing the `.app`, a plain installation image can be created with `hdiutil create -volname 'WanderBooth 0.17.0' -srcfolder release/mac-arm64 -format UDZO release/WanderBooth-0.17.0-arm64.dmg`. Use this only when that output file does not already exist; it contains the app without the drag-to-Applications shortcut.
+If the decorative DMG builder reports `hdiutil: create failed - Operation not supported by device` after producing the `.app`, a plain installation image can be created with `hdiutil create -volname 'WanderBooth 0.17.1' -srcfolder release/mac-arm64 -format UDZO release/WanderBooth-0.17.1-arm64.dmg`. Use this only when that output file does not already exist; it contains the app without the drag-to-Applications shortcut.
 
 This development build is unsigned. It opens on the Mac where it was built, but a future downloadable build will need Apple Developer signing and notarization before it is shared publicly.
 

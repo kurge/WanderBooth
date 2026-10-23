@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import wanderPressSplashLogo from "../../assets/brand/source/wander-press-splash-shadow.png";
 import {
   type CustomOverlay,
-  designs,
   getDesign,
   getLayout,
   getOverlay,
@@ -17,7 +16,6 @@ import {
   type MediaTransform,
   type Overlay,
   overlaySupportsLayout,
-  overlays,
   photoSlotId,
   products,
   resolveLayout,
@@ -37,6 +35,7 @@ import type {
 import { activeEventFor, galleryTemplatesFor, sessionTemplatesFor } from "../shared/session";
 import { CanonCameraControls } from "./CanonCameraControls";
 import { createId } from "./createId";
+import { FrameColorPicker } from "./FrameColorPicker";
 import { type ResizeHandle, resizeTransform } from "./resizeTransform";
 import { hostHttpUrl, useBoothConnection } from "./useBoothConnection";
 import { useCanonCamera } from "./useCanonCamera";
@@ -2595,9 +2594,6 @@ function SelectionPanel({
           .map((layoutId) => layouts.find((layout) => layout.id === layoutId))
           .filter((layout): layout is Layout => Boolean(layout))
       : [];
-  const availableBuiltInOverlays = selectedLayout
-    ? overlays.filter((overlay) => overlaySupportsLayout(overlay, selectedLayout.id))
-    : [];
   const availableCustomOverlays = selectedLayout
     ? state.customOverlays.filter((overlay) => overlaySupportsLayout(overlay, selectedLayout.id))
     : [];
@@ -2617,9 +2613,7 @@ function SelectionPanel({
       <section className="customer-message">
         <span className="eyebrow">Attendant-operated session</span>
         <h1>We’ll set everything up for you.</h1>
-        <p>
-          Your attendant is choosing the layout, frame, and overlay. You’ll see each photo here.
-        </p>
+        <p>Your attendant is choosing the layout and frame. You’ll see each photo here.</p>
         <div className="waiting-dots" role="status" aria-label="Waiting">
           <i />
           <i />
@@ -2781,7 +2775,7 @@ function SelectionPanel({
                 <i />
               </span>
               <strong>Fixed colored frame</strong>
-              <small>Choose a WanderBooth color and an optional built-in decoration.</small>
+              <small>Choose a clean WanderBooth frame color.</small>
             </button>
             <button
               className={
@@ -2806,59 +2800,10 @@ function SelectionPanel({
               <small>Color</small>
               <h3>Choose a fixed color</h3>
             </div>
-            <div className="design-grid design-grid--frames">
-              {designs.map((design) => (
-                <button
-                  className={
-                    state.designId === design.id
-                      ? "design-card design-card--selected"
-                      : "design-card"
-                  }
-                  style={
-                    {
-                      "--accent": design.accent,
-                      "--background": design.background,
-                    } as React.CSSProperties
-                  }
-                  type="button"
-                  key={design.id}
-                  onClick={() => sendCommand({ type: "SELECT_DESIGN", designId: design.id })}
-                >
-                  <span className="design-card__preview">
-                    <i />
-                    <i />
-                    <i />
-                  </span>
-                  <strong>{design.name}</strong>
-                  <small>{design.description}</small>
-                </button>
-              ))}
-            </div>
-            <div className="catalog-section__subheading">
-              <small>Decoration</small>
-              <h3>Add an optional built-in detail</h3>
-            </div>
-            <div className="overlay-grid">
-              {availableBuiltInOverlays.map((overlay) => (
-                <button
-                  className={
-                    state.overlayId === overlay.id
-                      ? "overlay-card overlay-card--selected"
-                      : "overlay-card"
-                  }
-                  type="button"
-                  key={overlay.id}
-                  disabled={!state.designId}
-                  onClick={() => sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })}
-                >
-                  <OverlayThumbnail overlay={overlay} />
-                  <span>
-                    <strong>{overlay.name}</strong>
-                    <small>{overlay.description}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
+            <FrameColorPicker
+              selectedId={state.designId}
+              onSelect={(designId) => sendCommand({ type: "SELECT_DESIGN", designId })}
+            />
           </div>
         )}
 
@@ -3068,9 +3013,6 @@ function SessionPanel({
         Boolean(state.designId) &&
         Boolean(reviewOverlay && reviewOverlay.kind !== "custom")) ||
       (state.frameMode === "custom" && reviewOverlay?.kind === "custom");
-    const compatibleBuiltIns = overlays.filter(
-      (overlay) => Boolean(state.layoutId) && overlaySupportsLayout(overlay, state.layoutId ?? ""),
-    );
     const compatibleCustomFrames = state.customOverlays.filter(
       (overlay) => Boolean(state.layoutId) && overlaySupportsLayout(overlay, state.layoutId ?? ""),
     );
@@ -3185,37 +3127,11 @@ function SessionPanel({
               </div>
               {state.frameMode === "color" && (
                 <div className="review-frame-settings__choices">
-                  <div className="mini-designs">
-                    <span>Color</span>
-                    {designs.map((design) => (
-                      <button
-                        type="button"
-                        key={design.id}
-                        title={design.name}
-                        aria-label={`Use ${design.name}`}
-                        aria-pressed={state.designId === design.id}
-                        style={{ background: design.background, borderColor: design.accent }}
-                        onClick={() => sendCommand({ type: "SELECT_DESIGN", designId: design.id })}
-                      />
-                    ))}
-                  </div>
-                  <div className="mini-overlays">
-                    <span>Detail</span>
-                    {compatibleBuiltIns.map((overlay) => (
-                      <button
-                        type="button"
-                        key={overlay.id}
-                        title={overlay.name}
-                        aria-label={`Use ${overlay.name}`}
-                        aria-pressed={state.overlayId === overlay.id}
-                        onClick={() =>
-                          sendCommand({ type: "SELECT_OVERLAY", overlayId: overlay.id })
-                        }
-                      >
-                        <OverlayThumbnail overlay={overlay} />
-                      </button>
-                    ))}
-                  </div>
+                  <FrameColorPicker
+                    compact
+                    selectedId={state.designId}
+                    onSelect={(designId) => sendCommand({ type: "SELECT_DESIGN", designId })}
+                  />
                 </div>
               )}
               {state.frameMode === "custom" && (

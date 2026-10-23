@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   type CustomOverlay,
+  getOverlay,
   normalizeMediaTransform,
   normalizePhotoTransform,
   products,
@@ -204,7 +205,7 @@ describe("WanderBooth session rules", () => {
     expect(state.overlayId).toBe("none");
   });
 
-  it("offers only overlays compatible with the selected layout", () => {
+  it("rejects incompatible artwork and retired decoration selections", () => {
     let state = beginSelection();
     state = reduceCommand(
       state,
@@ -219,10 +220,47 @@ describe("WanderBooth session rules", () => {
     expect(() =>
       reduceCommand(state, { type: "SELECT_OVERLAY", overlayId: "film-edge" }, "attendant"),
     ).toThrow("not compatible");
-    expect(
-      reduceCommand(state, { type: "SELECT_OVERLAY", overlayId: "love-hearts" }, "attendant")
-        .overlayId,
-    ).toBe("love-hearts");
+    expect(() =>
+      reduceCommand(state, { type: "SELECT_OVERLAY", overlayId: "love-hearts" }, "attendant"),
+    ).toThrow("no longer available");
+  });
+
+  it.each(["selecting", "reviewing"] as const)(
+    "clears legacy decorations when choosing a color in %s",
+    (phase) => {
+      const state = {
+        ...completeSelection(),
+        phase,
+        overlayId: "film-edge",
+      };
+      const changed = reduceCommand(
+        state,
+        { type: "SELECT_DESIGN", designId: "midnight-film" },
+        "attendant",
+      );
+      expect(changed.overlayId).toBe("none");
+      expect(changed.designId).toBe("midnight-film");
+      const modeChanged = reduceCommand(
+        state,
+        { type: "SELECT_FRAME_MODE", frameMode: "color" },
+        "attendant",
+      );
+      expect(modeChanged.overlayId).toBe("none");
+      // Existing records are not migrated or mutated, and their renderer lookup survives.
+      expect(state.overlayId).toBe("film-edge");
+      expect(getOverlay(state.overlayId)?.kind).toBe("film");
+    },
+  );
+
+  it.each([
+    ["film-edge", "double-strip-4x6"],
+    ["party-confetti", "double-strip-4x6"],
+    ["love-hearts", "heart-portrait-4x6"],
+  ])("rejects retired %s even when the layout is compatible", (overlayId, layoutId) => {
+    const state = { ...completeSelection(), phase: "reviewing" as const, layoutId };
+    expect(() => reduceCommand(state, { type: "SELECT_OVERLAY", overlayId }, "attendant")).toThrow(
+      "no longer available",
+    );
   });
 
   it("registers an imported overlay and limits it to its chosen layout", () => {

@@ -57,7 +57,7 @@ Template administration remains staff-only in both modes. Customers select only 
 
 1. The operator opens the correct event and optionally records the next customer/group name.
 2. The operator chooses an approved event template, or chooses the product manually.
-3. A saved template restores its layout, photo count, imported frame, and prepared placements automatically. In the manual path, the operator chooses a compatible layout and either a fixed colored frame with an optional built-in decoration or one imported custom frame.
+3. A saved template restores its layout, photo count, imported frame, and prepared placements automatically. In the manual path, the operator chooses a compatible layout and either a fixed colored frame or one imported custom frame. Built-in decorations are no longer offered; per-photo filters remain available after capture.
 4. WanderBooth loads and shows the photo count required by that product/layout.
 5. The operator explains the privacy notice and records the customer's consent.
 6. The operator confirms cash received.
@@ -108,8 +108,8 @@ See [iPad setup](IPAD_SETUP.md) for the exact Safari and Sidecar steps.
 - Every initial photo and replacement uses the same Host-controlled three-second countdown on all connected screens.
 - The live posing preview is mirrored; saved, printed, and downloadable photos are not mirrored.
 - The initial rule remains up to two retake/replacement actions per session; whether that limit is shared across all slots remains configurable until finalized.
-- Choosing a custom frame clears the fixed color and built-in decoration; choosing a fixed color clears the custom frame. The two frame sources cannot be combined accidentally.
-- Changing a compatible frame or built-in decoration re-renders existing accepted captures and does not consume a retake.
+- Choosing a custom frame clears the fixed color; choosing a fixed color clears the custom frame and any legacy decoration. The two frame sources cannot be combined accidentally.
+- Changing a compatible frame or photo filter re-renders existing accepted captures and does not consume a retake.
 - Source-photo cards use the capture's full aspect ratio rather than cropping it into a decorative review card. Cropping happens only inside the visible final-layout slots, where the operator can inspect it directly.
 - Custom alignment stores one transform for the imported artwork, one photo-frame transform per holder, and one image-crop transform per holder. Each records position, scale, rotation, and a lock flag. Repeated holders can show the same capture without sharing these transforms. Frame holders may store independent width/height crop geometry, while image-crop scale is normalized to one proportional value so the photograph cannot be stretched. The operator manipulates these objects directly on the preview; editor guides never appear in the output.
 - Before capture, changing the product/layout recalculates the required count automatically.

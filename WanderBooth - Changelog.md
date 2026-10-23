@@ -18,6 +18,23 @@ The format follows the spirit of [Keep a Changelog](https://keepachangelog.com/e
 
 ## Unreleased
 
+## 0.17.1 — 2026-10-23
+
+### Changed
+
+- Removed the built-in decoration menu from initial frame selection and the Detail choices from review. Imported custom frames, prepared templates, photo filters, and existing generated photos are unchanged.
+- Selecting a fixed color now always clears any legacy decoration. New built-in decoration commands are rejected by the Host; legacy records retain rendering support without a destructive migration.
+
+### Fixed
+
+- Midnight Film and Ruby Cream now show the same blue outline and visible selection label as every other frame color. The selection indicator no longer depends on the frame's cream accent.
+- Shared color controls keep selection and review consistent, expose the selected state to assistive technology, and show a checkmark on the review swatch.
+
+### Verified
+
+- All 89 tests, formatting/lint checks, and Host/web/cloud builds passed. An isolated browser session verified both affected colors, retained filters/imported-frame controls, and completed a synthetic three-photo set.
+- Built and verified the unsigned Apple-silicon 0.17.1 DMG; confirmed the packaged version and bundled Sharp JPEG generation. See the [frame-color test record](docs/test-records/2026-10-23-frame-color-cleanup.md).
+
 ## 0.17.0 — 2026-10-23
 
 ### Added

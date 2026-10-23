@@ -2,15 +2,15 @@
 
 **Status:** Working Phase 0 catalog
 
-**Version:** 0.9.0
+**Version:** 0.17.1
 
-**Updated:** 2026-10-02
+**Updated:** 2026-10-23
 
 WanderBooth separates four ideas that are often combined into one flattened “template” image:
 
 1. **Layout:** where each captured photo appears, how many unique photos are required, the canvas orientation, and whether a capture is repeated.
 2. **Frame:** either a generated fixed-color WanderBooth treatment or one imported custom event design. These are mutually exclusive choices.
-3. **Built-in decoration:** an optional film, confetti, or heart treatment available only with a fixed-color frame.
+3. **Photo filter:** a per-photo adjustment chosen after capture, separate from the layout and frame artwork.
 4. **Saved template:** an approved setup that combines one product/layout with imported artwork plus every saved artwork, photo-holder, and default crop placement. A master belongs to the reusable Template Library; an event template is an isolated copy for one booking.
 
 This separation lets one layout work with many colors and event themes without duplicating photo-placement logic. A custom frame never stacks on top of a selected color frame.
@@ -76,14 +76,9 @@ When staff create an event, WanderBooth copies every master in the selected star
 - Midnight Film
 - Ruby Cream
 
-### Built-in decorations
+The selection screen first asks for **Fixed colored frame** or **Imported custom frame**. Fixed color exposes only the five frame colors. Every selected color has the same blue outline and a checkmark/selection label, including Midnight Film and Ruby Cream. Imported custom hides the colors and shows only approved custom frames for that layout. Changing one mode clears the incompatible choice, so the final renderer always has one unambiguous frame source.
 
-- No overlay
-- Film edge
-- Party confetti
-- Love hearts
-
-The selection screen first asks for **Fixed colored frame** or **Imported custom frame**. Fixed color exposes the color and compatible decoration menus. Imported custom hides the colors and shows only approved custom frames for that layout. Changing one mode clears the incompatible choice, so the final renderer always has one unambiguous frame source.
+Built-in film-edge, confetti, and heart decorations were retired in 0.17.1 from both selection and review. Use the per-photo filters during review or prepare an imported custom frame for decorative artwork. Choosing a color clears any old decoration. The Host rejects new decoration commands, but retains the legacy catalog/rendering support so existing session records and already-generated outputs are not rewritten. Saved custom templates and their artwork are unchanged.
 
 The Mac operator can also import a PNG, JPEG, or WebP event design after choosing a layout. Imported designs are stored only in WanderBooth's private local runtime data, survive application restarts, and are not committed to GitHub.
 

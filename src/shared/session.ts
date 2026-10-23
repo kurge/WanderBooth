@@ -1161,21 +1161,18 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
             ? currentOverlay?.kind === "custom"
               ? currentOverlay.id
               : "none"
-            : currentOverlay?.kind === "custom"
-              ? "none"
-              : state.overlayId,
+            : "none",
         frameTransform: identityMediaTransform(),
       });
     }
     case "SELECT_DESIGN": {
       requirePhase(state, ["selecting", "reviewing"]);
       if (!getDesign(command.designId)) throw new CommandError("That design is not available.");
-      const currentOverlay = getOverlay(state.overlayId, state.customOverlays);
       return revised(state, {
         frameMode: "color",
         selectedTemplateId: null,
         designId: command.designId,
-        overlayId: currentOverlay?.kind === "custom" ? "none" : state.overlayId,
+        overlayId: "none",
         frameTransform: identityMediaTransform(),
       });
     }
@@ -1185,6 +1182,12 @@ export function reduceCommand(state: BoothState, command: Command, actor: Actor)
       const overlay = getOverlay(command.overlayId, state.customOverlays);
       if (!layout || !overlay || !overlaySupportsLayout(overlay, layout.id)) {
         throw new CommandError("That overlay is not compatible with the selected layout.");
+      }
+      // Keep legacy artwork renderable, but do not offer new decoration selections.
+      if (overlay.kind !== "none" && overlay.kind !== "custom") {
+        throw new CommandError(
+          "Built-in decorations are no longer available. Choose a frame color or an imported frame.",
+        );
       }
       return revised(state, {
         frameMode: overlay.kind === "custom" ? "custom" : "color",
